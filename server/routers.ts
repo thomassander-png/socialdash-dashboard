@@ -12,6 +12,7 @@ import {
   getAvailableMonths,
   checkDatabaseHealth,
 } from "./facebook-db";
+import { generateReport } from "./report-generator";
 
 export const appRouter = router({
   system: systemRouter,
@@ -85,6 +86,40 @@ export const appRouter = router({
       }))
       .query(async ({ input }) => {
         return getTopPosts(input.month, input.limit);
+      }),
+  }),
+
+  // Report generation
+  reports: router({
+    // Generate PPTX report
+    generate: publicProcedure
+      .input(z.object({
+        clientName: z.string().min(1, "Client name is required"),
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format"),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const pptxBuffer = await generateReport({
+            clientName: input.clientName,
+            reportMonth: input.month,
+          });
+          
+          // Convert buffer to base64 for transmission
+          const base64 = pptxBuffer.toString('base64');
+          
+          return {
+            success: true,
+            filename: `report_${input.clientName.toLowerCase().replace(/\s+/g, '_')}_${input.month}.pptx`,
+            data: base64,
+            mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          };
+        } catch (error: any) {
+          console.error('Report generation failed:', error);
+          return {
+            success: false,
+            error: error.message || 'Report generation failed',
+          };
+        }
       }),
   }),
 

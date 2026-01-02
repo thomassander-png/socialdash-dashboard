@@ -12,6 +12,10 @@ import { Pool } from 'pg';
 // Lazy-initialized PostgreSQL pool for Facebook data
 let pgPool: Pool | null = null;
 
+export function getFacebookPool(): Pool | null {
+  return getPool();
+}
+
 function getPool(): Pool | null {
   if (!pgPool && process.env.FACEBOOK_DATABASE_URL) {
     try {

@@ -2,12 +2,16 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Download,
   FileSpreadsheet,
+  Presentation,
   Calendar,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -37,6 +41,8 @@ function formatDate(date: Date | string): string {
 export default function Exports() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [isExporting, setIsExporting] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [clientName, setClientName] = useState("");
   
   const { data: availableMonths } = trpc.facebook.availableMonths.useQuery();
   const { data: kpis } = trpc.facebook.monthlyKPIs.useQuery(
@@ -47,6 +53,8 @@ export default function Exports() {
     { month: selectedMonth, limit: 100 },
     { enabled: !!selectedMonth }
   );
+
+  const generateReportMutation = trpc.reports.generate.useMutation();
 
   const monthOptions = useMemo(() => {
     if (availableMonths && availableMonths.length > 0) {
@@ -186,6 +194,53 @@ export default function Exports() {
     }
   };
 
+  const handleGenerateReport = async () => {
+    if (!clientName.trim()) {
+      toast.error("Bitte geben Sie einen Kundennamen ein");
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    
+    try {
+      const result = await generateReportMutation.mutateAsync({
+        clientName: clientName.trim(),
+        month: selectedMonth,
+      });
+
+      if (result.success && result.data) {
+        // Convert base64 to blob and download
+        const binaryString = atob(result.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: result.mimeType });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = result.filename || `report-${selectedMonth}.pptx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast.success("Report erfolgreich generiert", {
+          description: `PPTX-Datei wurde heruntergeladen`
+        });
+      } else {
+        throw new Error(result.error || "Report generation failed");
+      }
+    } catch (error: any) {
+      toast.error("Report-Generierung fehlgeschlagen", {
+        description: error.message || "Bitte versuchen Sie es erneut"
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   const hasData = posts && posts.length > 0;
 
   return (
@@ -197,7 +252,7 @@ export default function Exports() {
             Exports
           </h1>
           <p className="text-muted-foreground mt-1">
-            Monatliche Reports als CSV exportieren
+            Monatliche Reports als CSV oder PPTX exportieren
           </p>
         </div>
         
@@ -215,7 +270,74 @@ export default function Exports() {
         </Select>
       </div>
 
-      {/* Export Options */}
+      {/* PPTX Report Card */}
+      <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Presentation className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-display">PPTX Report Generator</CardTitle>
+              <CardDescription>
+                Automatisch generierter Famefact-Style Report
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="clientName">Kundenname</Label>
+              <Input
+                id="clientName"
+                placeholder="z.B. Muster GmbH"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Berichtsmonat</Label>
+              <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-background">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>{formatMonthDisplay(selectedMonth)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p><strong>Der Report enthält:</strong></p>
+            <ul className="list-disc list-inside space-y-0.5 ml-2">
+              <li>Cover-Slide mit Kundenname und Monat</li>
+              <li>Facebook KPI-Tabelle (Reichweite, Interaktionen, etc.)</li>
+              <li>Top Posts nach Interaktionen</li>
+              <li>Top Videos nach 3-Sekunden-Views</li>
+              <li>Fazit-Slide mit Zusammenfassung</li>
+            </ul>
+          </div>
+
+          <Button 
+            onClick={handleGenerateReport}
+            disabled={!clientName.trim() || isGeneratingReport}
+            className="w-full md:w-auto"
+            size="lg"
+          >
+            {isGeneratingReport ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generiere Report...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                PPTX Report generieren
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* CSV Export Options */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Posts Export */}
         <Card className="bg-card border-border/50">
@@ -331,6 +453,7 @@ export default function Exports() {
                 <li>Shares sind als "Limited" markiert, da nicht für alle Posts verfügbar</li>
                 <li>Saves werden nicht exportiert (nicht über Graph API verfügbar)</li>
                 <li>Interaktionen = Reactions + Comments (ohne Shares)</li>
+                <li>PPTX-Reports enthalten Thumbnails, sofern in der Datenbank gecacht</li>
               </ul>
             </div>
           </div>
