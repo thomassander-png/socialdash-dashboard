@@ -45,3 +45,12 @@
 - [x] Implement IG media_url/thumbnail_url fetching
 - [ ] Optional: Implement storage caching for thumbnails (Supabase Storage)
 - [x] Update collector logging for preview statistics
+
+## Supabase Setup (Completed)
+- [x] Created Supabase project (gbjqrnoewwstnyuxflab)
+- [x] Executed migration 001_init.sql (fb_pages, fb_posts, fb_post_metrics, fb_monthly_post_summary)
+- [x] Executed migration 002_views.sql (view_fb_post_latest_metrics, view_fb_monthly_post_metrics)
+- [x] Executed migration 003_instagram.sql (ig_accounts, ig_posts, ig_post_metrics, ig_monthly_post_summary)
+- [x] Executed migration 004_media_urls.sql (media_url, thumbnail_url columns)
+- [x] Configured FACEBOOK_DATABASE_URL in dashboard
+- [x] Verified database connection (12 tests passing)
