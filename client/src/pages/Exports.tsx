@@ -99,8 +99,8 @@ export default function Exports() {
       const rows = posts.map(post => [
         post.post_id,
         post.page_id,
-        formatDate(post.post_created_time),
-        post.post_type || "",
+        formatDate(post.created_time),
+        post.type || "",
         `"${(post.message || "").replace(/"/g, '""')}"`,
         post.reactions_total,
         post.comments_total,

@@ -240,7 +240,7 @@ export default function Facebook() {
                             {post.message || "(Kein Text)"}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(post.post_created_time)}
+                            {formatDate(post.created_time)}
                           </p>
                         </div>
                       </TableCell>

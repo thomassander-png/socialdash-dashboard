@@ -52,8 +52,8 @@ export interface FacebookPost {
 export interface PostMetrics {
   post_id: string;
   page_id: string;
-  post_created_time: Date;
-  post_type: string | null;
+  created_time: Date;
+  type: string | null;
   permalink: string | null;
   message: string | null;
   snapshot_time: Date;
@@ -169,15 +169,15 @@ export async function getMonthlyPosts(
   // Build dynamic ORDER BY
   let orderColumn = 'interactions_total';
   if (sortBy === 'reach') orderColumn = 'reach';
-  if (sortBy === 'date') orderColumn = 'post_created_time';
+  if (sortBy === 'date') orderColumn = 'created_time';
   
   try {
     let query = `
       SELECT 
         post_id,
         page_id,
-        post_created_time,
-        post_type,
+        created_time,
+        type,
         permalink,
         message,
         snapshot_time,
@@ -188,7 +188,7 @@ export async function getMonthlyPosts(
         impressions,
         video_3s_views,
         shares_limited,
-        interactions_total
+        (COALESCE(reactions_total, 0) + COALESCE(comments_total, 0)) as interactions_total
       FROM view_fb_monthly_post_metrics
       WHERE month = $1::date
     `;
@@ -203,7 +203,7 @@ export async function getMonthlyPosts(
     }
     
     if (postType) {
-      query += ` AND post_type = $${paramIndex}`;
+      query += ` AND type = $${paramIndex}`;
       params.push(postType);
       paramIndex++;
     }

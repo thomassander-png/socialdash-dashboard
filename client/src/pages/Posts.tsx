@@ -241,7 +241,7 @@ export default function Posts() {
                       <TableRow key={post.post_id} className="border-border/50">
                         <TableCell>
                           <div className="flex items-center justify-center h-8 w-8 rounded bg-secondary text-muted-foreground">
-                            {getPostTypeIcon(post.post_type)}
+                            {getPostTypeIcon(post.type)}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -250,10 +250,10 @@ export default function Posts() {
                               {post.message || "(Kein Text)"}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {formatDate(post.post_created_time)}
-                              {post.post_type && (
+                              {formatDate(post.created_time)}
+                              {post.type && (
                                 <span className="ml-2 px-1.5 py-0.5 rounded bg-secondary text-xs">
-                                  {post.post_type}
+                                  {post.type}
                                 </span>
                               )}
                             </p>
