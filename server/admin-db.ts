@@ -316,6 +316,54 @@ export async function updateReport(
   return result.rows[0] || null;
 }
 
+// ==================== Customer Seeding ====================
+
+export interface SeedCustomer {
+  name: string;
+  slug: string;
+}
+
+export async function seedCustomers(customers: SeedCustomer[]): Promise<{
+  inserted: number;
+  updated: number;
+  errors: string[];
+}> {
+  const p = getPool();
+  let inserted = 0;
+  let updated = 0;
+  const errors: string[] = [];
+
+  for (const customer of customers) {
+    try {
+      // Check if customer exists by name or slug
+      const existing = await p.query(
+        `SELECT customer_id FROM customers WHERE LOWER(name) = LOWER($1)`,
+        [customer.name]
+      );
+
+      if (existing.rows.length > 0) {
+        // Update existing customer
+        await p.query(
+          `UPDATE customers SET updated_at = NOW() WHERE customer_id = $1`,
+          [existing.rows[0].customer_id]
+        );
+        updated++;
+      } else {
+        // Insert new customer
+        await p.query(
+          `INSERT INTO customers (name) VALUES ($1)`,
+          [customer.name]
+        );
+        inserted++;
+      }
+    } catch (error: any) {
+      errors.push(`Failed to seed customer "${customer.name}": ${error.message}`);
+    }
+  }
+
+  return { inserted, updated, errors };
+}
+
 // ==================== Admin Check ====================
 
 export async function isUserAdmin(userId: string): Promise<boolean> {

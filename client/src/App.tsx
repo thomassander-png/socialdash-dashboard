@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Overview from "./pages/Overview";
 import Facebook from "./pages/Facebook";
+import Instagram from "./pages/Instagram";
 import Posts from "./pages/Posts";
 import Exports from "./pages/Exports";
 import AdminCustomers from "./pages/admin/Customers";
@@ -18,6 +19,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Overview} />
       <Route path="/facebook" component={Facebook} />
+      <Route path="/instagram" component={Instagram} />
+      <Route path="/instagram-insights" component={Instagram} />
       <Route path="/posts" component={Posts} />
       <Route path="/exports" component={Exports} />
       {/* Admin routes */}

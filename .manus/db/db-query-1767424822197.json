@@ -1,0 +1,9 @@
+{
+  "query": "SELECT * FROM ig_accounts LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user yFD1LgCQZpYvvRU.bf8f809b86e6 --database TNJ63V8zyGtgPp2otD5Au5 --execute SELECT * FROM ig_accounts LIMIT 5;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 90
+}

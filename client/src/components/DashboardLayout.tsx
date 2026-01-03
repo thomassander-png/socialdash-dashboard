@@ -26,6 +26,7 @@ import {
   LogOut, 
   PanelLeft, 
   Facebook, 
+  Instagram,
   FileText, 
   Download,
   BarChart3,
@@ -43,6 +44,7 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Facebook, label: "Facebook", path: "/facebook" },
+  { icon: Instagram, label: "Instagram", path: "/instagram" },
   { icon: FileText, label: "Posts", path: "/posts" },
   { icon: Download, label: "Exports", path: "/exports" },
 ];

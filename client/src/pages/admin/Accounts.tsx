@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -94,7 +93,7 @@ export default function AdminAccounts() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Link2 className="h-6 w-6 text-cyan-400" />
+          <Link2 className="h-6 w-6 text-primary" />
           Account-Zuordnung
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -111,7 +110,7 @@ export default function AdminAccounts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-cyan-400">
+            <div className="text-3xl font-bold text-primary">
               {accounts?.length ?? 0}
             </div>
           </CardContent>
@@ -132,12 +131,12 @@ export default function AdminAccounts() {
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Instagram className="h-4 w-4 text-pink-400" />
+              <Instagram className="h-4 w-4 text-secondary" />
               Instagram
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-pink-400">{igCount}</div>
+            <div className="text-3xl font-bold text-secondary">{igCount}</div>
           </CardContent>
         </Card>
 
@@ -218,6 +217,9 @@ export default function AdminAccounts() {
                 Führen Sie den Account Discovery Workflow aus, um Accounts zu
                 erkennen.
               </p>
+              <p className="text-xs mt-4 font-mono bg-muted/50 p-2 rounded inline-block">
+                python -m src.main --mode discover
+              </p>
             </div>
           ) : (
             <Table>
@@ -239,7 +241,7 @@ export default function AdminAccounts() {
                         {account.platform === "facebook" ? (
                           <Facebook className="h-4 w-4 text-blue-400" />
                         ) : (
-                          <Instagram className="h-4 w-4 text-pink-400" />
+                          <Instagram className="h-4 w-4 text-secondary" />
                         )}
                         <span className="capitalize">{account.platform}</span>
                       </div>
@@ -298,7 +300,7 @@ export default function AdminAccounts() {
                     </TableCell>
                     <TableCell className="text-center">
                       {account.customer_id ? (
-                        <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                        <Badge className="bg-primary/20 text-primary border-primary/50">
                           <CheckCircle2 className="h-3 w-3 mr-1" />
                           Zugeordnet
                         </Badge>

@@ -93,3 +93,35 @@
 - [x] Create monthly GitHub Actions workflow (3rd of month, 06:00 UTC) - needs manual upload
 - [x] Generate reports for all active customers (generate_reports mode)
 - [x] Save to reports/ directory with customer name and month
+
+
+## Final Setup Tasks (Task 5)
+- [ ] Add GitHub Actions workflow for monthly reports (generate_reports.yml)
+- [ ] Cache Instagram data from Graph API
+- [ ] Create additional customers and assign accounts
+- [ ] Test complete system end-to-end
+
+
+## Customer Seeding & Account Discovery (Task 6)
+
+### A) DB: Seed/Import für Kunden
+- [x] Create seed_customers.json with all customer data
+- [x] Implement seed-runner script (upsert customers by slug)
+- [ ] Execute seed to populate customers table
+
+### B) Collector: Accounts automatisch discovern
+- [x] Verify discover mode in collector fetches all FB Pages via /me/accounts
+- [x] Verify discover mode fetches instagram_business_account for each page
+- [x] Verify accounts are upserted to customer_accounts with customer_id=NULL
+
+### C) Admin UI: Account-Zuordnung
+- [x] Verify /admin/customers shows all seeded customers (with seed button)
+- [x] Verify /admin/accounts shows all discovered accounts
+- [x] Verify dropdown allows manual assignment of accounts to customers
+
+
+## Instagram Insights Design Fix (Task 7)
+- [x] Fix Instagram Insights page design at /instagram-insights
+- [x] Create Instagram page with famefact design (lime green primary)
+- [x] Add Instagram to sidebar navigation
+- [x] Create Instagram tRPC routes and database helpers

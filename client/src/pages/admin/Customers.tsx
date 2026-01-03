@@ -30,7 +30,24 @@ import {
   Building2,
   Facebook,
   Instagram,
+  Upload,
+  Loader2,
 } from "lucide-react";
+
+// Seed customers data
+const SEED_CUSTOMERS = [
+  { name: "Vergleich.org", slug: "vergleich-org" },
+  { name: "Annie & Jane", slug: "annie-jane" },
+  { name: "CASIO G-SHOCK", slug: "casio-g-shock" },
+  { name: "Köstritzer", slug: "koestritzer" },
+  { name: "flatexDEGIRO AG", slug: "flatexdegiro" },
+  { name: "Sixt Leasing", slug: "sixt-leasing" },
+  { name: "Vattenfall", slug: "vattenfall" },
+  { name: "REWE", slug: "rewe" },
+  { name: "AUTOHERO", slug: "autohero" },
+  { name: "Fleurop", slug: "fleurop" },
+  { name: "Oxford", slug: "oxford" },
+];
 
 export default function AdminCustomers() {
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -78,6 +95,21 @@ export default function AdminCustomers() {
     },
   });
 
+  const seedCustomers = trpc.admin.customers.seed.useMutation({
+    onSuccess: (result) => {
+      toast.success(
+        `Seed abgeschlossen: ${result.inserted} neu, ${result.updated} aktualisiert`
+      );
+      if (result.errors.length > 0) {
+        result.errors.forEach((err) => toast.error(err));
+      }
+      utils.admin.customers.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`Seed fehlgeschlagen: ${error.message}`);
+    },
+  });
+
   const handleCreate = () => {
     if (!newCustomerName.trim()) {
       toast.error("Bitte geben Sie einen Namen ein");
@@ -114,13 +146,23 @@ export default function AdminCustomers() {
     }
   };
 
+  const handleSeedCustomers = () => {
+    if (
+      confirm(
+        `Möchten Sie ${SEED_CUSTOMERS.length} Kunden aus der Seed-Datei importieren? Bestehende Kunden werden aktualisiert.`
+      )
+    ) {
+      seedCustomers.mutate({ customers: SEED_CUSTOMERS });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-cyan-400" />
+            <Building2 className="h-6 w-6 text-primary" />
             Kundenverwaltung
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -128,42 +170,58 @@ export default function AdminCustomers() {
           </p>
         </div>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-cyan-500 hover:bg-cyan-600 text-black">
-              <Plus className="h-4 w-4 mr-2" />
-              Neuer Kunde
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Neuen Kunden erstellen</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <Input
-                placeholder="Kundenname"
-                value={newCustomerName}
-                onChange={(e) => setNewCustomerName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-              >
-                Abbrechen
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSeedCustomers}
+            disabled={seedCustomers.isPending}
+            className="border-secondary text-secondary hover:bg-secondary/10"
+          >
+            {seedCustomers.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            Kunden importieren
+          </Button>
+
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Plus className="h-4 w-4 mr-2" />
+                Neuer Kunde
               </Button>
-              <Button
-                onClick={handleCreate}
-                disabled={createCustomer.isPending}
-                className="bg-cyan-500 hover:bg-cyan-600 text-black"
-              >
-                {createCustomer.isPending ? "Erstelle..." : "Erstellen"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Neuen Kunden erstellen</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  placeholder="Kundenname"
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={createCustomer.isPending}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {createCustomer.isPending ? "Erstelle..." : "Erstellen"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -176,7 +234,7 @@ export default function AdminCustomers() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-cyan-400">
+            <div className="text-3xl font-bold text-primary">
               {customers?.length ?? 0}
             </div>
           </CardContent>
@@ -207,7 +265,7 @@ export default function AdminCustomers() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-pink-400">
+            <div className="text-3xl font-bold text-secondary">
               {customers?.reduce(
                 (sum, c) => sum + (c.ig_account_count ?? 0),
                 0
@@ -229,7 +287,11 @@ export default function AdminCustomers() {
             </div>
           ) : customers?.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Keine Kunden vorhanden. Erstellen Sie Ihren ersten Kunden.
+              <p>Keine Kunden vorhanden.</p>
+              <p className="mt-2">
+                Klicken Sie auf "Kunden importieren" um die Seed-Datei zu laden,
+                oder erstellen Sie einen neuen Kunden.
+              </p>
             </div>
           ) : (
             <Table>
@@ -260,14 +322,14 @@ export default function AdminCustomers() {
                     <TableCell className="text-center">
                       <Badge
                         variant="outline"
-                        className="border-pink-500/50 text-pink-400"
+                        className="border-secondary/50 text-secondary"
                       >
                         {customer.ig_account_count ?? 0}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
                       {(customer.total_account_count ?? 0) > 0 ? (
-                        <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                        <Badge className="bg-primary/20 text-primary border-primary/50">
                           Konfiguriert
                         </Badge>
                       ) : (
@@ -353,7 +415,7 @@ export default function AdminCustomers() {
             <Button
               onClick={handleUpdate}
               disabled={updateCustomer.isPending}
-              className="bg-cyan-500 hover:bg-cyan-600 text-black"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {updateCustomer.isPending ? "Speichere..." : "Speichern"}
             </Button>

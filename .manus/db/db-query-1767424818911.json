@@ -1,0 +1,43 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user yFD1LgCQZpYvvRU.bf8f809b86e6 --database TNJ63V8zyGtgPp2otD5Au5 --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "customer_accounts"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "customers"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "fb_pages"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "fb_post_metrics"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "fb_posts"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "ig_accounts"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "ig_post_metrics"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "ig_posts"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "reports"
+    },
+    {
+      "Tables_in_TNJ63V8zyGtgPp2otD5Au5": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_TNJ63V8zyGtgPp2otD5Au5\n__drizzle_migrations\ncustomer_accounts\ncustomers\nfb_pages\nfb_post_metrics\nfb_posts\nig_accounts\nig_post_metrics\nig_posts\nreports\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 63
+}

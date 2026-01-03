@@ -12,6 +12,14 @@ import {
   getAvailableMonths,
   checkDatabaseHealth,
 } from "./facebook-db";
+import {
+  getInstagramAccounts,
+  getInstagramMonthlyStats,
+  getInstagramMonthlyPosts,
+  getInstagramTopPosts,
+  getInstagramMonthlyKPIs,
+  getInstagramAvailableMonths,
+} from "./instagram-db";
 import { generateReport } from "./report-generator";
 import {
   getCustomers,
@@ -27,6 +35,8 @@ import {
   createReport,
   updateReport,
   isUserAdmin,
+  seedCustomers,
+  type SeedCustomer,
 } from "./admin-db";
 
 export const appRouter = router({
@@ -101,6 +111,69 @@ export const appRouter = router({
       }))
       .query(async ({ input }) => {
         return getTopPosts(input.month, input.limit);
+      }),
+  }),
+
+  // Instagram data routes
+  instagram: router({
+    // Get all tracked accounts
+    accounts: publicProcedure.query(async () => {
+      return getInstagramAccounts();
+    }),
+
+    // Get available months with data
+    availableMonths: publicProcedure.query(async () => {
+      return getInstagramAvailableMonths();
+    }),
+
+    // Get monthly KPIs (aggregated across all accounts)
+    monthlyKPIs: publicProcedure
+      .input(z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getInstagramMonthlyKPIs(input.month);
+      }),
+
+    // Get monthly stats per account
+    monthlyStats: publicProcedure
+      .input(z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getInstagramMonthlyStats(input.month);
+      }),
+
+    // Get posts with filters and sorting
+    posts: publicProcedure
+      .input(z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format"),
+        accountId: z.string().optional(),
+        mediaType: z.string().optional(),
+        sortBy: z.enum(['interactions', 'reach', 'date', 'likes', 'saves']).default('interactions'),
+        sortOrder: z.enum(['asc', 'desc']).default('desc'),
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      }))
+      .query(async ({ input }) => {
+        return getInstagramMonthlyPosts(input.month, {
+          accountId: input.accountId,
+          mediaType: input.mediaType,
+          sortBy: input.sortBy,
+          sortOrder: input.sortOrder,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+
+    // Get top posts for a month
+    topPosts: publicProcedure
+      .input(z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format"),
+        limit: z.number().min(1).max(20).default(5),
+      }))
+      .query(async ({ input }) => {
+        return getInstagramTopPosts(input.month, input.limit);
       }),
   }),
 
@@ -193,6 +266,26 @@ export const appRouter = router({
         .input(z.object({ customerId: z.string().uuid() }))
         .mutation(async ({ input }) => {
           return deleteCustomer(input.customerId);
+        }),
+
+      // Seed customers from JSON array (admin only)
+      seed: publicProcedure
+        .input(z.object({
+          customers: z.array(z.object({
+            name: z.string().min(1),
+            slug: z.string().min(1),
+          })),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          // Check admin access
+          if (!ctx.user) {
+            throw new Error('Unauthorized');
+          }
+          const isAdmin = await isUserAdmin(ctx.user.openId);
+          if (!isAdmin) {
+            throw new Error('Admin access required');
+          }
+          return seedCustomers(input.customers);
         }),
     }),
 
