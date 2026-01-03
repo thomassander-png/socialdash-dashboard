@@ -3,7 +3,9 @@
  * Generates monthly reports from cached Facebook and Instagram data.
  */
 
-import PptxGenJS from 'pptxgenjs';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const PptxGenJS = require('pptxgenjs');
 import { getFacebookPool } from './facebook-db';
 
 // Famefact Brand Colors
@@ -213,7 +215,7 @@ export async function generateReport(config: ReportConfig): Promise<Buffer> {
     });
 
     const stats = fbData.stats;
-    const kpis: PptxGenJS.TableRow[] = [
+    const kpis: Array<Array<{text: string}>> = [
       [{ text: 'KPI' }, { text: germanMonth }],
       [{ text: 'Post-Reichweite' }, { text: formatNumber(stats.total_reach) }],
       [{ text: 'Ø Reichweite pro Post' }, { text: formatNumber(stats.avg_reach_per_post) }],

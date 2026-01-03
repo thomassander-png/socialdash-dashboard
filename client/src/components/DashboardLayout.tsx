@@ -28,8 +28,13 @@ import {
   Facebook, 
   FileText, 
   Download,
-  BarChart3
+  BarChart3,
+  Building2,
+  Link2,
+  FileBarChart,
+  Settings
 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -40,6 +45,12 @@ const menuItems = [
   { icon: Facebook, label: "Facebook", path: "/facebook" },
   { icon: FileText, label: "Posts", path: "/posts" },
   { icon: Download, label: "Exports", path: "/exports" },
+];
+
+const adminMenuItems = [
+  { icon: Building2, label: "Kunden", path: "/admin/customers" },
+  { icon: Link2, label: "Accounts", path: "/admin/accounts" },
+  { icon: FileBarChart, label: "Reports", path: "/admin/reports" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -125,8 +136,12 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const allMenuItems = [...menuItems, ...adminMenuItems];
+  const activeMenuItem = allMenuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  
+  // Check if user is admin
+  const { data: isAdmin } = trpc.admin.isAdmin.useQuery();
 
   useEffect(() => {
     if (isCollapsed) {
@@ -217,6 +232,42 @@ function DashboardLayoutContent({
                 );
               })}
             </SidebarMenu>
+            
+            {/* Admin Section */}
+            {isAdmin && (
+              <>
+                <div className="px-4 py-3 mt-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <Settings className="h-3 w-3" />
+                    {!isCollapsed && <span>Admin</span>}
+                  </div>
+                </div>
+                <SidebarMenu className="px-2 py-1 space-y-1">
+                  {adminMenuItems.map(item => {
+                    const isActive = location === item.path;
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => setLocation(item.path)}
+                          tooltip={item.label}
+                          className={`h-10 transition-all font-normal ${
+                            isActive 
+                              ? "bg-primary/10 text-primary border-l-2 border-primary" 
+                              : "hover:bg-accent/50"
+                          }`}
+                        >
+                          <item.icon
+                            className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                          />
+                          <span className={isActive ? "font-medium" : ""}>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </>
+            )}
           </SidebarContent>
 
           <SidebarFooter className="p-3 border-t border-border/50">

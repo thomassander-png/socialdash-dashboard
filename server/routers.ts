@@ -13,6 +13,21 @@ import {
   checkDatabaseHealth,
 } from "./facebook-db";
 import { generateReport } from "./report-generator";
+import {
+  getCustomers,
+  getCustomer,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  getCustomerAccounts,
+  assignAccountToCustomer,
+  toggleAccountActive,
+  getReports,
+  getReport,
+  createReport,
+  updateReport,
+  isUserAdmin,
+} from "./admin-db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -131,6 +146,168 @@ export const appRouter = router({
       timestamp: new Date().toISOString(),
       database: dbHealth,
     };
+  }),
+
+  // Admin routes
+  admin: router({
+    // Check if current user is admin
+    isAdmin: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return false;
+      return isUserAdmin(ctx.user.openId);
+    }),
+
+    // Customer management
+    customers: router({
+      list: publicProcedure
+        .input(z.object({ activeOnly: z.boolean().default(false) }).optional())
+        .query(async ({ input }) => {
+          return getCustomers(input?.activeOnly ?? false);
+        }),
+
+      get: publicProcedure
+        .input(z.object({ customerId: z.string().uuid() }))
+        .query(async ({ input }) => {
+          return getCustomer(input.customerId);
+        }),
+
+      create: publicProcedure
+        .input(z.object({ name: z.string().min(1, "Name is required") }))
+        .mutation(async ({ input }) => {
+          return createCustomer(input.name);
+        }),
+
+      update: publicProcedure
+        .input(z.object({
+          customerId: z.string().uuid(),
+          name: z.string().min(1).optional(),
+          isActive: z.boolean().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          return updateCustomer(input.customerId, {
+            name: input.name,
+            is_active: input.isActive,
+          });
+        }),
+
+      delete: publicProcedure
+        .input(z.object({ customerId: z.string().uuid() }))
+        .mutation(async ({ input }) => {
+          return deleteCustomer(input.customerId);
+        }),
+    }),
+
+    // Account management
+    accounts: router({
+      list: publicProcedure
+        .input(z.object({
+          customerId: z.string().uuid().optional(),
+          platform: z.enum(['facebook', 'instagram']).optional(),
+          unassignedOnly: z.boolean().default(false),
+        }).optional())
+        .query(async ({ input }) => {
+          return getCustomerAccounts({
+            customerId: input?.customerId,
+            platform: input?.platform,
+            unassignedOnly: input?.unassignedOnly ?? false,
+          });
+        }),
+
+      assign: publicProcedure
+        .input(z.object({
+          accountId: z.string(),
+          platform: z.enum(['facebook', 'instagram']),
+          customerId: z.string().uuid().nullable(),
+        }))
+        .mutation(async ({ input }) => {
+          return assignAccountToCustomer(input.accountId, input.platform, input.customerId);
+        }),
+
+      toggleActive: publicProcedure
+        .input(z.object({
+          accountId: z.string(),
+          platform: z.enum(['facebook', 'instagram']),
+          isActive: z.boolean(),
+        }))
+        .mutation(async ({ input }) => {
+          return toggleAccountActive(input.accountId, input.platform, input.isActive);
+        }),
+    }),
+
+    // Report management
+    reports: router({
+      list: publicProcedure
+        .input(z.object({
+          customerId: z.string().uuid().optional(),
+          month: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/).optional(),
+          status: z.enum(['pending', 'generating', 'generated', 'failed']).optional(),
+        }).optional())
+        .query(async ({ input }) => {
+          return getReports({
+            customerId: input?.customerId,
+            month: input?.month,
+            status: input?.status,
+          });
+        }),
+
+      get: publicProcedure
+        .input(z.object({ reportId: z.string().uuid() }))
+        .query(async ({ input }) => {
+          return getReport(input.reportId);
+        }),
+
+      create: publicProcedure
+        .input(z.object({
+          customerId: z.string().uuid(),
+          month: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/, "Month must be YYYY-MM format"),
+        }))
+        .mutation(async ({ input }) => {
+          return createReport(input.customerId, input.month);
+        }),
+
+      regenerate: publicProcedure
+        .input(z.object({ reportId: z.string().uuid() }))
+        .mutation(async ({ input }) => {
+          // Get the report details
+          const report = await getReport(input.reportId);
+          if (!report) {
+            throw new Error("Report not found");
+          }
+
+          // Update status to generating
+          await updateReport(input.reportId, { status: 'generating' });
+
+          try {
+            // Generate the report
+            const monthStr = new Date(report.month).toISOString().slice(0, 7);
+            const pptxBuffer = await generateReport({
+              clientName: report.customer_name || 'Unknown',
+              reportMonth: monthStr,
+            });
+
+            // For now, return the base64 data
+            // In production, this would upload to Supabase Storage
+            const base64 = pptxBuffer.toString('base64');
+            
+            await updateReport(input.reportId, {
+              status: 'generated',
+              meta: { size: pptxBuffer.length },
+            });
+
+            return {
+              success: true,
+              reportId: input.reportId,
+              data: base64,
+              filename: `report_${report.customer_name?.toLowerCase().replace(/\s+/g, '_')}_${monthStr}.pptx`,
+            };
+          } catch (error: any) {
+            await updateReport(input.reportId, {
+              status: 'failed',
+              error_message: error.message,
+            });
+            throw error;
+          }
+        }),
+    }),
   }),
 });
 

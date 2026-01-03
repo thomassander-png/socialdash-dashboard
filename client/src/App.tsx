@@ -9,6 +9,9 @@ import Overview from "./pages/Overview";
 import Facebook from "./pages/Facebook";
 import Posts from "./pages/Posts";
 import Exports from "./pages/Exports";
+import AdminCustomers from "./pages/admin/Customers";
+import AdminAccounts from "./pages/admin/Accounts";
+import AdminReports from "./pages/admin/Reports";
 
 function Router() {
   return (
@@ -17,6 +20,10 @@ function Router() {
       <Route path="/facebook" component={Facebook} />
       <Route path="/posts" component={Posts} />
       <Route path="/exports" component={Exports} />
+      {/* Admin routes */}
+      <Route path="/admin/customers" component={AdminCustomers} />
+      <Route path="/admin/accounts" component={AdminAccounts} />
+      <Route path="/admin/reports" component={AdminReports} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

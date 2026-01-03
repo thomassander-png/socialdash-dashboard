@@ -61,3 +61,35 @@
 - [x] Trigger first cache run via workflow_dispatch
 - [x] Verify data in Supabase database (2 posts, 2 metrics)
 - [x] Verify data displays in dashboard (Februar 2025 shows correctly)
+
+
+## Admin UI & Automated Reports (Task 4) - COMPLETED
+
+### Database Migrations
+- [x] Create customers table (customer_id, name, is_active, created_at)
+- [x] Create customer_accounts table (id, customer_id, platform, account_id, account_name, is_active)
+- [x] Create reports table (report_id, customer_id, month, status, pptx_url, pdf_url, generated_at, meta)
+
+### Automatic Account Discovery (Collector)
+- [x] Implement /me/accounts discovery for all FB Pages
+- [x] Implement instagram_business_account discovery for IG accounts
+- [x] Auto-create customer_accounts entries with customer_id=NULL
+
+### Admin UI Pages
+- [x] Add Admin navigation menu item (only for admin users)
+- [x] /admin/customers - Customer management (create, activate/deactivate, delete)
+- [x] /admin/accounts - Account assignment (dropdown to assign accounts to customers)
+- [x] /admin/reports - Report overview (status, regenerate, download)
+
+### Report Generation
+- [x] Implement customer-based report generator
+- [x] Include FB KPIs + Top Posts with images
+- [x] Include FB Videos (3s views)
+- [ ] Include IG KPIs + Top Posts (Likes, Comments, Saves) - pending IG data
+- [ ] Include IG Reels (Plays) - pending IG data
+- [x] Auto-generate Fazit per channel
+- [ ] Store reports in Supabase Storage - optional
+### Automation
+- [x] Create monthly GitHub Actions workflow (3rd of month, 06:00 UTC) - needs manual upload
+- [x] Generate reports for all active customers (generate_reports mode)
+- [x] Save to reports/ directory with customer name and month
