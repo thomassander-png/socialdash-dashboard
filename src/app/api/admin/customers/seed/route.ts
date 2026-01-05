@@ -20,11 +20,25 @@ export async function POST() {
     let count = 0;
     
     for (const customer of defaultCustomers) {
-      await query(`
-        INSERT INTO customers (name, slug, is_active)
-        VALUES ($1, $2, true)
-        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-      `, [customer.name, customer.slug]);
+      // Check if customer already exists by name
+      const existing = await query(
+        'SELECT customer_id FROM customers WHERE name = $1',
+        [customer.name]
+      );
+      
+      if (existing.rows.length > 0) {
+        // Update existing customer
+        await query(
+          'UPDATE customers SET slug = $1 WHERE name = $2',
+          [customer.slug, customer.name]
+        );
+      } else {
+        // Insert new customer
+        await query(
+          'INSERT INTO customers (name, slug, is_active) VALUES ($1, $2, true)',
+          [customer.name, customer.slug]
+        );
+      }
       count++;
     }
     
