@@ -25,7 +25,7 @@ export default function MonthSelector({ currentMonth }: { currentMonth: string }
     <select
       value={currentMonth}
       onChange={handleChange}
-      className="bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="bg-[#111] text-white px-4 py-2 rounded-lg border border-[#333] focus:outline-none focus:ring-2 focus:ring-[#c8ff00] focus:border-[#c8ff00]"
     >
       {months.map((month) => (
         <option key={month} value={month}>
