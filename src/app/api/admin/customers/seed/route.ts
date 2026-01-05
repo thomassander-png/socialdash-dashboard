@@ -15,18 +15,24 @@ const defaultCustomers = [
   { name: "GRG Gebäudereiniger", slug: "grg" },
 ];
 
+interface Customer {
+  customer_id: number;
+  name: string;
+  slug: string;
+}
+
 export async function POST() {
   try {
     let count = 0;
     
     for (const customer of defaultCustomers) {
       // Check if customer already exists by name
-      const existing = await query(
+      const existing = await query<Customer>(
         'SELECT customer_id FROM customers WHERE name = $1',
         [customer.name]
       );
       
-      if (existing.rows.length > 0) {
+      if (existing.length > 0) {
         // Update existing customer
         await query(
           'UPDATE customers SET slug = $1 WHERE name = $2',
