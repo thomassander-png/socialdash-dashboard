@@ -155,7 +155,7 @@ export default function CustomersPage() {
             {customers.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                  Keine Kunden vorhanden. Klicke auf "Kunden importieren" um die Standard-Kunden anzulegen.
+                  Keine Kunden vorhanden. Klicke auf &quot;Kunden importieren&quot; um die Standard-Kunden anzulegen.
                 </td>
               </tr>
             ) : (

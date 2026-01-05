@@ -73,7 +73,7 @@ export default function ReportsPage() {
         <h2 className="text-[#c8ff00] font-semibold mb-2">📊 Report-Generierung</h2>
         <p className="text-gray-400 text-sm">
           Reports werden automatisch am 3. jedes Monats um 06:00 UTC generiert.
-          Du kannst auch manuell Reports über den GitHub Actions Workflow "generate_reports" erstellen.
+          Du kannst auch manuell Reports über den GitHub Actions Workflow &quot;generate_reports&quot; erstellen.
         </p>
       </div>
 

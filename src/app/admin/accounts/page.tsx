@@ -140,7 +140,7 @@ export default function AccountsPage() {
             {filteredAccounts.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                  Keine Accounts gefunden. Führe den "discover" Modus im Collector aus.
+                  Keine Accounts gefunden. Führe den &quot;discover&quot; Modus im Collector aus.
                 </td>
               </tr>
             ) : (
