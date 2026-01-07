@@ -1013,9 +1013,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate PPTX
-    const pptxBuffer = await pptx.write({ outputType: 'nodebuffer' });
+    const pptxBuffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
 
-    return new NextResponse(pptxBuffer as Buffer, {
+    return new NextResponse(new Uint8Array(pptxBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
