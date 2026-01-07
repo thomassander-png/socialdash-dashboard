@@ -427,7 +427,7 @@ export async function POST(request: NextRequest) {
 
       kpiLabels.forEach((label, idx) => {
         const row: PptxGenJS.TableCell[] = [
-          { text: label, options: { fill: idx % 2 === 0 ? COLORS.gray : COLORS.white } },
+          { text: label, options: { fill: { color: idx % 2 === 0 ? COLORS.gray : COLORS.white } } },
         ];
         
         [fbKPIs[0], fbKPIs[1], fbKPIs[2]].forEach(kpi => {
@@ -444,7 +444,7 @@ export async function POST(request: NextRequest) {
               case 'Anzahl Postings': value = formatNumber(kpi.post_count); break;
             }
           }
-          row.push({ text: value, options: { fill: idx % 2 === 0 ? COLORS.gray : COLORS.white, align: 'center' } });
+          row.push({ text: value, options: { fill: { color: idx % 2 === 0 ? COLORS.gray : COLORS.white }, align: 'center' } });
         });
         
         fbKpiRows.push(row);
@@ -635,7 +635,7 @@ export async function POST(request: NextRequest) {
 
       igKpiLabels.forEach((label, idx) => {
         const row: PptxGenJS.TableCell[] = [
-          { text: label, options: { fill: idx % 2 === 0 ? COLORS.gray : COLORS.white } },
+          { text: label, options: { fill: { color: idx % 2 === 0 ? COLORS.gray : COLORS.white } } },
         ];
         
         [igKPIs[0], igKPIs[1], igKPIs[2]].forEach(kpi => {
@@ -652,7 +652,7 @@ export async function POST(request: NextRequest) {
               case 'Anzahl Postings': value = formatNumber(kpi.post_count); break;
             }
           }
-          row.push({ text: value, options: { fill: idx % 2 === 0 ? COLORS.gray : COLORS.white, align: 'center' } });
+          row.push({ text: value, options: { fill: { color: idx % 2 === 0 ? COLORS.gray : COLORS.white }, align: 'center' } });
         });
         
         igKpiRows.push(row);
