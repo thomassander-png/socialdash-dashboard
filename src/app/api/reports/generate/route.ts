@@ -142,11 +142,11 @@ async function getFacebookData(month: string, pageIds: string[]): Promise<{
       m.post_id, m.page_id, m.created_time, m.type, m.permalink, m.message,
       m.reactions_total, m.comments_total, m.shares_total, m.reach, m.impressions, m.video_3s_views,
       (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) as interactions_total,
-      p.image_url
+      COALESCE(p.thumbnail_url, p.media_url, p.og_image_url) as image_url
     FROM view_fb_monthly_post_metrics m
     LEFT JOIN fb_posts p ON m.post_id = p.post_id
     WHERE m.month = $1 AND m.page_id IN (${pageIdPlaceholders})
-    AND m.type IN ('photo', 'image', 'link', 'status')
+    AND m.type IN ('photo', 'image', 'link', 'status', 'album')
     ORDER BY (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) DESC
     LIMIT 9
   `, [monthDate, ...pageIds]);
@@ -157,11 +157,11 @@ async function getFacebookData(month: string, pageIds: string[]): Promise<{
       m.post_id, m.page_id, m.created_time, m.type, m.permalink, m.message,
       m.reactions_total, m.comments_total, m.shares_total, m.reach, m.impressions, m.video_3s_views,
       (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) as interactions_total,
-      p.image_url
+      COALESCE(p.thumbnail_url, p.media_url, p.og_image_url) as image_url
     FROM view_fb_monthly_post_metrics m
     LEFT JOIN fb_posts p ON m.post_id = p.post_id
     WHERE m.month = $1 AND m.page_id IN (${pageIdPlaceholders})
-    AND m.type IN ('video', 'reel')
+    AND m.type IN ('video', 'reel', 'native_video')
     AND m.video_3s_views IS NOT NULL
     ORDER BY m.video_3s_views DESC NULLS LAST
     LIMIT 6
@@ -213,7 +213,7 @@ async function getInstagramData(month: string, accountIds: string[]): Promise<{
       m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
       m.likes, m.comments, m.saves, m.reach, m.impressions, m.plays,
       (COALESCE(m.likes, 0) + COALESCE(m.comments, 0) + COALESCE(m.saves, 0)) as interactions_total,
-      p.image_url
+      COALESCE(p.thumbnail_url, p.media_url) as image_url
     FROM view_ig_monthly_post_metrics m
     LEFT JOIN ig_posts p ON m.media_id = p.media_id
     WHERE m.month = $1 AND m.account_id IN (${accountIdPlaceholders})
@@ -228,7 +228,7 @@ async function getInstagramData(month: string, accountIds: string[]): Promise<{
       m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
       m.likes, m.comments, m.saves, m.reach, m.impressions, m.plays,
       (COALESCE(m.likes, 0) + COALESCE(m.comments, 0) + COALESCE(m.saves, 0)) as interactions_total,
-      p.image_url
+      COALESCE(p.thumbnail_url, p.media_url) as image_url
     FROM view_ig_monthly_post_metrics m
     LEFT JOIN ig_posts p ON m.media_id = p.media_id
     WHERE m.month = $1 AND m.account_id IN (${accountIdPlaceholders})

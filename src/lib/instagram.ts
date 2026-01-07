@@ -56,6 +56,7 @@ export async function getInstagramPosts(month: string, sort: string = 'interacti
       p.caption,
       p.permalink,
       p.timestamp,
+      COALESCE(p.thumbnail_url, p.media_url) as image_url,
       COALESCE(m.likes, 0) as likes,
       COALESCE(m.comments, 0) as comments,
       m.saves,

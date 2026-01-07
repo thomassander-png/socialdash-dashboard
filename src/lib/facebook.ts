@@ -53,6 +53,7 @@ export async function getFacebookPosts(month: string, sort: string = 'interactio
       p.type,
       p.permalink,
       p.message,
+      COALESCE(p.thumbnail_url, p.media_url, p.og_image_url) as image_url,
       COALESCE(m.reactions_total, 0) as reactions_total,
       COALESCE(m.comments_total, 0) as comments_total,
       m.shares_total,

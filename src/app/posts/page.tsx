@@ -4,6 +4,7 @@ import { getFacebookPosts } from '@/lib/facebook';
 import { getInstagramPosts } from '@/lib/instagram';
 import { getCurrentMonth, formatNumber, truncateText, formatDate } from '@/lib/utils';
 import MonthSelector from '@/components/ui/MonthSelector';
+import Image from 'next/image';
 
 interface PageProps {
   searchParams: { month?: string; platform?: string };
@@ -12,40 +13,86 @@ interface PageProps {
 async function PostsContent({ month, platform }: { month: string; platform: string }) {
   const [fbPosts, igPosts] = await Promise.all([
     platform !== 'instagram' ? getFacebookPosts(month, 'date', 100) : Promise.resolve([]),
-    platform !== 'facebook' ? getInstagramPosts(month, 'date', 100) : Promise.resolve([]),
+    platform !== 'instagram' ? getInstagramPosts(month, 'date', 100) : Promise.resolve([]),
   ]);
 
   const allPosts = [
-    ...fbPosts.map(p => ({ ...p, platform: 'facebook' as const, date: new Date(p.created_time), text: p.message, interactions: p.interactions })),
-    ...igPosts.map(p => ({ ...p, platform: 'instagram' as const, date: new Date(p.timestamp), text: p.caption, interactions: p.interactions })),
+    ...fbPosts.map(p => ({ 
+      ...p, 
+      platform: 'facebook' as const, 
+      date: new Date(p.created_time), 
+      text: p.message, 
+      interactions: p.interactions,
+      image_url: p.image_url 
+    })),
+    ...igPosts.map(p => ({ 
+      ...p, 
+      platform: 'instagram' as const, 
+      date: new Date(p.timestamp), 
+      text: p.caption, 
+      interactions: p.interactions,
+      image_url: p.image_url 
+    })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-900">
-          <tr>
-            <th className="px-4 py-3 text-left text-gray-400 text-sm">Platform</th>
-            <th className="px-4 py-3 text-left text-gray-400 text-sm">Post</th>
-            <th className="px-4 py-3 text-right text-gray-400 text-sm">Interaktionen</th>
-            <th className="px-4 py-3 text-right text-gray-400 text-sm">Datum</th>
-          </tr>
-        </thead>
-        <tbody>
-          {allPosts.map((post, idx) => (
-            <tr key={idx} className="border-t border-gray-700 hover:bg-gray-750">
-              <td className="px-4 py-3">
-                <span className={post.platform === 'facebook' ? 'text-blue-400' : 'text-pink-400'}>
+    <div className="space-y-4">
+      {allPosts.map((post, idx) => (
+        <div key={idx} className="bg-[#111] rounded-xl border border-[#222] p-4 hover:border-[#333] transition-colors">
+          <div className="flex gap-4">
+            {/* Thumbnail */}
+            <div className="flex-shrink-0">
+              {post.image_url ? (
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
+                  <Image
+                    src={post.image_url}
+                    alt="Post thumbnail"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-lg bg-gray-800 flex items-center justify-center text-gray-500">
+                  {post.platform === 'facebook' ? '📘' : '📸'}
+                </div>
+              )}
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  post.platform === 'facebook' 
+                    ? 'bg-blue-500/20 text-blue-400' 
+                    : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-400'
+                }`}>
                   {post.platform === 'facebook' ? '📘 Facebook' : '📸 Instagram'}
                 </span>
-              </td>
-              <td className="px-4 py-3 text-gray-300">{truncateText(post.text, 80)}</td>
-              <td className="px-4 py-3 text-right text-white">{formatNumber(post.interactions)}</td>
-              <td className="px-4 py-3 text-right text-gray-400">{formatDate(post.date)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <span className="text-gray-500 text-sm">{formatDate(post.date)}</span>
+              </div>
+              
+              <p className="text-gray-300 text-sm line-clamp-2">
+                {post.text || 'Kein Text'}
+              </p>
+            </div>
+            
+            {/* Stats */}
+            <div className="flex-shrink-0 text-right">
+              <div className="text-[#c8ff00] font-bold text-lg">
+                {formatNumber(post.interactions)}
+              </div>
+              <div className="text-gray-500 text-xs">Interaktionen</div>
+            </div>
+          </div>
+        </div>
+      ))}
+      
+      {allPosts.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          Keine Posts für diesen Monat gefunden.
+        </div>
+      )}
     </div>
   );
 }

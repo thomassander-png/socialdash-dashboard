@@ -35,6 +35,7 @@ export interface FBPostWithMetrics extends FBPost {
   reach: number | null;
   impressions: number | null;
   interactions: number;
+  image_url: string | null;
 }
 
 export interface FBKPIs {
@@ -87,6 +88,7 @@ export interface IGPostWithMetrics extends IGPost {
   reach: number | null;
   plays: number | null;
   interactions: number;
+  image_url: string | null;
 }
 
 export interface IGKPIs {

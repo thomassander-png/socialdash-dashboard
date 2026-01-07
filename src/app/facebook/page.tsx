@@ -4,6 +4,7 @@ import { getFacebookKPIs, getFacebookPosts } from '@/lib/facebook';
 import { getCurrentMonth, formatNumber, truncateText, formatDate } from '@/lib/utils';
 import KPICard from '@/components/ui/KPICard';
 import MonthSelector from '@/components/ui/MonthSelector';
+import Image from 'next/image';
 
 interface PageProps {
   searchParams: { month?: string; sort?: string };
@@ -24,9 +25,62 @@ async function FacebookContent({ month, sort }: { month: string; sort: string })
         <KPICard title="Reichweite" value={formatNumber(kpis.total_reach)} icon="👥" />
       </div>
 
-      <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+      {/* Top Posts Grid with Images */}
+      <h2 className="text-xl font-bold text-white mb-4">Top Posts</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {posts.slice(0, 6).map((post) => (
+          <div key={post.post_id} className="bg-[#111] rounded-xl border border-[#222] overflow-hidden hover:border-[#c8ff00]/30 transition-colors">
+            {/* Image */}
+            <div className="relative h-40 bg-gray-800">
+              {post.image_url ? (
+                <Image
+                  src={post.image_url}
+                  alt="Post"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-600 text-4xl">
+                  📘
+                </div>
+              )}
+            </div>
+            
+            {/* Content */}
+            <div className="p-4">
+              <p className="text-gray-300 text-sm line-clamp-2 mb-3 min-h-[2.5rem]">
+                {post.message || 'Kein Text'}
+              </p>
+              
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex gap-3">
+                  <span className="text-blue-400">👍 {formatNumber(post.reactions_total)}</span>
+                  <span className="text-gray-400">💬 {formatNumber(post.comments_total)}</span>
+                </div>
+                <span className="text-gray-500">{formatDate(post.created_time)}</span>
+              </div>
+              
+              {post.permalink && (
+                <a 
+                  href={post.permalink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mt-3 block text-center text-xs text-[#c8ff00] hover:underline"
+                >
+                  Post ansehen →
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Full Table */}
+      <h2 className="text-xl font-bold text-white mb-4">Alle Posts</h2>
+      <div className="bg-[#111] rounded-xl border border-[#222] overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-900">
+          <thead className="bg-[#0a0a0a]">
             <tr>
               <th className="px-4 py-3 text-left text-gray-400 text-sm">Post</th>
               <th className="px-4 py-3 text-right text-gray-400 text-sm">Reactions</th>
@@ -38,11 +92,24 @@ async function FacebookContent({ month, sort }: { month: string; sort: string })
           </thead>
           <tbody>
             {posts.map((post) => (
-              <tr key={post.post_id} className="border-t border-gray-700 hover:bg-gray-750">
+              <tr key={post.post_id} className="border-t border-[#222] hover:bg-[#0a0a0a]">
                 <td className="px-4 py-3">
-                  <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                    {truncateText(post.message, 60)}
-                  </a>
+                  <div className="flex items-center gap-3">
+                    {post.image_url && (
+                      <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0">
+                        <Image
+                          src={post.image_url}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    )}
+                    <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                      {truncateText(post.message, 50)}
+                    </a>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-right text-white">{formatNumber(post.reactions_total)}</td>
                 <td className="px-4 py-3 text-right text-white">{formatNumber(post.comments_total)}</td>
