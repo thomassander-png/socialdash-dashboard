@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
       // Get top Facebook posts (images) by interactions
       const fbPostsResult = await query<FacebookPost>(`
         SELECT 
-          m.post_id, m.page_id, m.post_created_time as created_time, m.type, m.permalink, m.message,
+          m.post_id, m.page_id, m.created_time, m.type, m.permalink, m.message,
           m.reactions_total, m.comments_total, COALESCE(m.shares_total, 0) as shares_total,
           COALESCE(m.reach, 0) as reach, COALESCE(m.impressions, 0) as impressions,
           COALESCE(m.video_3s_views, 0) as video_3s_views,
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
       // Get top Facebook videos by 3s views
       const fbVideosResult = await query<FacebookPost>(`
         SELECT 
-          m.post_id, m.page_id, m.post_created_time as created_time, m.type, m.permalink, m.message,
+          m.post_id, m.page_id, m.created_time, m.type, m.permalink, m.message,
           m.reactions_total, m.comments_total, COALESCE(m.shares_total, 0) as shares_total,
           COALESCE(m.reach, 0) as reach, COALESCE(m.impressions, 0) as impressions,
           COALESCE(m.video_3s_views, 0) as video_3s_views,
