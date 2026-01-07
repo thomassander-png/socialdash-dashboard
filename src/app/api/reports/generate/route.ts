@@ -557,11 +557,14 @@ export async function POST(request: NextRequest) {
           color: COLORS.black,
         });
 
+        const fbVideoChartData = fbVideos.slice(0, 6);
         const chartData = [{
           name: 'Video Views',
-          labels: fbVideos.map(p => formatDate(p.created_time)),
-          values: fbVideos.map(p => p.video_3s_views),
+          labels: fbVideoChartData.map(p => formatDate(p.created_time)),
+          values: fbVideoChartData.map(p => p.video_3s_views),
         }];
+
+        const maxFbVideoVal = Math.max(...fbVideoChartData.map(p => p.video_3s_views)) * 1.2;
 
         fbVideosSlide.addChart(pptx.ChartType.bar, chartData, {
           x: 1.0,
@@ -572,7 +575,27 @@ export async function POST(request: NextRequest) {
           showValue: false,
           showLegend: false,
           chartColors: [COLORS.secondary],
+          valAxisMaxVal: maxFbVideoVal,
         });
+
+        // Add video thumbnails above bars
+        const fbVideoBarWidth = 11.3 / fbVideoChartData.length;
+        for (let i = 0; i < fbVideoChartData.length; i++) {
+          const video = fbVideoChartData[i];
+          if (video.image_url) {
+            const imgData = await fetchImageAsBase64(video.image_url);
+            if (imgData) {
+              const barHeight = (video.video_3s_views / maxFbVideoVal) * 4.5;
+              fbVideosSlide.addImage({
+                data: imgData,
+                x: 1.0 + (i * fbVideoBarWidth) + (fbVideoBarWidth * 0.15),
+                y: 5.7 - barHeight - 0.9,
+                w: fbVideoBarWidth * 0.7,
+                h: 0.8,
+              });
+            }
+          }
+        }
 
         addFamefactLogo(fbVideosSlide);
         addPageNumber(fbVideosSlide, slideNum);
@@ -696,11 +719,14 @@ export async function POST(request: NextRequest) {
           color: COLORS.black,
         });
 
+        const igChartPosts = igPosts.slice(0, 6);
         const chartData = [{
           name: 'Interaktionen',
-          labels: igPosts.map(p => formatDate(p.timestamp)),
-          values: igPosts.map(p => p.interactions_total),
+          labels: igChartPosts.map(p => formatDate(p.timestamp)),
+          values: igChartPosts.map(p => p.interactions_total),
         }];
+
+        const maxIgVal = Math.max(...igChartPosts.map(p => p.interactions_total)) * 1.2;
 
         igPostsSlide.addChart(pptx.ChartType.bar, chartData, {
           x: 1.0,
@@ -711,7 +737,27 @@ export async function POST(request: NextRequest) {
           showValue: false,
           showLegend: false,
           chartColors: [COLORS.secondary],
+          valAxisMaxVal: maxIgVal,
         });
+
+        // Add post images above bars
+        const igBarWidth = 11.3 / igChartPosts.length;
+        for (let i = 0; i < igChartPosts.length; i++) {
+          const post = igChartPosts[i];
+          if (post.image_url) {
+            const imgData = await fetchImageAsBase64(post.image_url);
+            if (imgData) {
+              const barHeight = (post.interactions_total / maxIgVal) * 4.5;
+              igPostsSlide.addImage({
+                data: imgData,
+                x: 1.0 + (i * igBarWidth) + (igBarWidth * 0.15),
+                y: 5.7 - barHeight - 0.9,
+                w: igBarWidth * 0.7,
+                h: 0.8,
+              });
+            }
+          }
+        }
 
         igPostsSlide.addText('In die Interaktionen fallen Likes, Kommentare, Savings und Profilaufrufe.', {
           x: 1.0,
@@ -742,41 +788,64 @@ export async function POST(request: NextRequest) {
           color: COLORS.black,
         });
 
+        const postsToShow = igPosts.slice(0, 6);
+        const colCount = postsToShow.length + 1;
+        const colWidth = 12.3 / colCount;
+
         // Create table with post details
         const tableRows: PptxGenJS.TableRow[] = [
           [
             { text: 'Datum', options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
-            ...igPosts.slice(0, 6).map(p => ({ 
+            ...postsToShow.map(p => ({ 
               text: formatDate(p.timestamp), 
               options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true, align: 'center' as const } 
             })),
           ],
           [
             { text: '', options: { fill: { color: COLORS.white } } },
-            ...igPosts.slice(0, 6).map(() => ({ text: '[Bild]', options: { fill: { color: COLORS.white }, align: 'center' as const } })),
+            ...postsToShow.map(() => ({ text: '', options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
             { text: 'Reichweite', options: { fill: { color: COLORS.gray } } },
-            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.reach), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
+            ...postsToShow.map(p => ({ text: formatNumber(p.reach), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
           [
             { text: 'Interaktionen', options: { fill: { color: COLORS.white } } },
-            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.interactions_total), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
+            ...postsToShow.map(p => ({ text: formatNumber(p.interactions_total), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
             { text: 'Saves', options: { fill: { color: COLORS.gray } } },
-            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.saves), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
+            ...postsToShow.map(p => ({ text: formatNumber(p.saves), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
         ];
 
         igTableSlide.addTable(tableRows, {
           x: 0.5,
-          y: 1.5,
+          y: 1.2,
           w: 12.3,
+          rowH: [0.35, 1.3, 0.35, 0.35, 0.35],
           fontSize: 10,
           fontFace: FONTS.body,
           border: { type: 'solid', pt: 0.5, color: COLORS.darkGray },
         });
+
+        // Add images to the table (row 2)
+        for (let i = 0; i < postsToShow.length; i++) {
+          const post = postsToShow[i];
+          if (post.image_url) {
+            const imgData = await fetchImageAsBase64(post.image_url);
+            if (imgData) {
+              const imgX = 0.5 + colWidth + (i * colWidth) + (colWidth * 0.1);
+              igTableSlide.addImage({
+                data: imgData,
+                x: imgX,
+                y: 1.6,
+                w: colWidth * 0.8,
+                h: 1.1,
+              });
+            }
+          }
+        }
 
         igTableSlide.addText('In die Interaktionen fallen Likes, Kommentare, Savings und Profilaufrufe.', {
           x: 1.0,
@@ -807,11 +876,14 @@ export async function POST(request: NextRequest) {
           color: COLORS.black,
         });
 
+        const reelsChartData = igReels.slice(0, 6);
         const chartData = [{
           name: 'Video Views',
-          labels: igReels.map(p => formatDate(p.timestamp)),
-          values: igReels.map(p => p.plays),
+          labels: reelsChartData.map(p => formatDate(p.timestamp)),
+          values: reelsChartData.map(p => p.plays),
         }];
+
+        const maxReelVal = Math.max(...reelsChartData.map(p => p.plays)) * 1.2;
 
         igReelsSlide.addChart(pptx.ChartType.bar, chartData, {
           x: 1.0,
@@ -822,7 +894,27 @@ export async function POST(request: NextRequest) {
           showValue: false,
           showLegend: false,
           chartColors: [COLORS.secondary],
+          valAxisMaxVal: maxReelVal,
         });
+
+        // Add reel thumbnails above bars
+        const reelBarWidth = 11.3 / reelsChartData.length;
+        for (let i = 0; i < reelsChartData.length; i++) {
+          const reel = reelsChartData[i];
+          if (reel.image_url) {
+            const imgData = await fetchImageAsBase64(reel.image_url);
+            if (imgData) {
+              const barHeight = (reel.plays / maxReelVal) * 4.5;
+              igReelsSlide.addImage({
+                data: imgData,
+                x: 1.0 + (i * reelBarWidth) + (reelBarWidth * 0.15),
+                y: 5.7 - barHeight - 0.9,
+                w: reelBarWidth * 0.7,
+                h: 0.8,
+              });
+            }
+          }
+        }
 
         addFamefactLogo(igReelsSlide);
         addPageNumber(igReelsSlide, slideNum);
@@ -844,44 +936,67 @@ export async function POST(request: NextRequest) {
           color: COLORS.black,
         });
 
+        const reelsToShow = igReels.slice(0, 6);
+        const reelColCount = reelsToShow.length + 1;
+        const reelColWidth = 12.3 / reelColCount;
+
         const reelsTableRows: PptxGenJS.TableRow[] = [
           [
             { text: 'Datum', options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
-            ...igReels.slice(0, 6).map(p => ({ 
+            ...reelsToShow.map(p => ({ 
               text: formatDate(p.timestamp), 
               options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true, align: 'center' as const } 
             })),
           ],
           [
             { text: '', options: { fill: { color: COLORS.white } } },
-            ...igReels.slice(0, 6).map(() => ({ text: '[Video]', options: { fill: { color: COLORS.white }, align: 'center' as const } })),
+            ...reelsToShow.map(() => ({ text: '', options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
             { text: 'Reichweite', options: { fill: { color: COLORS.gray } } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.reach), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
+            ...reelsToShow.map(p => ({ text: formatNumber(p.reach), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
           [
             { text: 'Interaktionen', options: { fill: { color: COLORS.white } } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.interactions_total), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
+            ...reelsToShow.map(p => ({ text: formatNumber(p.interactions_total), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
             { text: 'Videoviews', options: { fill: { color: COLORS.gray } } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.plays), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
+            ...reelsToShow.map(p => ({ text: formatNumber(p.plays), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
           [
             { text: 'Saves', options: { fill: { color: COLORS.white } } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.saves), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
+            ...reelsToShow.map(p => ({ text: formatNumber(p.saves), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
         ];
 
         igReelsTableSlide.addTable(reelsTableRows, {
           x: 0.5,
-          y: 1.5,
+          y: 1.2,
           w: 12.3,
+          rowH: [0.35, 1.3, 0.35, 0.35, 0.35, 0.35],
           fontSize: 10,
           fontFace: FONTS.body,
           border: { type: 'solid', pt: 0.5, color: COLORS.darkGray },
         });
+
+        // Add video thumbnails to the table (row 2)
+        for (let i = 0; i < reelsToShow.length; i++) {
+          const reel = reelsToShow[i];
+          if (reel.image_url) {
+            const imgData = await fetchImageAsBase64(reel.image_url);
+            if (imgData) {
+              const imgX = 0.5 + reelColWidth + (i * reelColWidth) + (reelColWidth * 0.1);
+              igReelsTableSlide.addImage({
+                data: imgData,
+                x: imgX,
+                y: 1.6,
+                w: reelColWidth * 0.8,
+                h: 1.1,
+              });
+            }
+          }
+        }
 
         addFamefactLogo(igReelsTableSlide);
         addPageNumber(igReelsTableSlide, slideNum);
