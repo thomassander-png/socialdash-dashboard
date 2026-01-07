@@ -205,9 +205,9 @@ export async function POST(request: NextRequest) {
       : `${year}-${String(monthNum - 2).padStart(2, '0')}`;
 
     // ============ FACEBOOK DATA ============
-    let fbKPIs: MonthlyKPIs[] = [];
-    let fbPosts: FacebookPost[] = [];
-    let fbVideos: FacebookPost[] = [];
+    const fbKPIs: MonthlyKPIs[] = [];
+    const fbPosts: FacebookPost[] = [];
+    const fbVideos: FacebookPost[] = [];
 
     if (fbPageIds.length > 0) {
       // Get Facebook KPIs for 3 months
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
         ORDER BY interactions_total DESC
         LIMIT 6
       `, [fbPageIds, `${currentMonth}-01`]);
-      fbPosts = fbPostsResult;
+      fbPosts.push(...fbPostsResult);
 
       // Get top Facebook videos by 3s views
       const fbVideosResult = await query<FacebookPost>(`
@@ -269,13 +269,13 @@ export async function POST(request: NextRequest) {
         ORDER BY video_3s_views DESC
         LIMIT 6
       `, [fbPageIds, `${currentMonth}-01`]);
-      fbVideos = fbVideosResult;
+      fbVideos.push(...fbVideosResult);
     }
 
     // ============ INSTAGRAM DATA ============
-    let igKPIs: IGMonthlyKPIs[] = [];
-    let igPosts: InstagramPost[] = [];
-    let igReels: InstagramPost[] = [];
+    const igKPIs: IGMonthlyKPIs[] = [];
+    const igPosts: InstagramPost[] = [];
+    const igReels: InstagramPost[] = [];
 
     if (igAccountIds.length > 0) {
       // Get Instagram KPIs for 3 months
@@ -318,7 +318,7 @@ export async function POST(request: NextRequest) {
         ORDER BY interactions_total DESC
         LIMIT 6
       `, [igAccountIds, `${currentMonth}-01`]);
-      igPosts = igPostsResult;
+      igPosts.push(...igPostsResult);
 
       // Get top Instagram reels by plays
       const igReelsResult = await query<InstagramPost>(`
@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
         ORDER BY plays DESC
         LIMIT 6
       `, [igAccountIds, `${currentMonth}-01`]);
-      igReels = igReelsResult;
+      igReels.push(...igReelsResult);
     }
 
     // ============ CREATE PPTX ============
