@@ -4,9 +4,24 @@ import { query } from '@/lib/db';
 export async function GET() {
   try {
     const customers = await query(`
-      SELECT customer_id, name, slug, is_active, created_at
-      FROM customers
-      ORDER BY name ASC
+      SELECT 
+        c.customer_id, c.name, c.slug, c.is_active, c.created_at,
+        COALESCE(fb.count, 0)::int as fb_account_count,
+        COALESCE(ig.count, 0)::int as ig_account_count
+      FROM customers c
+      LEFT JOIN (
+        SELECT customer_id, COUNT(*) as count 
+        FROM customer_accounts 
+        WHERE platform = 'facebook' AND is_active = true
+        GROUP BY customer_id
+      ) fb ON c.customer_id = fb.customer_id
+      LEFT JOIN (
+        SELECT customer_id, COUNT(*) as count 
+        FROM customer_accounts 
+        WHERE platform = 'instagram' AND is_active = true
+        GROUP BY customer_id
+      ) ig ON c.customer_id = ig.customer_id
+      ORDER BY c.name ASC
     `);
     return NextResponse.json({ customers });
   } catch (error) {
