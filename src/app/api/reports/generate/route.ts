@@ -247,7 +247,7 @@ async function getInstagramData(month: string, accountIds: string[]): Promise<{
   // Get top posts (images/carousels)
   const topPostsResult = await query<InstagramPost>(`
     SELECT 
-      m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
+      m.media_id, m.account_id, m.post_created_time as timestamp, m.media_type, m.permalink, m.caption,
       m.likes, m.comments, m.saves, m.reach, m.impressions, m.plays,
       (COALESCE(m.likes, 0) + COALESCE(m.comments, 0) + COALESCE(m.saves, 0)) as interactions_total,
       COALESCE(p.thumbnail_url, p.media_url) as image_url
@@ -262,7 +262,7 @@ async function getInstagramData(month: string, accountIds: string[]): Promise<{
   // Get top reels
   const topReelsResult = await query<InstagramPost>(`
     SELECT 
-      m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
+      m.media_id, m.account_id, m.post_created_time as timestamp, m.media_type, m.permalink, m.caption,
       m.likes, m.comments, m.saves, m.reach, m.impressions, m.plays,
       (COALESCE(m.likes, 0) + COALESCE(m.comments, 0) + COALESCE(m.saves, 0)) as interactions_total,
       COALESCE(p.thumbnail_url, p.media_url) as image_url
