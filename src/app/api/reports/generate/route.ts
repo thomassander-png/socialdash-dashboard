@@ -407,10 +407,10 @@ export async function POST(request: NextRequest) {
       // KPI Table
       const fbKpiRows: PptxGenJS.TableRow[] = [
         [
-          { text: 'KPI', options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
-          { text: getMonthName(currentMonth), options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
-          { text: getMonthName(prevMonth1), options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
-          { text: getMonthName(prevMonth2), options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
+          { text: 'KPI', options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
+          { text: getMonthName(currentMonth), options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
+          { text: getMonthName(prevMonth1), options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
+          { text: getMonthName(prevMonth2), options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
         ],
       ];
 
@@ -615,10 +615,10 @@ export async function POST(request: NextRequest) {
 
       const igKpiRows: PptxGenJS.TableRow[] = [
         [
-          { text: 'KPI', options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
-          { text: getMonthName(currentMonth), options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
-          { text: getMonthName(prevMonth1), options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
-          { text: getMonthName(prevMonth2), options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
+          { text: 'KPI', options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
+          { text: getMonthName(currentMonth), options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
+          { text: getMonthName(prevMonth1), options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
+          { text: getMonthName(prevMonth2), options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
         ],
       ];
 
@@ -745,27 +745,27 @@ export async function POST(request: NextRequest) {
         // Create table with post details
         const tableRows: PptxGenJS.TableRow[] = [
           [
-            { text: 'Datum', options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
+            { text: 'Datum', options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
             ...igPosts.slice(0, 6).map(p => ({ 
               text: formatDate(p.timestamp), 
-              options: { fill: COLORS.primary, color: COLORS.white, bold: true, align: 'center' as const } 
+              options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true, align: 'center' as const } 
             })),
           ],
           [
-            { text: '', options: { fill: COLORS.white } },
-            ...igPosts.slice(0, 6).map(() => ({ text: '[Bild]', options: { fill: COLORS.white, align: 'center' as const } })),
+            { text: '', options: { fill: { color: COLORS.white } } },
+            ...igPosts.slice(0, 6).map(() => ({ text: '[Bild]', options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
-            { text: 'Reichweite', options: { fill: COLORS.gray } },
-            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.reach), options: { fill: COLORS.gray, align: 'center' as const } })),
+            { text: 'Reichweite', options: { fill: { color: COLORS.gray } } },
+            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.reach), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
           [
-            { text: 'Interaktionen', options: { fill: COLORS.white } },
-            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.interactions_total), options: { fill: COLORS.white, align: 'center' as const } })),
+            { text: 'Interaktionen', options: { fill: { color: COLORS.white } } },
+            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.interactions_total), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
-            { text: 'Saves', options: { fill: COLORS.gray } },
-            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.saves), options: { fill: COLORS.gray, align: 'center' as const } })),
+            { text: 'Saves', options: { fill: { color: COLORS.gray } } },
+            ...igPosts.slice(0, 6).map(p => ({ text: formatNumber(p.saves), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
         ];
 
@@ -846,31 +846,31 @@ export async function POST(request: NextRequest) {
 
         const reelsTableRows: PptxGenJS.TableRow[] = [
           [
-            { text: 'Datum', options: { fill: COLORS.primary, color: COLORS.white, bold: true } },
+            { text: 'Datum', options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true } },
             ...igReels.slice(0, 6).map(p => ({ 
               text: formatDate(p.timestamp), 
-              options: { fill: COLORS.primary, color: COLORS.white, bold: true, align: 'center' as const } 
+              options: { fill: { color: COLORS.primary }, color: COLORS.white, bold: true, align: 'center' as const } 
             })),
           ],
           [
-            { text: '', options: { fill: COLORS.white } },
-            ...igReels.slice(0, 6).map(() => ({ text: '[Video]', options: { fill: COLORS.white, align: 'center' as const } })),
+            { text: '', options: { fill: { color: COLORS.white } } },
+            ...igReels.slice(0, 6).map(() => ({ text: '[Video]', options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
-            { text: 'Reichweite', options: { fill: COLORS.gray } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.reach), options: { fill: COLORS.gray, align: 'center' as const } })),
+            { text: 'Reichweite', options: { fill: { color: COLORS.gray } } },
+            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.reach), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
           [
-            { text: 'Interaktionen', options: { fill: COLORS.white } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.interactions_total), options: { fill: COLORS.white, align: 'center' as const } })),
+            { text: 'Interaktionen', options: { fill: { color: COLORS.white } } },
+            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.interactions_total), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
           [
-            { text: 'Videoviews', options: { fill: COLORS.gray } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.plays), options: { fill: COLORS.gray, align: 'center' as const } })),
+            { text: 'Videoviews', options: { fill: { color: COLORS.gray } } },
+            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.plays), options: { fill: { color: COLORS.gray }, align: 'center' as const } })),
           ],
           [
-            { text: 'Saves', options: { fill: COLORS.white } },
-            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.saves), options: { fill: COLORS.white, align: 'center' as const } })),
+            { text: 'Saves', options: { fill: { color: COLORS.white } } },
+            ...igReels.slice(0, 6).map(p => ({ text: formatNumber(p.saves), options: { fill: { color: COLORS.white }, align: 'center' as const } })),
           ],
         ];
 
