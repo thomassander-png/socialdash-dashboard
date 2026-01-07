@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 import { getFacebookPosts } from '@/lib/facebook';
 import { getInstagramPosts } from '@/lib/instagram';
-import { getCurrentMonth, formatNumber, truncateText, formatDate } from '@/lib/utils';
+import { getCurrentMonth, formatNumber, formatDate } from '@/lib/utils';
 import MonthSelector from '@/components/ui/MonthSelector';
 import Image from 'next/image';
 
