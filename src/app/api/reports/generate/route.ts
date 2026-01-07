@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import PptxGenJS from 'pptxgenjs';
 
-// Famefact Brand Colors
+// Famefact Brand Colors (matching the original Vergleich Org Reporting)
 const COLORS = {
-  dark: '0a0a0a',
-  lime: 'c8ff00',
+  dark: '1A1A2E',        // Dark background
+  cyan: '00D4FF',        // Primary accent (Famefact cyan)
+  lime: 'c8ff00',        // Alternative accent
   white: 'FFFFFF',
   gray: '6B7080',
   lightGray: 'F3F4F6',
-  cardBg: '1a1a1a',
-  purple: '9333ea',
+  cardBg: '2D2D44',      // Card background
+  tableBgAlt: '1A1A2E',  // Alternating table row
+  purple: '9333ea',      // Instagram accent
 };
 
 // German month names
@@ -30,6 +32,28 @@ function formatNumber(num: number | null | undefined): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString('de-DE');
+}
+
+// Fetch image and convert to base64
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; SocialDash/1.0)'
+      }
+    });
+    
+    if (!response.ok) return null;
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error('Failed to fetch image:', url, error);
+    return null;
+  }
 }
 
 interface FacebookStats {
@@ -59,6 +83,7 @@ interface FacebookPost {
   video_3s_views: number | null;
   interactions_total: number;
   image_url: string | null;
+  image_base64?: string | null;
 }
 
 interface InstagramStats {
@@ -88,6 +113,7 @@ interface InstagramPost {
   plays: number | null;
   interactions_total: number;
   image_url: string | null;
+  image_base64?: string | null;
 }
 
 async function getCustomerAccounts(customerId: string): Promise<{fbPageIds: string[], igAccountIds: string[]}> {
@@ -136,7 +162,7 @@ async function getFacebookData(month: string, pageIds: string[]): Promise<{
 
   const stats = statsResult[0] || null;
 
-  // Get top image posts with images from Supabase Storage
+  // Get top image posts
   const imagePostsResult = await query<FacebookPost>(`
     SELECT 
       m.post_id, m.page_id, m.created_time, m.type, m.permalink, m.message,
@@ -167,11 +193,22 @@ async function getFacebookData(month: string, pageIds: string[]): Promise<{
     LIMIT 6
   `, [monthDate, ...pageIds]);
 
-  return {
-    stats,
-    topImagePosts: imagePostsResult,
-    topVideos: videosResult,
-  };
+  // Fetch images as base64
+  const topImagePosts = await Promise.all(
+    imagePostsResult.map(async (post) => ({
+      ...post,
+      image_base64: post.image_url ? await fetchImageAsBase64(post.image_url) : null
+    }))
+  );
+
+  const topVideos = await Promise.all(
+    videosResult.map(async (post) => ({
+      ...post,
+      image_base64: post.image_url ? await fetchImageAsBase64(post.image_url) : null
+    }))
+  );
+
+  return { stats, topImagePosts, topVideos };
 }
 
 async function getInstagramData(month: string, accountIds: string[]): Promise<{
@@ -238,11 +275,22 @@ async function getInstagramData(month: string, accountIds: string[]): Promise<{
     LIMIT 6
   `, [monthDate, ...accountIds]);
 
-  return {
-    stats,
-    topPosts: topPostsResult,
-    topReels: topReelsResult,
-  };
+  // Fetch images as base64
+  const topPosts = await Promise.all(
+    topPostsResult.map(async (post) => ({
+      ...post,
+      image_base64: post.image_url ? await fetchImageAsBase64(post.image_url) : null
+    }))
+  );
+
+  const topReels = await Promise.all(
+    topReelsResult.map(async (post) => ({
+      ...post,
+      image_base64: post.image_url ? await fetchImageAsBase64(post.image_url) : null
+    }))
+  );
+
+  return { stats, topPosts, topReels };
 }
 
 async function generatePPTX(
@@ -282,7 +330,7 @@ async function generatePPTX(
     w: '90%',
     h: 0.8,
     fontSize: 32,
-    color: COLORS.lime,
+    color: COLORS.cyan,
     align: 'center',
   });
 
@@ -308,7 +356,7 @@ async function generatePPTX(
       h: 1.5,
       fontSize: 56,
       bold: true,
-      color: COLORS.lime,
+      color: COLORS.cyan,
       align: 'center',
     });
 
@@ -327,31 +375,41 @@ async function generatePPTX(
     });
 
     const stats = fbData.stats;
-    const kpis: Array<Array<{text: string}>> = [
-      [{ text: 'KPI' }, { text: germanMonth }],
-      [{ text: 'Post-Reichweite' }, { text: formatNumber(stats.total_reach) }],
-      [{ text: 'Ø Reichweite pro Post' }, { text: formatNumber(stats.avg_reach_per_post) }],
-      [{ text: 'Interaktionen' }, { text: formatNumber(stats.total_interactions) }],
-      [{ text: 'Reactions' }, { text: formatNumber(stats.total_reactions) }],
-      [{ text: 'Kommentare' }, { text: formatNumber(stats.total_comments) }],
-      [{ text: 'Video Views (3-Sek)' }, { text: formatNumber(stats.total_video_views) }],
-      [{ text: 'Anzahl Postings' }, { text: String(stats.total_posts) }],
-      [{ text: 'Shares (Limited)' }, { text: formatNumber(stats.total_shares) }],
+    
+    // Build KPI rows with proper typing
+    const kpiData: Array<[string, string]> = [
+      ['Post-Reichweite', formatNumber(stats.total_reach)],
+      ['Ø Reichweite pro Post', formatNumber(stats.avg_reach_per_post)],
+      ['Interaktionen', formatNumber(stats.total_interactions)],
+      ['Reactions', formatNumber(stats.total_reactions)],
+      ['Kommentare', formatNumber(stats.total_comments)],
+      ['Video Views (3-Sek)', formatNumber(stats.total_video_views)],
+      ['Anzahl Postings', String(stats.total_posts)],
+      ['Shares (Limited)', formatNumber(stats.total_shares)],
     ];
 
     // Calculate interaction rate
     if (stats.total_reach > 0) {
       const rate = (stats.total_interactions / stats.total_reach) * 100;
-      kpis.push([{ text: 'Interaktionsrate' }, { text: `${rate.toFixed(2)}%` }]);
+      kpiData.push(['Interaktionsrate', `${rate.toFixed(2)}%`]);
     }
 
-    fbKpiSlide.addTable(kpis, {
+    // Create table with header
+    const tableRows = [
+      [{ text: 'KPI', options: { bold: true, fill: { color: COLORS.cyan }, color: COLORS.dark } }, 
+       { text: germanMonth, options: { bold: true, fill: { color: COLORS.cyan }, color: COLORS.dark } }],
+      ...kpiData.map((row, idx) => [
+        { text: row[0], options: { fill: { color: idx % 2 === 0 ? COLORS.cardBg : COLORS.tableBgAlt } } },
+        { text: row[1], options: { fill: { color: idx % 2 === 0 ? COLORS.cardBg : COLORS.tableBgAlt } } }
+      ])
+    ];
+
+    fbKpiSlide.addTable(tableRows, {
       x: 1,
       y: 1.3,
       w: 8,
       colW: [5, 3],
       border: { type: 'solid', color: COLORS.cardBg, pt: 1 },
-      fill: { color: COLORS.cardBg },
       color: COLORS.white,
       fontSize: 11,
       fontFace: 'Arial',
@@ -375,7 +433,7 @@ async function generatePPTX(
       const topPostsSlide = pptx.addSlide();
       topPostsSlide.background = { color: COLORS.dark };
       
-      topPostsSlide.addText('Top Posts nach Interaktion', {
+      topPostsSlide.addText('Postings nach Interaktion – Bilder', {
         x: 0.5,
         y: 0.3,
         w: '90%',
@@ -386,12 +444,12 @@ async function generatePPTX(
       });
 
       // Add post cards (3x2 grid)
-      const cardWidth = 3.1;
-      const cardHeight = 2.3;
-      const startX = 0.3;
-      const startY = 1.2;
-      const gapX = 0.15;
-      const gapY = 0.15;
+      const cardWidth = 4;
+      const cardHeight = 2.8;
+      const startX = 0.5;
+      const startY = 1.3;
+      const gapX = 0.2;
+      const gapY = 0.2;
 
       for (let i = 0; i < Math.min(6, fbData.topImagePosts.length); i++) {
         const post = fbData.topImagePosts[i];
@@ -401,7 +459,7 @@ async function generatePPTX(
         const y = startY + row * (cardHeight + gapY);
 
         // Card background
-        topPostsSlide.addShape('rect', {
+        topPostsSlide.addShape('roundRect', {
           x,
           y,
           w: cardWidth,
@@ -410,43 +468,45 @@ async function generatePPTX(
           line: { color: COLORS.cardBg },
         });
 
-        // Try to add image if available
-        if (post.image_url) {
-          try {
-            topPostsSlide.addImage({
-              path: post.image_url,
-              x: x + 0.1,
-              y: y + 0.1,
-              w: 1.2,
-              h: 1.2,
-            });
-          } catch {
-            // Image loading failed, skip
-          }
+        // Add image if available
+        if (post.image_base64) {
+          topPostsSlide.addImage({
+            data: post.image_base64,
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+          });
+        } else {
+          // Placeholder
+          topPostsSlide.addShape('rect', {
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+            fill: { color: '3D3D54' },
+          });
+          topPostsSlide.addText('Preview nicht verfügbar', {
+            x: x + 0.1,
+            y: y + 0.9,
+            w: cardWidth - 0.2,
+            h: 0.3,
+            fontSize: 10,
+            color: COLORS.gray,
+            align: 'center',
+          });
         }
 
         // Date
         const postDate = new Date(post.created_time);
         const dateStr = postDate.toLocaleDateString('de-DE');
         topPostsSlide.addText(dateStr, {
-          x: x + (post.image_url ? 1.4 : 0.1),
-          y: y + 0.1,
-          w: cardWidth - (post.image_url ? 1.5 : 0.2),
+          x: x + 0.1,
+          y: y + 2.0,
+          w: cardWidth - 0.2,
           h: 0.25,
-          fontSize: 8,
-          color: COLORS.gray,
-        });
-
-        // Message preview
-        const message = post.message ? post.message.substring(0, 80) + (post.message.length > 80 ? '...' : '') : 'Kein Text';
-        topPostsSlide.addText(message, {
-          x: x + (post.image_url ? 1.4 : 0.1),
-          y: y + 0.4,
-          w: cardWidth - (post.image_url ? 1.5 : 0.2),
-          h: 1.0,
           fontSize: 9,
-          color: COLORS.white,
-          valign: 'top',
+          color: COLORS.gray,
         });
 
         // Interactions
@@ -455,16 +515,16 @@ async function generatePPTX(
           y: y + cardHeight - 0.4,
           w: cardWidth - 0.2,
           h: 0.3,
-          fontSize: 10,
+          fontSize: 11,
           bold: true,
-          color: COLORS.lime,
+          color: COLORS.cyan,
         });
       }
 
       // Footnote
-      topPostsSlide.addText('Interaktionen = Reactions + Kommentare. Shares separat (limited).', {
+      topPostsSlide.addText('In die Interaktionen fallen Reactions und Kommentare. Shares separat (limited).', {
         x: 0.5,
-        y: 6.5,
+        y: 6.8,
         w: '90%',
         h: 0.3,
         fontSize: 8,
@@ -477,7 +537,7 @@ async function generatePPTX(
       const videosSlide = pptx.addSlide();
       videosSlide.background = { color: COLORS.dark };
       
-      videosSlide.addText('Top Videos nach 3-Sek Views', {
+      videosSlide.addText('Videos nach 3-sekündige Video Views', {
         x: 0.5,
         y: 0.3,
         w: '90%',
@@ -487,12 +547,12 @@ async function generatePPTX(
         color: COLORS.white,
       });
 
-      const cardWidth = 3.1;
-      const cardHeight = 2.3;
-      const startX = 0.3;
-      const startY = 1.2;
-      const gapX = 0.15;
-      const gapY = 0.15;
+      const cardWidth = 4;
+      const cardHeight = 2.8;
+      const startX = 0.5;
+      const startY = 1.3;
+      const gapX = 0.2;
+      const gapY = 0.2;
 
       for (let i = 0; i < Math.min(6, fbData.topVideos.length); i++) {
         const post = fbData.topVideos[i];
@@ -502,7 +562,7 @@ async function generatePPTX(
         const y = startY + row * (cardHeight + gapY);
 
         // Card background
-        videosSlide.addShape('rect', {
+        videosSlide.addShape('roundRect', {
           x,
           y,
           w: cardWidth,
@@ -511,28 +571,36 @@ async function generatePPTX(
           line: { color: COLORS.cardBg },
         });
 
+        // Add image if available
+        if (post.image_base64) {
+          videosSlide.addImage({
+            data: post.image_base64,
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+          });
+        } else {
+          // Placeholder
+          videosSlide.addShape('rect', {
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+            fill: { color: '3D3D54' },
+          });
+        }
+
         // Date
         const postDate = new Date(post.created_time);
         const dateStr = postDate.toLocaleDateString('de-DE');
         videosSlide.addText(dateStr, {
           x: x + 0.1,
-          y: y + 0.1,
+          y: y + 2.0,
           w: cardWidth - 0.2,
           h: 0.25,
-          fontSize: 8,
-          color: COLORS.gray,
-        });
-
-        // Message preview
-        const message = post.message ? post.message.substring(0, 100) + (post.message.length > 100 ? '...' : '') : 'Kein Text';
-        videosSlide.addText(message, {
-          x: x + 0.1,
-          y: y + 0.4,
-          w: cardWidth - 0.2,
-          h: 1.4,
           fontSize: 9,
-          color: COLORS.white,
-          valign: 'top',
+          color: COLORS.gray,
         });
 
         // Views
@@ -541,9 +609,9 @@ async function generatePPTX(
           y: y + cardHeight - 0.4,
           w: cardWidth - 0.2,
           h: 0.3,
-          fontSize: 10,
+          fontSize: 11,
           bold: true,
-          color: COLORS.lime,
+          color: COLORS.cyan,
         });
       }
     }
@@ -580,31 +648,38 @@ async function generatePPTX(
     });
 
     const stats = igData.stats;
-    const kpis: Array<Array<{text: string}>> = [
-      [{ text: 'KPI' }, { text: germanMonth }],
-      [{ text: 'Reichweite' }, { text: formatNumber(stats.total_reach) }],
-      [{ text: 'Ø Reichweite pro Post' }, { text: formatNumber(stats.avg_reach_per_post) }],
-      [{ text: 'Interaktionen' }, { text: formatNumber(stats.total_interactions) }],
-      [{ text: 'Likes' }, { text: formatNumber(stats.total_likes) }],
-      [{ text: 'Kommentare' }, { text: formatNumber(stats.total_comments) }],
-      [{ text: 'Saves' }, { text: formatNumber(stats.total_saves) }],
-      [{ text: 'Reel Plays' }, { text: formatNumber(stats.total_plays) }],
-      [{ text: 'Anzahl Postings' }, { text: String(stats.total_posts) }],
+    const kpiData: Array<[string, string]> = [
+      ['Post-Reichweite', formatNumber(stats.total_reach)],
+      ['Ø Reichweite pro Post', formatNumber(stats.avg_reach_per_post)],
+      ['Interaktionen', formatNumber(stats.total_interactions)],
+      ['Likes', formatNumber(stats.total_likes)],
+      ['Kommentare', formatNumber(stats.total_comments)],
+      ['Saves', formatNumber(stats.total_saves)],
+      ['Video/Reels Plays', formatNumber(stats.total_plays)],
+      ['Anzahl Postings', String(stats.total_posts)],
     ];
 
-    // Calculate interaction rate
+    // Calculate engagement rate
     if (stats.total_reach > 0) {
       const rate = (stats.total_interactions / stats.total_reach) * 100;
-      kpis.push([{ text: 'Interaktionsrate' }, { text: `${rate.toFixed(2)}%` }]);
+      kpiData.push(['Engagement Rate', `${rate.toFixed(2)}%`]);
     }
 
-    igKpiSlide.addTable(kpis, {
+    const tableRows = [
+      [{ text: 'KPI', options: { bold: true, fill: { color: COLORS.purple }, color: COLORS.white } }, 
+       { text: germanMonth, options: { bold: true, fill: { color: COLORS.purple }, color: COLORS.white } }],
+      ...kpiData.map((row, idx) => [
+        { text: row[0], options: { fill: { color: idx % 2 === 0 ? COLORS.cardBg : COLORS.tableBgAlt } } },
+        { text: row[1], options: { fill: { color: idx % 2 === 0 ? COLORS.cardBg : COLORS.tableBgAlt } } }
+      ])
+    ];
+
+    igKpiSlide.addTable(tableRows, {
       x: 1,
       y: 1.3,
       w: 8,
       colW: [5, 3],
       border: { type: 'solid', color: COLORS.cardBg, pt: 1 },
-      fill: { color: COLORS.cardBg },
       color: COLORS.white,
       fontSize: 11,
       fontFace: 'Arial',
@@ -612,13 +687,14 @@ async function generatePPTX(
       align: 'left',
     });
 
-    igKpiSlide.addText('Interaktionen = Likes + Comments + Saves', {
+    igKpiSlide.addText([
+      { text: 'Interaktionen = Likes + Kommentare + Saves', options: { fontSize: 8, color: COLORS.gray } },
+      { text: '\nEngagement Rate = Interaktionen / Reichweite × 100', options: { fontSize: 8, color: COLORS.gray } },
+    ], {
       x: 0.5,
       y: 6.5,
       w: '90%',
-      h: 0.3,
-      fontSize: 8,
-      color: COLORS.gray,
+      h: 0.5,
     });
 
     // Top Posts slide with images
@@ -626,7 +702,7 @@ async function generatePPTX(
       const topPostsSlide = pptx.addSlide();
       topPostsSlide.background = { color: COLORS.dark };
       
-      topPostsSlide.addText('Top Posts nach Interaktion', {
+      topPostsSlide.addText('Postings nach Interaktion – Bilder', {
         x: 0.5,
         y: 0.3,
         w: '90%',
@@ -636,12 +712,12 @@ async function generatePPTX(
         color: COLORS.white,
       });
 
-      const cardWidth = 3.1;
-      const cardHeight = 2.3;
-      const startX = 0.3;
-      const startY = 1.2;
-      const gapX = 0.15;
-      const gapY = 0.15;
+      const cardWidth = 4;
+      const cardHeight = 2.8;
+      const startX = 0.5;
+      const startY = 1.3;
+      const gapX = 0.2;
+      const gapY = 0.2;
 
       for (let i = 0; i < Math.min(6, igData.topPosts.length); i++) {
         const post = igData.topPosts[i];
@@ -651,7 +727,7 @@ async function generatePPTX(
         const y = startY + row * (cardHeight + gapY);
 
         // Card background
-        topPostsSlide.addShape('rect', {
+        topPostsSlide.addShape('roundRect', {
           x,
           y,
           w: cardWidth,
@@ -660,43 +736,36 @@ async function generatePPTX(
           line: { color: COLORS.cardBg },
         });
 
-        // Try to add image if available
-        if (post.image_url) {
-          try {
-            topPostsSlide.addImage({
-              path: post.image_url,
-              x: x + 0.1,
-              y: y + 0.1,
-              w: 1.2,
-              h: 1.2,
-            });
-          } catch {
-            // Image loading failed, skip
-          }
+        // Add image if available
+        if (post.image_base64) {
+          topPostsSlide.addImage({
+            data: post.image_base64,
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+          });
+        } else {
+          // Placeholder
+          topPostsSlide.addShape('rect', {
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+            fill: { color: '3D3D54' },
+          });
         }
 
         // Date
         const postDate = new Date(post.timestamp);
         const dateStr = postDate.toLocaleDateString('de-DE');
         topPostsSlide.addText(dateStr, {
-          x: x + (post.image_url ? 1.4 : 0.1),
-          y: y + 0.1,
-          w: cardWidth - (post.image_url ? 1.5 : 0.2),
+          x: x + 0.1,
+          y: y + 2.0,
+          w: cardWidth - 0.2,
           h: 0.25,
-          fontSize: 8,
-          color: COLORS.gray,
-        });
-
-        // Caption preview
-        const caption = post.caption ? post.caption.substring(0, 80) + (post.caption.length > 80 ? '...' : '') : 'Kein Text';
-        topPostsSlide.addText(caption, {
-          x: x + (post.image_url ? 1.4 : 0.1),
-          y: y + 0.4,
-          w: cardWidth - (post.image_url ? 1.5 : 0.2),
-          h: 1.0,
           fontSize: 9,
-          color: COLORS.white,
-          valign: 'top',
+          color: COLORS.gray,
         });
 
         // Interactions
@@ -705,7 +774,7 @@ async function generatePPTX(
           y: y + cardHeight - 0.4,
           w: cardWidth - 0.2,
           h: 0.3,
-          fontSize: 10,
+          fontSize: 11,
           bold: true,
           color: COLORS.purple,
         });
@@ -717,7 +786,7 @@ async function generatePPTX(
       const reelsSlide = pptx.addSlide();
       reelsSlide.background = { color: COLORS.dark };
       
-      reelsSlide.addText('Top Reels nach Plays', {
+      reelsSlide.addText('Reels: Aufrufe/Plays', {
         x: 0.5,
         y: 0.3,
         w: '90%',
@@ -727,12 +796,12 @@ async function generatePPTX(
         color: COLORS.white,
       });
 
-      const cardWidth = 3.1;
-      const cardHeight = 2.3;
-      const startX = 0.3;
-      const startY = 1.2;
-      const gapX = 0.15;
-      const gapY = 0.15;
+      const cardWidth = 4;
+      const cardHeight = 2.8;
+      const startX = 0.5;
+      const startY = 1.3;
+      const gapX = 0.2;
+      const gapY = 0.2;
 
       for (let i = 0; i < Math.min(6, igData.topReels.length); i++) {
         const post = igData.topReels[i];
@@ -742,7 +811,7 @@ async function generatePPTX(
         const y = startY + row * (cardHeight + gapY);
 
         // Card background
-        reelsSlide.addShape('rect', {
+        reelsSlide.addShape('roundRect', {
           x,
           y,
           w: cardWidth,
@@ -751,28 +820,36 @@ async function generatePPTX(
           line: { color: COLORS.cardBg },
         });
 
+        // Add image if available
+        if (post.image_base64) {
+          reelsSlide.addImage({
+            data: post.image_base64,
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+          });
+        } else {
+          // Placeholder
+          reelsSlide.addShape('rect', {
+            x: x + 0.1,
+            y: y + 0.1,
+            w: cardWidth - 0.2,
+            h: 1.8,
+            fill: { color: '3D3D54' },
+          });
+        }
+
         // Date
         const postDate = new Date(post.timestamp);
         const dateStr = postDate.toLocaleDateString('de-DE');
         reelsSlide.addText(dateStr, {
           x: x + 0.1,
-          y: y + 0.1,
+          y: y + 2.0,
           w: cardWidth - 0.2,
           h: 0.25,
-          fontSize: 8,
-          color: COLORS.gray,
-        });
-
-        // Caption preview
-        const caption = post.caption ? post.caption.substring(0, 100) + (post.caption.length > 100 ? '...' : '') : 'Kein Text';
-        reelsSlide.addText(caption, {
-          x: x + 0.1,
-          y: y + 0.4,
-          w: cardWidth - 0.2,
-          h: 1.4,
           fontSize: 9,
-          color: COLORS.white,
-          valign: 'top',
+          color: COLORS.gray,
         });
 
         // Plays
@@ -781,7 +858,7 @@ async function generatePPTX(
           y: y + cardHeight - 0.4,
           w: cardWidth - 0.2,
           h: 0.3,
-          fontSize: 10,
+          fontSize: 11,
           bold: true,
           color: COLORS.purple,
         });
@@ -822,9 +899,9 @@ async function generatePPTX(
     fazitText += `Die Gesamtreichweite betrug ${formatNumber(stats.total_reach)} `;
     fazitText += `mit ${formatNumber(stats.total_interactions)} Interaktionen (inkl. Saves). `;
     
-    if (igData.topPosts.length > 0) {
-      const topPost = igData.topPosts[0];
-      fazitText += `Der Top-Post erzielte ${formatNumber(topPost.interactions_total)} Interaktionen.`;
+    if (igData.topReels.length > 0) {
+      const topReel = igData.topReels[0];
+      fazitText += `Das Top-Reel erzielte ${formatNumber(topReel.plays)} Plays.`;
     }
   }
 
@@ -853,7 +930,7 @@ async function generatePPTX(
     h: 1,
     fontSize: 48,
     bold: true,
-    color: COLORS.lime,
+    color: COLORS.cyan,
     align: 'center',
   });
 
