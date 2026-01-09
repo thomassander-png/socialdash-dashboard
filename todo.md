@@ -33,3 +33,25 @@
 - [ ] Animierte/Interaktive Elemente wo möglich
 - [ ] Premium PPTX-Templates mit Schatten und Effekten
 - [ ] Testen und finalen Report generieren
+
+
+## Ein-Klick Monatsreporting System
+- [ ] Report-Generator mit 13 Slides (famefact Template)
+- [ ] Slide 1: Cover (Kundenname + Monat)
+- [ ] Slide 2: Facebook Separator
+- [ ] Slide 3: Facebook Kennzahlen (KPI-Tabelle, 3 Monate)
+- [ ] Slide 4: Postings nach Interaktion (Balkendiagramm + Bilder)
+- [ ] Slide 5: Videos nach 3-Sek Views (Balkendiagramm + Thumbnails)
+- [ ] Slide 6: Instagram Separator
+- [ ] Slide 7: Instagram Kennzahlen (KPI-Tabelle, 3 Monate)
+- [ ] Slide 8: Postings nach Interaktion (Balkendiagramm + Bilder)
+- [ ] Slide 9: Bild-Beiträge Übersicht (Tabelle mit Thumbnails)
+- [ ] Slide 10: Reels Aufrufe (Balkendiagramm + Thumbnails)
+- [ ] Slide 11: Reels Übersicht (Tabelle mit Thumbnails)
+- [ ] Slide 12: Fazit (automatisch generiert)
+- [ ] Slide 13: Famefact Abschlussfolie
+- [ ] API Endpoint POST /api/reports/generate
+- [ ] Reports-UI mit Kunde/Monat Dropdown
+- [ ] ALLE Posts aus dem Monat (nicht limitiert)
+- [ ] Bilder eingebettet (nicht nur Links)
+- [ ] Deutsche Zahlenformatierung
