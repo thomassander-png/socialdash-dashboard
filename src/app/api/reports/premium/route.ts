@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
       // Get top Instagram posts (images) - using ig_posts.thumbnail_url
       const igPostsResult = await query<IGMetricsRow>(`
         SELECT 
-          m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
+          m.media_id, m.account_id, p.timestamp, m.media_type, m.permalink, m.caption,
           COALESCE(m.likes, 0) as likes, COALESCE(m.comments, 0) as comments,
           COALESCE(m.saves, 0) as saves, COALESCE(m.reach, 0) as reach,
           COALESCE(m.impressions, 0) as impressions, COALESCE(m.plays, 0) as plays,
@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
       // Get top Instagram reels
       const igReelsResult = await query<IGMetricsRow>(`
         SELECT 
-          m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
+          m.media_id, m.account_id, p.timestamp, m.media_type, m.permalink, m.caption,
           COALESCE(m.likes, 0) as likes, COALESCE(m.comments, 0) as comments,
           COALESCE(m.saves, 0) as saves, COALESCE(m.reach, 0) as reach,
           COALESCE(m.impressions, 0) as impressions, COALESCE(m.plays, 0) as plays,
