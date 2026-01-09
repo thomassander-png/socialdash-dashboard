@@ -64,21 +64,26 @@ interface IGMonthlyKPIs {
   avg_reach_per_post: number;
 }
 
-// Design constants - matching Vergleich.org template
+// Design constants - PREMIUM DESIGN matching Vergleich.org template
 const COLORS = {
   primary: '#1E3A8A',      // Dark blue for table headers (Famefact)
   secondary: '#2563EB',    // Blue for charts (Famefact)
+  accent: '#3B82F6',       // Light blue accent
   white: '#FFFFFF',
-  black: '#000000',
-  gray: '#F3F4F6',
-  lightGray: '#E5E7EB',    // Grid lines
-  darkGray: '#333333',     // Body text
+  black: '#1F2937',        // Softer black for better readability
+  gray: '#F9FAFB',         // Very light gray background
+  lightGray: '#F3F4F6',    // Light gray for alternating rows
+  mediumGray: '#E5E7EB',   // Grid lines
+  darkGray: '#374151',     // Body text - softer
   borderGray: '#D1D5DB',   // Table borders
+  success: '#10B981',      // Green for positive changes
+  danger: '#EF4444',       // Red for negative changes
 };
 
 const FONTS = {
   title: 'Arial',
   body: 'Arial',
+  // Note: For premium look, consider using 'Segoe UI' or 'Helvetica Neue' if available
 };
 
 // Customer logo URLs mapping
@@ -121,15 +126,39 @@ function getMonthName(monthStr: string): string {
   return `${months[month]} ${year}`;
 }
 
-// Helper to fetch image as base64
+// Helper to fetch image as base64 - HIGH QUALITY
 async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
     if (!url) return null;
-    const response = await fetch(url, { 
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(10000)
+    
+    // Try to get higher resolution image from Facebook/Instagram
+    let highResUrl = url;
+    if (url.includes('fbcdn.net') || url.includes('cdninstagram.com')) {
+      // Request larger image size
+      highResUrl = url.replace(/\/s\d+x\d+\//, '/s1080x1080/');
+    }
+    
+    const response = await fetch(highResUrl, { 
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8'
+      },
+      signal: AbortSignal.timeout(15000)
     });
-    if (!response.ok) return null;
+    
+    if (!response.ok) {
+      // Fallback to original URL
+      const fallbackResponse = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!fallbackResponse.ok) return null;
+      const buffer = await fallbackResponse.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const contentType = fallbackResponse.headers.get('content-type') || 'image/jpeg';
+      return `data:${contentType};base64,${base64}`;
+    }
+    
     const buffer = await response.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
     const contentType = response.headers.get('content-type') || 'image/jpeg';

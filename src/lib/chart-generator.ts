@@ -1,11 +1,16 @@
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
-import { ChartConfiguration, ChartType } from 'chart.js';
+import { ChartConfiguration, Chart } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-// Chart dimensions for PPTX (16:9 aspect ratio)
-const CHART_WIDTH = 1200;
-const CHART_HEIGHT = 500;
+// Register datalabels plugin globally
+Chart.register(ChartDataLabels);
 
-// Famefact brand colors
+// HIGH RESOLUTION - 3x for crisp display in PPTX
+const SCALE_FACTOR = 3;
+const CHART_WIDTH = 1200 * SCALE_FACTOR;  // 3600px
+const CHART_HEIGHT = 500 * SCALE_FACTOR;  // 1500px
+
+// Famefact brand colors - Premium palette
 const COLORS = {
   primary: '#1E3A8A',      // Dark blue
   secondary: '#2563EB',    // Blue
@@ -14,12 +19,17 @@ const COLORS = {
   warning: '#F59E0B',      // Orange
   danger: '#EF4444',       // Red
   gray: '#6B7280',
-  lightGray: '#E5E7EB',
+  lightGray: '#F3F4F6',
   white: '#FFFFFF',
-  black: '#000000',
+  black: '#1F2937',
+  gradient1: '#2563EB',
+  gradient2: '#1D4ED8',
 };
 
-// Create chart renderer
+// Premium fonts
+const FONT_FAMILY = 'Arial, Helvetica, sans-serif';
+
+// Create HIGH RESOLUTION chart renderer
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width: CHART_WIDTH,
   height: CHART_HEIGHT,
@@ -42,24 +52,25 @@ export interface ChartOptions {
 }
 
 /**
- * Generate a professional bar chart as base64 image
+ * Generate a PREMIUM HIGH-RESOLUTION bar chart as base64 image
  */
 export async function generateBarChart(
   data: BarChartData,
   options: ChartOptions = {}
 ): Promise<string> {
   const {
-    title,
     showValues = true,
     showLegend = false,
     maxValue,
-    horizontal = false,
   } = options;
 
-  const chartType: ChartType = horizontal ? 'bar' : 'bar';
-  
+  // Scale font sizes for high resolution
+  const baseFontSize = 14 * SCALE_FACTOR;
+  const titleFontSize = 18 * SCALE_FACTOR;
+  const valueFontSize = 16 * SCALE_FACTOR;
+
   const configuration: ChartConfiguration = {
-    type: chartType,
+    type: 'bar',
     data: {
       labels: data.labels,
       datasets: [{
@@ -68,12 +79,11 @@ export async function generateBarChart(
         backgroundColor: data.color || COLORS.secondary,
         borderColor: data.color || COLORS.secondary,
         borderWidth: 0,
-        borderRadius: 4,
-        barThickness: 60,
+        borderRadius: 8 * SCALE_FACTOR,
+        barThickness: 80 * SCALE_FACTOR,
       }],
     },
     options: {
-      indexAxis: horizontal ? 'y' : 'x',
       responsive: false,
       maintainAspectRatio: false,
       plugins: {
@@ -82,31 +92,26 @@ export async function generateBarChart(
           position: 'top',
           labels: {
             font: {
-              family: 'Arial',
-              size: 14,
+              family: FONT_FAMILY,
+              size: baseFontSize,
               weight: 'bold',
             },
             color: COLORS.black,
+            padding: 20 * SCALE_FACTOR,
           },
         },
         title: {
-          display: !!title,
-          text: title || '',
-          font: {
-            family: 'Arial',
-            size: 20,
-            weight: 'bold',
-          },
-          color: COLORS.black,
-          padding: { bottom: 20 },
+          display: false,
         },
+        // @ts-expect-error - datalabels plugin
         datalabels: {
           display: showValues,
           anchor: 'end',
           align: 'top',
+          offset: 8 * SCALE_FACTOR,
           font: {
-            family: 'Arial',
-            size: 14,
+            family: FONT_FAMILY,
+            size: valueFontSize,
             weight: 'bold',
           },
           color: COLORS.black,
@@ -118,12 +123,17 @@ export async function generateBarChart(
           grid: {
             display: false,
           },
+          border: {
+            display: false,
+          },
           ticks: {
             font: {
-              family: 'Arial',
-              size: 12,
+              family: FONT_FAMILY,
+              size: baseFontSize,
+              weight: '500',
             },
             color: COLORS.gray,
+            padding: 10 * SCALE_FACTOR,
           },
         },
         y: {
@@ -131,13 +141,18 @@ export async function generateBarChart(
           max: maxValue,
           grid: {
             color: COLORS.lightGray,
+            lineWidth: 1 * SCALE_FACTOR,
+          },
+          border: {
+            display: false,
           },
           ticks: {
             font: {
-              family: 'Arial',
-              size: 12,
+              family: FONT_FAMILY,
+              size: baseFontSize,
             },
             color: COLORS.gray,
+            padding: 10 * SCALE_FACTOR,
             callback: (value: number | string) => {
               if (typeof value === 'number') {
                 return value.toLocaleString('de-DE');
@@ -149,10 +164,10 @@ export async function generateBarChart(
       },
       layout: {
         padding: {
-          top: 40,
-          right: 20,
-          bottom: 20,
-          left: 20,
+          top: 60 * SCALE_FACTOR,
+          right: 40 * SCALE_FACTOR,
+          bottom: 20 * SCALE_FACTOR,
+          left: 40 * SCALE_FACTOR,
         },
       },
     },
@@ -174,46 +189,6 @@ export async function generateBarChart(
 }
 
 /**
- * Generate a bar chart with images above bars (for social media posts)
- */
-export async function generateBarChartWithImages(
-  data: BarChartData,
-  imageUrls: (string | null)[],
-  options: ChartOptions = {}
-): Promise<{ chartImage: string; imagePositions: { x: number; y: number; width: number; height: number }[] }> {
-  // Generate the base chart
-  const chartImage = await generateBarChart(data, {
-    ...options,
-    showValues: true,
-  });
-
-  // Calculate image positions above each bar
-  const barCount = data.values.length;
-  const chartPadding = 20;
-  const barAreaWidth = CHART_WIDTH - (chartPadding * 2);
-  const barWidth = barAreaWidth / barCount;
-  const imageWidth = barWidth * 0.7;
-  const imageHeight = 80;
-
-  const maxVal = options.maxValue || Math.max(...data.values) * 1.2;
-  
-  const imagePositions = data.values.map((value, index) => {
-    const barHeight = (value / maxVal) * (CHART_HEIGHT - 100);
-    const x = chartPadding + (index * barWidth) + (barWidth - imageWidth) / 2;
-    const y = CHART_HEIGHT - barHeight - imageHeight - 60;
-    
-    return {
-      x: x / CHART_WIDTH,  // Normalize to 0-1 range
-      y: y / CHART_HEIGHT,
-      width: imageWidth / CHART_WIDTH,
-      height: imageHeight / CHART_HEIGHT,
-    };
-  });
-
-  return { chartImage, imagePositions };
-}
-
-/**
  * Generate a comparison bar chart (current vs previous period)
  */
 export async function generateComparisonChart(
@@ -221,6 +196,8 @@ export async function generateComparisonChart(
   previousData: BarChartData,
   options: ChartOptions = {}
 ): Promise<string> {
+  const baseFontSize = 14 * SCALE_FACTOR;
+
   const configuration: ChartConfiguration = {
     type: 'bar',
     data: {
@@ -230,15 +207,15 @@ export async function generateComparisonChart(
           label: currentData.label || 'Aktuell',
           data: currentData.values,
           backgroundColor: COLORS.secondary,
-          borderRadius: 4,
-          barThickness: 40,
+          borderRadius: 6 * SCALE_FACTOR,
+          barThickness: 50 * SCALE_FACTOR,
         },
         {
           label: previousData.label || 'Vormonat',
           data: previousData.values,
           backgroundColor: COLORS.lightGray,
-          borderRadius: 4,
-          barThickness: 40,
+          borderRadius: 6 * SCALE_FACTOR,
+          barThickness: 50 * SCALE_FACTOR,
         },
       ],
     },
@@ -251,18 +228,20 @@ export async function generateComparisonChart(
           position: 'top',
           labels: {
             font: {
-              family: 'Arial',
-              size: 14,
+              family: FONT_FAMILY,
+              size: baseFontSize,
+              weight: 'bold',
             },
             color: COLORS.black,
+            padding: 20 * SCALE_FACTOR,
           },
         },
         title: {
           display: !!options.title,
           text: options.title || '',
           font: {
-            family: 'Arial',
-            size: 20,
+            family: FONT_FAMILY,
+            size: 20 * SCALE_FACTOR,
             weight: 'bold',
           },
           color: COLORS.black,
@@ -271,18 +250,28 @@ export async function generateComparisonChart(
       scales: {
         x: {
           grid: { display: false },
+          border: { display: false },
           ticks: {
-            font: { family: 'Arial', size: 12 },
+            font: { family: FONT_FAMILY, size: baseFontSize },
             color: COLORS.gray,
           },
         },
         y: {
           beginAtZero: true,
-          grid: { color: COLORS.lightGray },
+          grid: { color: COLORS.lightGray, lineWidth: SCALE_FACTOR },
+          border: { display: false },
           ticks: {
-            font: { family: 'Arial', size: 12 },
+            font: { family: FONT_FAMILY, size: baseFontSize },
             color: COLORS.gray,
           },
+        },
+      },
+      layout: {
+        padding: {
+          top: 40 * SCALE_FACTOR,
+          right: 40 * SCALE_FACTOR,
+          bottom: 20 * SCALE_FACTOR,
+          left: 40 * SCALE_FACTOR,
         },
       },
     },
@@ -299,6 +288,8 @@ export async function generateLineChart(
   data: BarChartData,
   options: ChartOptions = {}
 ): Promise<string> {
+  const baseFontSize = 14 * SCALE_FACTOR;
+
   const configuration: ChartConfiguration = {
     type: 'line',
     data: {
@@ -310,10 +301,11 @@ export async function generateLineChart(
         backgroundColor: `${COLORS.secondary}20`,
         fill: true,
         tension: 0.4,
-        pointRadius: 6,
+        pointRadius: 8 * SCALE_FACTOR,
         pointBackgroundColor: COLORS.secondary,
         pointBorderColor: COLORS.white,
-        pointBorderWidth: 2,
+        pointBorderWidth: 3 * SCALE_FACTOR,
+        borderWidth: 4 * SCALE_FACTOR,
       }],
     },
     options: {
@@ -327,8 +319,8 @@ export async function generateLineChart(
           display: !!options.title,
           text: options.title || '',
           font: {
-            family: 'Arial',
-            size: 20,
+            family: FONT_FAMILY,
+            size: 20 * SCALE_FACTOR,
             weight: 'bold',
           },
           color: COLORS.black,
@@ -337,18 +329,28 @@ export async function generateLineChart(
       scales: {
         x: {
           grid: { display: false },
+          border: { display: false },
           ticks: {
-            font: { family: 'Arial', size: 12 },
+            font: { family: FONT_FAMILY, size: baseFontSize },
             color: COLORS.gray,
           },
         },
         y: {
           beginAtZero: true,
-          grid: { color: COLORS.lightGray },
+          grid: { color: COLORS.lightGray, lineWidth: SCALE_FACTOR },
+          border: { display: false },
           ticks: {
-            font: { family: 'Arial', size: 12 },
+            font: { family: FONT_FAMILY, size: baseFontSize },
             color: COLORS.gray,
           },
+        },
+      },
+      layout: {
+        padding: {
+          top: 40 * SCALE_FACTOR,
+          right: 40 * SCALE_FACTOR,
+          bottom: 20 * SCALE_FACTOR,
+          left: 40 * SCALE_FACTOR,
         },
       },
     },
@@ -367,6 +369,8 @@ export async function generateDoughnutChart(
   colors: string[] = [COLORS.secondary, COLORS.accent, COLORS.success, COLORS.warning, COLORS.danger],
   options: ChartOptions = {}
 ): Promise<string> {
+  const baseFontSize = 14 * SCALE_FACTOR;
+
   const configuration: ChartConfiguration = {
     type: 'doughnut',
     data: {
@@ -386,22 +390,31 @@ export async function generateDoughnutChart(
           position: 'right',
           labels: {
             font: {
-              family: 'Arial',
-              size: 14,
+              family: FONT_FAMILY,
+              size: baseFontSize,
+              weight: 'bold',
             },
             color: COLORS.black,
-            padding: 20,
+            padding: 30 * SCALE_FACTOR,
           },
         },
         title: {
           display: !!options.title,
           text: options.title || '',
           font: {
-            family: 'Arial',
-            size: 20,
+            family: FONT_FAMILY,
+            size: 20 * SCALE_FACTOR,
             weight: 'bold',
           },
           color: COLORS.black,
+        },
+      },
+      layout: {
+        padding: {
+          top: 20 * SCALE_FACTOR,
+          right: 20 * SCALE_FACTOR,
+          bottom: 20 * SCALE_FACTOR,
+          left: 20 * SCALE_FACTOR,
         },
       },
     },

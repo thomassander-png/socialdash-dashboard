@@ -1,10 +1,16 @@
 # SocialDash TODO
 
+## Qualitätsverbesserung - Premium Reporting
+- [ ] Chart.js Auflösung auf 2400x1000 (2x) erhöhen
+- [ ] Bilder in höherer Qualität einbetten
+- [ ] Schriften und Farben optimieren
+- [ ] Layout perfektionieren
+
 ## Chart.js Integration für Premium-Diagramme
-- [ ] Installiere chart.js und chartjs-node-canvas
-- [ ] Erstelle Chart-Generator Modul
-- [ ] Ersetze PptxGenJS Charts durch Chart.js Bilder
-- [ ] Teste hochwertige Balkendiagramme
+- [x] Installiere chart.js und chartjs-node-canvas
+- [x] Erstelle Chart-Generator Modul
+- [x] Ersetze PptxGenJS Charts durch Chart.js Bilder
+- [x] Teste hochwertige Balkendiagramme
 
 ## Report Generator Premium-Upgrade
 - [ ] Perfekte KPI-Tabellen mit 3-Monats-Vergleich (Dez/Nov/Okt)
