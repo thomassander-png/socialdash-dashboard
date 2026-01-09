@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 import { getFacebookKPIs, getFacebookPosts } from '@/lib/facebook';
 import { getCurrentMonth, formatNumber, truncateText, formatDate } from '@/lib/utils';
-import KPICard from '@/components/ui/KPICard';
 import MonthSelector from '@/components/ui/MonthSelector';
 import Image from 'next/image';
 
