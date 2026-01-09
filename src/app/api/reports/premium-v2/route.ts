@@ -59,6 +59,13 @@ export async function POST(request: NextRequest) {
       ? `${year - 1}-${String(12 + monthNum - 2).padStart(2, '0')}` 
       : `${year}-${String(monthNum - 2).padStart(2, '0')}`;
     
+    // Account type
+    interface AccountRow {
+      account_id: string;
+      platform_account_id: string;
+      account_name: string;
+    }
+    
     // Get Facebook accounts for this customer
     const fbAccounts = await query(`
       SELECT account_id, platform_account_id, account_name
@@ -87,7 +94,7 @@ export async function POST(request: NextRequest) {
     
     // Get Facebook data
     if (fbAccounts && fbAccounts.length > 0) {
-      const fbPageIds = fbAccounts.map((a: { platform_account_id: string }) => a.platform_account_id);
+      const fbPageIds = (fbAccounts as AccountRow[]).map(a => a.platform_account_id);
       
       // Get KPIs for 3 months
       const fbKpis: FacebookKPIs[] = [];
@@ -186,7 +193,7 @@ export async function POST(request: NextRequest) {
     
     // Get Instagram data
     if (igAccounts && igAccounts.length > 0) {
-      const igAccountIds = igAccounts.map((a: { platform_account_id: string }) => a.platform_account_id);
+      const igAccountIds = (igAccounts as AccountRow[]).map(a => a.platform_account_id);
       
       // Get KPIs for 3 months
       const igKpis: InstagramKPIs[] = [];
