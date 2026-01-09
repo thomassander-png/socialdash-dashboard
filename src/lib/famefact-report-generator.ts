@@ -503,10 +503,7 @@ async function createFacebookPostsChartSlide(pptx: PptxGenJS, data: ReportData) 
   
   try {
     const chartBuffer = await generateBarChart(
-      chartLabels,
-      chartValues,
-      'Interaktionen',
-      `#${COLORS.facebook}`
+      { labels: chartLabels, values: chartValues, label: 'Interaktionen', color: `#${COLORS.facebook}` }
     );
     
     slide.addImage({
@@ -617,10 +614,7 @@ async function createFacebookVideosChartSlide(pptx: PptxGenJS, data: ReportData)
   
   try {
     const chartBuffer = await generateBarChart(
-      chartLabels,
-      chartValues,
-      '3-Sek Views',
-      `#${COLORS.facebook}`
+      { labels: chartLabels, values: chartValues, label: '3-Sek Views', color: `#${COLORS.facebook}` }
     );
     
     slide.addImage({
@@ -801,10 +795,7 @@ async function createInstagramPostsChartSlide(pptx: PptxGenJS, data: ReportData)
   
   try {
     const chartBuffer = await generateBarChart(
-      chartLabels,
-      chartValues,
-      'Interaktionen',
-      `#${COLORS.instagram}`
+      { labels: chartLabels, values: chartValues, label: 'Interaktionen', color: `#${COLORS.instagram}` }
     );
     
     slide.addImage({
@@ -989,10 +980,7 @@ async function createInstagramReelsChartSlide(pptx: PptxGenJS, data: ReportData)
   
   try {
     const chartBuffer = await generateBarChart(
-      chartLabels,
-      chartValues,
-      'Aufrufe',
-      `#${COLORS.instagram}`
+      { labels: chartLabels, values: chartValues, label: 'Aufrufe', color: `#${COLORS.instagram}` }
     );
     
     slide.addImage({
