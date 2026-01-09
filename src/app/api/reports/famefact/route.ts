@@ -345,7 +345,6 @@ export async function POST(request: NextRequest) {
     const pptxBuffer = await generateFamefactReport(reportData);
 
     // Format filename
-    const monthName = new Date(`${currentMonth}-01`).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
     const filename = `${customer.slug || customer.name.toLowerCase().replace(/\s+/g, '-')}_${currentMonth}_report.pptx`;
 
     return new NextResponse(new Uint8Array(pptxBuffer), {

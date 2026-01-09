@@ -10,7 +10,7 @@ import { generateBarChart, fetchAndOptimizeImage } from './chart-generator';
 
 // Slide dimensions (16:9)
 const SLIDE_WIDTH = 13.333;
-const SLIDE_HEIGHT = 7.5;
+// const SLIDE_HEIGHT = 7.5; // Unused but kept for reference
 
 // Design constants - famefact Template
 const COLORS = {

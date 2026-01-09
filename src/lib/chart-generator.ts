@@ -151,3 +151,32 @@ export async function generateBarChart(
 }
 
 export { COLORS };
+
+
+/**
+ * Fetch and optimize an image from URL
+ * Returns base64 encoded image buffer
+ */
+export async function fetchAndOptimizeImage(url: string): Promise<Buffer> {
+  if (!url) {
+    throw new Error('No URL provided');
+  }
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; SocialDash/1.0)',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('Image fetch error:', error);
+    throw error;
+  }
+}
