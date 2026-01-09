@@ -39,7 +39,15 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const customer = customers[0];
+    interface CustomerRow {
+      customer_id: string;
+      name: string;
+      slug: string;
+      logo_url: string | null;
+      primary_color: string | null;
+      secondary_color: string | null;
+    }
+    const customer = customers[0] as CustomerRow;
     
     // Parse month
     const [year, monthNum] = month.split('-').map(Number);
