@@ -416,14 +416,17 @@ export async function POST(request: NextRequest) {
       ];
 
       const kpiLabels = [
+        'Follower Wachstum',
+        'Follower total',
         'Post-Reichweite',
+        'Organische Reichweite',
+        'Bezahlte Reichweite',
         'Ø Reichweite pro Post',
         'Interaktionen',
-        'Reactions',
-        'Comments',
-        'Shares',
         'Video Views (3-Sek)',
-        'Anzahl Postings',
+        'Interaktionsrate*',
+        'Anzahl an Postings',
+        'PPA Ausgaben in €',
       ];
 
       kpiLabels.forEach((label, idx) => {
@@ -435,14 +438,21 @@ export async function POST(request: NextRequest) {
           let value = '-';
           if (kpi) {
             switch (label) {
+              case 'Follower Wachstum': value = '-'; break; // TODO: Implement follower tracking
+              case 'Follower total': value = '-'; break; // TODO: Implement follower tracking
               case 'Post-Reichweite': value = formatNumber(kpi.total_reach); break;
+              case 'Organische Reichweite': value = '-'; break; // TODO: Implement organic/paid split
+              case 'Bezahlte Reichweite': value = '-'; break; // TODO: Implement organic/paid split
               case 'Ø Reichweite pro Post': value = formatNumber(Math.round(kpi.avg_reach_per_post)); break;
               case 'Interaktionen': value = formatNumber(kpi.total_interactions); break;
-              case 'Reactions': value = formatNumber(kpi.total_reactions); break;
-              case 'Comments': value = formatNumber(kpi.total_comments); break;
-              case 'Shares': value = formatNumber(kpi.total_shares); break;
               case 'Video Views (3-Sek)': value = formatNumber(kpi.total_video_views); break;
-              case 'Anzahl Postings': value = formatNumber(kpi.post_count); break;
+              case 'Interaktionsrate*': 
+                value = kpi.total_reach > 0 
+                  ? ((kpi.total_interactions / kpi.total_reach) * 100).toFixed(1) + ' %' 
+                  : '-'; 
+                break;
+              case 'Anzahl an Postings': value = formatNumber(kpi.post_count); break;
+              case 'PPA Ausgaben in €': value = '-'; break; // TODO: Implement ad spend tracking
             }
           }
           row.push({ text: value, options: { fill: { color: idx % 2 === 0 ? COLORS.gray : COLORS.white }, align: 'center' } });
