@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // ============ FACEBOOK DATA ============
     if (fbPageIds.length > 0) {
-      const fbKPIs: ReportData['facebook']['kpis'] = [];
+      const fbKPIs: NonNullable<ReportData['facebook']>['kpis'] = [];
       
       // Get Facebook KPIs for 3 months
       for (const m of [currentMonth, prevMonth1, prevMonth2]) {
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
 
     // ============ INSTAGRAM DATA ============
     if (igAccountIds.length > 0) {
-      const igKPIs: ReportData['instagram']['kpis'] = [];
+      const igKPIs: NonNullable<ReportData['instagram']>['kpis'] = [];
       
       // Get Instagram KPIs for 3 months
       for (const m of [currentMonth, prevMonth1, prevMonth2]) {
