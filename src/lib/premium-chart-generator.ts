@@ -335,9 +335,7 @@ export async function generatePremiumDoughnutChart(
  * Fetch and return image as base64
  */
 export async function fetchAndOptimizeImage(
-  url: string,
-  _width: number = 400,
-  _height: number = 400
+  url: string
 ): Promise<string | null> {
   try {
     if (!url) return null;

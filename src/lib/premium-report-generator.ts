@@ -477,7 +477,7 @@ export async function generatePremiumReport(data: ReportData): Promise<Buffer> {
       for (let i = 0; i < topPosts.length; i++) {
         const post = topPosts[i];
         if (post.imageUrl) {
-          const imgData = await fetchAndOptimizeImage(post.imageUrl, 400, 400);
+          const imgData = await fetchAndOptimizeImage(post.imageUrl);
           if (imgData) {
             const barHeight = (post.interactions / maxVal) * 3.5;
             fbPostsSlide.addImage({
@@ -628,7 +628,7 @@ export async function generatePremiumReport(data: ReportData): Promise<Buffer> {
       for (let i = 0; i < topIgPosts.length; i++) {
         const post = topIgPosts[i];
         if (post.imageUrl) {
-          const imgData = await fetchAndOptimizeImage(post.imageUrl, 400, 400);
+          const imgData = await fetchAndOptimizeImage(post.imageUrl);
           if (imgData) {
             const barHeight = (post.interactions / maxIgVal) * 3.5;
             igPostsSlide.addImage({
@@ -706,7 +706,7 @@ export async function generatePremiumReport(data: ReportData): Promise<Buffer> {
       for (let i = 0; i < postsToShow.length; i++) {
         const post = postsToShow[i];
         if (post.imageUrl) {
-          const imgData = await fetchAndOptimizeImage(post.imageUrl, 400, 400);
+          const imgData = await fetchAndOptimizeImage(post.imageUrl);
           if (imgData) {
             const imgX = DESIGN.margin.outer + colWidth + (i * colWidth) + (colWidth * 0.1);
             igTableSlide.addImage({
@@ -809,7 +809,7 @@ export async function generatePremiumReport(data: ReportData): Promise<Buffer> {
       for (let i = 0; i < reelsToShow.length; i++) {
         const reel = reelsToShow[i];
         if (reel.imageUrl) {
-          const imgData = await fetchAndOptimizeImage(reel.imageUrl, 400, 400);
+          const imgData = await fetchAndOptimizeImage(reel.imageUrl);
           if (imgData) {
             const imgX = DESIGN.margin.outer + reelColWidth + (i * reelColWidth) + (reelColWidth * 0.1);
             igReelsTableSlide.addImage({
