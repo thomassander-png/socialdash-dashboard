@@ -507,7 +507,7 @@ async function createFacebookPostsChartSlide(pptx: PptxGenJS, data: ReportData) 
     );
     
     slide.addImage({
-      data: `data:image/png;base64,${chartBuffer.toString('base64')}`,
+      data: chartBuffer,
       x: 0.5,
       y: 1.2,
       w: 7,
@@ -618,7 +618,7 @@ async function createFacebookVideosChartSlide(pptx: PptxGenJS, data: ReportData)
     );
     
     slide.addImage({
-      data: `data:image/png;base64,${chartBuffer.toString('base64')}`,
+      data: chartBuffer,
       x: 0.5,
       y: 1.2,
       w: 7,
@@ -799,7 +799,7 @@ async function createInstagramPostsChartSlide(pptx: PptxGenJS, data: ReportData)
     );
     
     slide.addImage({
-      data: `data:image/png;base64,${chartBuffer.toString('base64')}`,
+      data: chartBuffer,
       x: 0.5,
       y: 1.2,
       w: 7,
@@ -984,7 +984,7 @@ async function createInstagramReelsChartSlide(pptx: PptxGenJS, data: ReportData)
     );
     
     slide.addImage({
-      data: `data:image/png;base64,${chartBuffer.toString('base64')}`,
+      data: chartBuffer,
       x: 0.5,
       y: 1.2,
       w: 7,
