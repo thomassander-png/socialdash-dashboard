@@ -65,13 +65,14 @@ interface IGMonthlyKPIs {
 
 // Design constants - matching Vergleich.org template
 const COLORS = {
-  primary: '#1E3A5F',      // Dark blue for headers
-  secondary: '#3B82F6',    // Blue for charts
+  primary: '#1E3A8A',      // Dark blue for table headers (Famefact)
+  secondary: '#2563EB',    // Blue for charts (Famefact)
   white: '#FFFFFF',
   black: '#000000',
   gray: '#F3F4F6',
-  darkGray: '#374151',
-  famefactBlack: '#000000',
+  lightGray: '#E5E7EB',    // Grid lines
+  darkGray: '#333333',     // Body text
+  borderGray: '#D1D5DB',   // Table borders
 };
 
 const FONTS = {
