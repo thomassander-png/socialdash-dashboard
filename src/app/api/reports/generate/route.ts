@@ -80,6 +80,23 @@ const FONTS = {
   body: 'Arial',
 };
 
+// Customer logo URLs mapping
+const CUSTOMER_LOGOS: Record<string, string> = {
+  'vergleich-org': 'https://www.vergleich.org/wp-content/themes/flavor/images/logo.svg',
+  'asphericon': 'https://www.asphericon.com/fileadmin/templates/img/asphericon-logo.svg',
+  'fensterart': 'https://www.fensterart.de/wp-content/uploads/2020/06/fensterart-logo.png',
+  'autohero': 'https://www.autohero.com/assets/logo-autohero.svg',
+  'casio-g-shock': 'https://www.casio.com/content/dam/casio/brand-assets/g-shock/logo/g-shock-logo.svg',
+  'contipark': 'https://www.contipark.de/fileadmin/user_upload/contipark_logo.svg',
+  'pelikan': 'https://www.pelikan.com/pulse/Pulsar/media/pelikan-logo.svg',
+  'herlitz': 'https://www.herlitz.de/media/logo/websites/1/herlitz-logo.svg',
+  'vivantes': 'https://www.vivantes.de/fileadmin/Vivantes/Logo/vivantes-logo.svg',
+  'sielmann-stiftung': 'https://www.sielmann-stiftung.de/fileadmin/templates/images/logo.svg',
+  'grg': 'https://www.grg.de/fileadmin/templates/images/grg-logo.svg',
+  'abda-apotheken': 'https://www.abda.de/fileadmin/templates/images/abda-logo.svg',
+  'famefact': 'https://famefact.com/wp-content/uploads/2023/01/famefact-logo.png',
+};
+
 // Helper to format numbers with German locale
 function formatNumber(num: number | null | undefined): string {
   if (num === null || num === undefined) return '-';
@@ -349,17 +366,49 @@ export async function POST(request: NextRequest) {
 
     // ============ SLIDE 1: COVER ============
     const coverSlide = pptx.addSlide();
-    coverSlide.addText(customer.name.toUpperCase(), {
-      x: 0.5,
-      y: 2.5,
-      w: 12.3,
-      h: 1.5,
-      fontSize: 48,
-      fontFace: FONTS.title,
-      bold: true,
-      color: COLORS.black,
-      align: 'center',
-    });
+    
+    // Try to add customer logo
+    const logoUrl = customer.slug ? CUSTOMER_LOGOS[customer.slug] : null;
+    if (logoUrl) {
+      const logoData = await fetchImageAsBase64(logoUrl);
+      if (logoData) {
+        coverSlide.addImage({
+          data: logoData,
+          x: 3.5,
+          y: 2.0,
+          w: 6.3,
+          h: 1.5,
+          sizing: { type: 'contain', w: 6.3, h: 1.5 },
+        });
+      } else {
+        // Fallback to text if logo fails
+        coverSlide.addText(customer.name.toUpperCase(), {
+          x: 0.5,
+          y: 2.5,
+          w: 12.3,
+          h: 1.5,
+          fontSize: 48,
+          fontFace: FONTS.title,
+          bold: true,
+          color: COLORS.black,
+          align: 'center',
+        });
+      }
+    } else {
+      // No logo URL, use text
+      coverSlide.addText(customer.name.toUpperCase(), {
+        x: 0.5,
+        y: 2.5,
+        w: 12.3,
+        h: 1.5,
+        fontSize: 48,
+        fontFace: FONTS.title,
+        bold: true,
+        color: COLORS.black,
+        align: 'center',
+      });
+    }
+    
     coverSlide.addText(`Social Media Reporting\n${getMonthName(currentMonth)}`, {
       x: 0.5,
       y: 4.2,
