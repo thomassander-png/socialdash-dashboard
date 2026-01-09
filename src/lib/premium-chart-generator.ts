@@ -248,7 +248,7 @@ export async function generatePremiumBarChart(
 export async function generatePremiumComparisonChart(
   currentData: BarChartData,
   previousData: BarChartData,
-  options: ChartOptions = {}
+  _options: ChartOptions = {}
 ): Promise<string> {
   const { canvas, chart } = createEChartsCanvas(CHART_WIDTH, CHART_HEIGHT);
 
@@ -363,7 +363,7 @@ export async function generatePremiumComparisonChart(
  */
 export async function generatePremiumLineChart(
   data: BarChartData,
-  options: ChartOptions = {}
+  _options: ChartOptions = {}
 ): Promise<string> {
   const { canvas, chart } = createEChartsCanvas(CHART_WIDTH, CHART_HEIGHT);
 

@@ -11,11 +11,11 @@
 import PptxGenJS from 'pptxgenjs';
 import {
   generatePremiumBarChart,
-  generatePremiumComparisonChart,
-  generatePremiumLineChart,
-  generatePremiumDoughnutChart,
+  // generatePremiumComparisonChart,
+  // generatePremiumLineChart,
+  // generatePremiumDoughnutChart,
   fetchAndOptimizeImage,
-  PREMIUM_COLORS,
+  // PREMIUM_COLORS,
 } from './premium-chart-generator';
 
 // Slide dimensions (16:9)
