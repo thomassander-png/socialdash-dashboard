@@ -66,7 +66,7 @@ export default function ReportsPage() {
     
     setGenerating(true);
     try {
-      const endpoint = reportType === 'premium' ? '/api/reports/famefact' : '/api/reports/generate';
+      const endpoint = reportType === 'premium' ? '/api/reports/premium-v2' : '/api/reports/generate';
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -207,7 +207,7 @@ export default function ReportsPage() {
               onChange={(e) => setReportType(e.target.value as 'standard' | 'premium')}
               className="w-full bg-[#0D0D0D] text-white px-4 py-3 rounded-xl border border-[rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-[#84CC16]/50 focus:border-[#84CC16]"
             >
-              <option value="premium">famefact Template (13 Slides)</option>
+              <option value="premium">Premium Spitzenklasse (13 Slides)</option>
               <option value="standard">Standard</option>
             </select>
           </div>
