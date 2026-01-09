@@ -223,8 +223,8 @@ function createKPITable(
         fill: { color: DESIGN.table.headerBg }, 
         color: DESIGN.table.headerText, 
         bold: true,
-        align: 'left',
-        valign: 'middle',
+        align: 'left' as const,
+        valign: 'middle' as const,
       } 
     },
     ...months.map(m => ({ 
@@ -233,8 +233,8 @@ function createKPITable(
         fill: { color: DESIGN.table.headerBg }, 
         color: DESIGN.table.headerText, 
         bold: true,
-        align: 'center',
-        valign: 'middle',
+        align: 'center' as const,
+        valign: 'middle' as const,
       } 
     })),
   ]);
@@ -248,8 +248,8 @@ function createKPITable(
         options: { 
           fill: { color: bgColor },
           color: DESIGN.table.text,
-          align: 'left',
-          valign: 'middle',
+          align: 'left' as const,
+          valign: 'middle' as const,
         } 
       },
       ...kpi.values.map(v => ({ 
@@ -257,8 +257,8 @@ function createKPITable(
         options: { 
           fill: { color: bgColor },
           color: DESIGN.table.text,
-          align: 'center',
-          valign: 'middle',
+          align: 'center' as const,
+          valign: 'middle' as const,
         } 
       })),
     ]);
