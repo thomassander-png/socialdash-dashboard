@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       customer: {
         name: customer.name,
         slug: customer.slug,
-        logoUrl: customer.logo_url,
+        logoUrl: customer.logo_url || undefined,
         primaryColor: customer.primary_color || '#1E3A8A',
         secondaryColor: customer.secondary_color || '#3B82F6',
       },
