@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import PptxGenJS from 'pptxgenjs';
 import { generateBarChart } from '@/lib/chart-generator';
