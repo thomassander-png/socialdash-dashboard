@@ -78,6 +78,8 @@ const COLORS = {
   borderGray: '#D1D5DB',   // Table borders
   success: '#10B981',      // Green for positive changes
   danger: '#EF4444',       // Red for negative changes
+  famefactBlack: '#0D0D0D', // Famefact brand black
+  famefactGreen: '#84CC16', // Famefact brand green
 };
 
 const FONTS = {
