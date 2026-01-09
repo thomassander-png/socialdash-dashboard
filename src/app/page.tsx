@@ -25,59 +25,118 @@ async function OverviewContent({ month }: { month: string }) {
 
   return (
     <>
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard title="Gesamt Posts" value={formatNumber(combinedPosts)} icon="📝" />
         <KPICard title="Gesamt Interaktionen" value={formatNumber(combinedInteractions)} icon="💬" highlight />
         <KPICard title="Gesamt Reichweite" value={formatNumber(combinedReach)} icon="👥" />
-        <KPICard title="Ø Interaktionen/Post" value={formatNumber(combinedPosts > 0 ? combinedInteractions / combinedPosts : 0)} icon="📈" />
+        <KPICard title="Ø Interaktionen/Post" value={formatNumber(combinedPosts > 0 ? Math.round(combinedInteractions / combinedPosts) : 0)} icon="📈" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-[#111] rounded-xl p-6 border border-[#222]">
-          <h3 className="text-lg font-semibold text-white mb-4">📘 Facebook KPIs</h3>
+      {/* Platform KPIs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Facebook KPIs */}
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-[#1877F2]/20 flex items-center justify-center">
+              <span className="text-xl">📘</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Facebook</h3>
+              <p className="text-sm text-gray-500">Performance Metriken</p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><span className="text-gray-400">Posts:</span> <span className="text-white font-bold">{formatNumber(fbKPIs.total_posts)}</span></div>
-            <div><span className="text-gray-400">Reactions:</span> <span className="text-white font-bold">{formatNumber(fbKPIs.total_reactions)}</span></div>
-            <div><span className="text-gray-400">Comments:</span> <span className="text-white font-bold">{formatNumber(fbKPIs.total_comments)}</span></div>
-            <div><span className="text-gray-400">Reichweite:</span> <span className="text-white font-bold">{formatNumber(fbKPIs.total_reach)}</span></div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Posts</p>
+              <p className="text-2xl font-bold text-white">{formatNumber(fbKPIs.total_posts)}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Reactions</p>
+              <p className="text-2xl font-bold text-[#1877F2]">{formatNumber(fbKPIs.total_reactions)}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Comments</p>
+              <p className="text-2xl font-bold text-white">{formatNumber(fbKPIs.total_comments)}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Reichweite</p>
+              <p className="text-2xl font-bold text-white">{formatNumber(fbKPIs.total_reach) || '-'}</p>
+            </div>
           </div>
         </div>
 
-        <div className="bg-[#111] rounded-xl p-6 border border-[#222]">
-          <h3 className="text-lg font-semibold text-white mb-4">📸 Instagram KPIs</h3>
+        {/* Instagram KPIs */}
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-[#E4405F]/20 flex items-center justify-center">
+              <span className="text-xl">📸</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Instagram</h3>
+              <p className="text-sm text-gray-500">Performance Metriken</p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><span className="text-gray-400">Posts:</span> <span className="text-white font-bold">{formatNumber(igKPIs.total_posts)}</span></div>
-            <div><span className="text-gray-400">Likes:</span> <span className="text-white font-bold">{formatNumber(igKPIs.total_likes)}</span></div>
-            <div><span className="text-gray-400">Comments:</span> <span className="text-white font-bold">{formatNumber(igKPIs.total_comments)}</span></div>
-            <div><span className="text-gray-400">Saves:</span> <span className="text-white font-bold">{formatNumber(igKPIs.total_saves)}</span></div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Posts</p>
+              <p className="text-2xl font-bold text-white">{formatNumber(igKPIs.total_posts)}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Likes</p>
+              <p className="text-2xl font-bold text-[#E4405F]">{formatNumber(igKPIs.total_likes)}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Comments</p>
+              <p className="text-2xl font-bold text-white">{formatNumber(igKPIs.total_comments)}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)]">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Saves</p>
+              <p className="text-2xl font-bold text-white">{formatNumber(igKPIs.total_saves) || '-'}</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* API Limitations Info */}
-      <div className="mt-8 bg-[#111] border border-[#c8ff00]/30 rounded-xl p-6">
-        <h3 className="text-[#c8ff00] font-semibold mb-2">⚠️ Facebook API Einschränkungen</h3>
-        <div className="text-gray-400 text-sm space-y-1">
-          <p><strong>Shares:</strong> Nicht für alle Posts verfügbar, daher separat ausgewiesen und nicht in Interaktionen enthalten.</p>
-          <p><strong>Saves:</strong> Nicht über die Graph API abrufbar und werden nicht angezeigt.</p>
-          <p><strong>Organisch vs. Paid:</strong> Nur über Ads API verfügbar (nicht implementiert).</p>
+      <div className="card p-6 mb-8 border-l-4 border-l-[#84CC16]">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <h3 className="text-[#84CC16] font-semibold mb-3">Facebook API Einschränkungen</h3>
+            <div className="text-gray-400 text-sm space-y-2">
+              <p><span className="text-white font-medium">Shares:</span> Nicht für alle Posts verfügbar, daher separat ausgewiesen und nicht in Interaktionen enthalten.</p>
+              <p><span className="text-white font-medium">Saves:</span> Nicht über die Graph API abrufbar und werden nicht angezeigt.</p>
+              <p><span className="text-white font-medium">Organisch vs. Paid:</span> Nur über Ads API verfügbar (nicht implementiert).</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-        <div className="bg-[#111] rounded-xl p-6 border border-[#222]">
-          <h3 className="text-lg font-semibold text-white mb-4">Top Facebook Posts</h3>
+      {/* Top Posts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Facebook Posts */}
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+            <span className="w-8 h-8 rounded-lg bg-[#1877F2]/20 flex items-center justify-center text-sm">📘</span>
+            Top Facebook Posts
+          </h3>
           {fbTopPosts.length === 0 ? (
-            <p className="text-gray-500">Keine Posts in diesem Monat</p>
+            <p className="text-gray-500 text-center py-8">Keine Posts in diesem Monat</p>
           ) : (
             <div className="space-y-4">
-              {fbTopPosts.map((post) => (
-                <div key={post.post_id} className="border-b border-[#222] pb-4 last:border-0">
-                  <p className="text-gray-300 text-sm">{truncateText(post.message, 100)}</p>
-                  <div className="flex gap-4 mt-2 text-sm">
-                    <span className="text-blue-400">{formatNumber(post.reactions_total)} Reactions</span>
-                    <span className="text-green-400">{formatNumber(post.comments_total)} Comments</span>
-                    <span className="text-gray-500">{formatDate(post.created_time)}</span>
+              {fbTopPosts.map((post, index) => (
+                <div key={post.post_id} className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.1)] transition-all">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl font-bold text-[#1877F2]/30">#{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-300 text-sm leading-relaxed">{truncateText(post.message, 100)}</p>
+                      <div className="flex flex-wrap gap-3 mt-3 text-xs">
+                        <span className="px-2 py-1 rounded-full bg-[#1877F2]/10 text-[#1877F2]">{formatNumber(post.reactions_total)} Reactions</span>
+                        <span className="px-2 py-1 rounded-full bg-green-500/10 text-green-400">{formatNumber(post.comments_total)} Comments</span>
+                        <span className="text-gray-500">{formatDate(post.created_time)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -85,19 +144,28 @@ async function OverviewContent({ month }: { month: string }) {
           )}
         </div>
 
-        <div className="bg-[#111] rounded-xl p-6 border border-[#222]">
-          <h3 className="text-lg font-semibold text-white mb-4">Top Instagram Posts</h3>
+        {/* Top Instagram Posts */}
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+            <span className="w-8 h-8 rounded-lg bg-[#E4405F]/20 flex items-center justify-center text-sm">📸</span>
+            Top Instagram Posts
+          </h3>
           {igTopPosts.length === 0 ? (
-            <p className="text-gray-500">Keine Posts in diesem Monat</p>
+            <p className="text-gray-500 text-center py-8">Keine Posts in diesem Monat</p>
           ) : (
             <div className="space-y-4">
-              {igTopPosts.map((post) => (
-                <div key={post.media_id} className="border-b border-[#222] pb-4 last:border-0">
-                  <p className="text-gray-300 text-sm">{truncateText(post.caption, 100)}</p>
-                  <div className="flex gap-4 mt-2 text-sm">
-                    <span className="text-pink-400">{formatNumber(post.likes)} Likes</span>
-                    <span className="text-green-400">{formatNumber(post.comments)} Comments</span>
-                    <span className="text-gray-500">{formatDate(post.timestamp)}</span>
+              {igTopPosts.map((post, index) => (
+                <div key={post.media_id} className="p-4 rounded-xl bg-[#0D0D0D] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.1)] transition-all">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl font-bold text-[#E4405F]/30">#{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-300 text-sm leading-relaxed">{truncateText(post.caption, 100)}</p>
+                      <div className="flex flex-wrap gap-3 mt-3 text-xs">
+                        <span className="px-2 py-1 rounded-full bg-[#E4405F]/10 text-[#E4405F]">{formatNumber(post.likes)} Likes</span>
+                        <span className="px-2 py-1 rounded-full bg-green-500/10 text-green-400">{formatNumber(post.comments)} Comments</span>
+                        <span className="text-gray-500">{formatDate(post.timestamp)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -117,13 +185,20 @@ export default async function OverviewPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">Dashboard Overview</h1>
-          <p className="text-gray-400 mt-1">Facebook & Instagram Performance Metriken</p>
+          <p className="text-gray-500 mt-1">Facebook & Instagram Performance Metriken</p>
         </div>
         <Suspense fallback={<div className="text-gray-500">Laden...</div>}>
           <MonthSelector currentMonth={month} />
         </Suspense>
       </div>
-      <Suspense fallback={<div className="text-gray-500">Daten werden geladen...</div>}>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-[#84CC16] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500">Daten werden geladen...</p>
+          </div>
+        </div>
+      }>
         <OverviewContent month={month} />
       </Suspense>
     </div>

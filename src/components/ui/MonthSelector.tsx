@@ -22,16 +22,23 @@ export default function MonthSelector({ currentMonth }: { currentMonth: string }
   };
 
   return (
-    <select
-      value={currentMonth}
-      onChange={handleChange}
-      className="bg-[#111] text-white px-4 py-2 rounded-lg border border-[#333] focus:outline-none focus:ring-2 focus:ring-[#c8ff00] focus:border-[#c8ff00]"
-    >
-      {months.map((month) => (
-        <option key={month} value={month}>
-          {formatMonth(month)}
-        </option>
-      ))}
-    </select>
+    <div className="relative">
+      <select
+        value={currentMonth}
+        onChange={handleChange}
+        className="appearance-none bg-[#141414] text-white pl-4 pr-10 py-3 rounded-xl border border-[rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-[#84CC16]/50 focus:border-[#84CC16] transition-all cursor-pointer hover:border-[rgba(255,255,255,0.2)] font-medium"
+      >
+        {months.map((month) => (
+          <option key={month} value={month} className="bg-[#141414]">
+            {formatMonth(month)}
+          </option>
+        ))}
+      </select>
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+    </div>
   );
 }
