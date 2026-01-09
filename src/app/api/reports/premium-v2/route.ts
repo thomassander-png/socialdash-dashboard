@@ -20,6 +20,9 @@ interface CustomerRow {
   customer_id: string;
   name: string;
   slug: string;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
     
     // Get customer
     const customers = await query(`
-      SELECT customer_id, name, slug
+      SELECT customer_id, name, slug, logo_url, primary_color, secondary_color
       FROM customers
       WHERE customer_id = $1
     `, [customerId]);
@@ -64,9 +67,9 @@ export async function POST(request: NextRequest) {
       customer: {
         name: customer.name,
         slug: customer.slug,
-        logoUrl: undefined,
-        primaryColor: '#1E3A8A',
-        secondaryColor: '#3B82F6',
+        logoUrl: customer.logo_url || undefined,
+        primaryColor: customer.primary_color || '#1E3A8A',
+        secondaryColor: customer.secondary_color || '#3B82F6',
       },
       month: currentMonth,
     };
