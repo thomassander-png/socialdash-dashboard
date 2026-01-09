@@ -14,6 +14,42 @@ import { generatePremiumReportV2, ReportData, FacebookKPIs, InstagramKPIs, PostD
 
 export const maxDuration = 60;
 
+// Type definitions
+interface CustomerRow {
+  customer_id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+}
+
+interface AccountRow {
+  account_id: string;
+  platform_account_id: string;
+  account_name: string;
+}
+
+interface FbMetricsRow {
+  post_count: string | number;
+  reactions: string | number;
+  comments: string | number;
+  shares: string | number;
+  reach_total: string | number;
+  impressions: string | number;
+  video_views: string | number;
+}
+
+interface IgMetricsRow {
+  post_count: string | number;
+  likes: string | number;
+  comments: string | number;
+  saves: string | number;
+  reach_total: string | number;
+  impressions: string | number;
+  video_views: string | number;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { customerId, month } = await request.json();
@@ -39,14 +75,6 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    interface CustomerRow {
-      customer_id: string;
-      name: string;
-      slug: string;
-      logo_url: string | null;
-      primary_color: string | null;
-      secondary_color: string | null;
-    }
     const customer = customers[0] as CustomerRow;
     
     // Parse month
@@ -59,26 +87,19 @@ export async function POST(request: NextRequest) {
       ? `${year - 1}-${String(12 + monthNum - 2).padStart(2, '0')}` 
       : `${year}-${String(monthNum - 2).padStart(2, '0')}`;
     
-    // Account type
-    interface AccountRow {
-      account_id: string;
-      platform_account_id: string;
-      account_name: string;
-    }
-    
     // Get Facebook accounts for this customer
     const fbAccounts = await query(`
       SELECT account_id, platform_account_id, account_name
       FROM customer_accounts
       WHERE customer_id = $1 AND platform = 'facebook' AND is_active = true
-    `, [customerId]);
+    `, [customerId]) as AccountRow[];
     
     // Get Instagram accounts for this customer
     const igAccounts = await query(`
       SELECT account_id, platform_account_id, account_name
       FROM customer_accounts
       WHERE customer_id = $1 AND platform = 'instagram' AND is_active = true
-    `, [customerId]);
+    `, [customerId]) as AccountRow[];
     
     // Build report data
     const reportData: ReportData = {
@@ -94,7 +115,7 @@ export async function POST(request: NextRequest) {
     
     // Get Facebook data
     if (fbAccounts && fbAccounts.length > 0) {
-      const fbPageIds = (fbAccounts as AccountRow[]).map(a => a.platform_account_id);
+      const fbPageIds = fbAccounts.map(a => a.platform_account_id);
       
       // Get KPIs for 3 months
       const fbKpis: FacebookKPIs[] = [];
@@ -125,24 +146,26 @@ export async function POST(request: NextRequest) {
           WHERE p.page_id = ANY($1)
             AND p.created_time >= $2
             AND p.created_time < $3
-        `, [fbPageIds, monthStart, monthEnd]);
+        `, [fbPageIds, monthStart, monthEnd]) as FbMetricsRow[];
         
-        const m = metrics[0] || {};
-        const interactions = (Number(m.reactions) || 0) + (Number(m.comments) || 0);
+        const m = metrics[0] || {} as FbMetricsRow;
+        const reactions = Number(m.reactions) || 0;
+        const comments = Number(m.comments) || 0;
+        const interactions = reactions + comments;
         const reach = Number(m.reach_total) || 0;
         const postCount = Number(m.post_count) || 0;
         
         fbKpis.push({
           month: targetMonth,
-          followerTotal: 0, // Would need page insights
+          followerTotal: 0,
           followerGrowth: 0,
           reachTotal: reach,
-          reachOrganic: reach, // Assuming organic for now
+          reachOrganic: reach,
           reachPaid: 0,
           avgReachPerPost: postCount > 0 ? Math.round(reach / postCount) : 0,
           interactions: interactions,
-          reactions: Number(m.reactions) || 0,
-          comments: Number(m.comments) || 0,
+          reactions: reactions,
+          comments: comments,
           shares: Number(m.shares) || 0,
           videoViews3s: Number(m.video_views) || 0,
           interactionRate: reach > 0 ? (interactions / reach) * 100 : 0,
@@ -193,7 +216,7 @@ export async function POST(request: NextRequest) {
     
     // Get Instagram data
     if (igAccounts && igAccounts.length > 0) {
-      const igAccountIds = (igAccounts as AccountRow[]).map(a => a.platform_account_id);
+      const igAccountIds = igAccounts.map(a => a.platform_account_id);
       
       // Get KPIs for 3 months
       const igKpis: InstagramKPIs[] = [];
@@ -223,10 +246,12 @@ export async function POST(request: NextRequest) {
           WHERE p.account_id = ANY($1)
             AND p.timestamp >= $2
             AND p.timestamp < $3
-        `, [igAccountIds, monthStart, monthEnd]);
+        `, [igAccountIds, monthStart, monthEnd]) as IgMetricsRow[];
         
-        const m = metrics[0] || {};
-        const interactions = (Number(m.likes) || 0) + (Number(m.comments) || 0);
+        const m = metrics[0] || {} as IgMetricsRow;
+        const likes = Number(m.likes) || 0;
+        const comments = Number(m.comments) || 0;
+        const interactions = likes + comments;
         const reach = Number(m.reach_total) || 0;
         const postCount = Number(m.post_count) || 0;
         
@@ -239,8 +264,8 @@ export async function POST(request: NextRequest) {
           reachPaid: 0,
           avgReachPerPost: postCount > 0 ? Math.round(reach / postCount) : 0,
           interactions: interactions,
-          likes: Number(m.likes) || 0,
-          comments: Number(m.comments) || 0,
+          likes: likes,
+          comments: comments,
           saves: Number(m.saves) || 0,
           videoViews: Number(m.video_views) || 0,
           views3sPaid: 0,
