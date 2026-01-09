@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         ORDER BY interactions DESC
       `, [fbPageIds, `${currentMonth}-01`, `${year}-${String(monthNum + 1).padStart(2, '0')}-01`]);
       
-      const fbPostsData: PostData[] = (fbPosts || []).map((p: Record<string, unknown>) => ({
+      const fbPostsData: PostData[] = ((fbPosts || []) as Record<string, unknown>[]).map((p) => ({
         id: String(p.id),
         date: String(p.date),
         reach: Number(p.reach) || 0,
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
         ORDER BY interactions DESC
       `, [igAccountIds, `${currentMonth}-01`, `${year}-${String(monthNum + 1).padStart(2, '0')}-01`]);
       
-      const igPostsData: PostData[] = (igPosts || []).map((p: Record<string, unknown>) => ({
+      const igPostsData: PostData[] = ((igPosts || []) as Record<string, unknown>[]).map((p) => ({
         id: String(p.id),
         date: String(p.date),
         imageUrl: String(p.thumbnail_url || p.media_url || ''),
