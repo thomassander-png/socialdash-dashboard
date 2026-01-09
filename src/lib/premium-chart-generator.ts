@@ -2,41 +2,23 @@
  * PREMIUM CHART GENERATOR
  * 
  * Hightech-Visualisierung für Profiagentur-Reports
- * - Apache ECharts für enterprise-grade Diagramme
- * - Sharp für gestochen scharfe Bildverarbeitung
- * - 4x Auflösung für maximale Qualität
- * - Moderne Gradients und visuelle Effekte
+ * SVG-basiert - keine Canvas-Abhängigkeit
+ * Funktioniert auf Vercel Serverless
  */
 
-import * as echarts from 'echarts';
-import { createCanvas } from 'canvas';
-import * as sharp from 'sharp';
-
-// HIGH RESOLUTION - 4x für gestochen scharfe Darstellung
-const SCALE_FACTOR = 4;
-const CHART_WIDTH = 1200 * SCALE_FACTOR;  // 4800px
-const CHART_HEIGHT = 500 * SCALE_FACTOR;  // 2000px
-
-// Premium Famefact Farbpalette mit Gradients
-const PREMIUM_COLORS = {
+// Premium Famefact Farbpalette
+export const PREMIUM_COLORS = {
   // Primary brand colors
   primary: '#1E3A8A',
   primaryLight: '#3B82F6',
   primaryDark: '#1E40AF',
   
-  // Accent colors
-  accent: '#2563EB',
-  accentLight: '#60A5FA',
-  
-  // Chart colors - Premium gradient-ready
+  // Chart colors
   chartBlue: '#2563EB',
   chartBlueLight: '#93C5FD',
   chartGreen: '#10B981',
-  chartGreenLight: '#6EE7B7',
   chartPurple: '#8B5CF6',
-  chartPurpleLight: '#C4B5FD',
   chartOrange: '#F59E0B',
-  chartOrangeLight: '#FCD34D',
   
   // Neutral colors
   white: '#FFFFFF',
@@ -52,587 +34,330 @@ const PREMIUM_COLORS = {
   gray100: '#F3F4F6',
   gray50: '#F9FAFB',
   
-  // Semantic colors
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  info: '#3B82F6',
+  // Brand colors
+  famefactBlack: '#0D0D0D',
+  famefactGreen: '#84CC16',
 };
-
-// Premium font configuration
-const FONT_CONFIG = {
-  family: 'Arial, Helvetica, sans-serif',
-  titleSize: 24,
-  labelSize: 16,
-  valueSize: 20,
-  tickSize: 14,
-};
-
-/**
- * Initialize ECharts with Canvas
- */
-function createEChartsCanvas(width: number, height: number): { canvas: ReturnType<typeof createCanvas>; chart: echarts.ECharts } {
-  const canvas = createCanvas(width, height);
-  
-  // @ts-expect-error - ECharts accepts canvas from node-canvas
-  const chart = echarts.init(canvas, null, {
-    width,
-    height,
-    renderer: 'canvas',
-  });
-  
-  return { canvas, chart };
-}
-
-/**
- * Render chart to high-quality PNG buffer using Sharp
- */
-async function renderChartToBuffer(canvas: ReturnType<typeof createCanvas>): Promise<Buffer> {
-  const buffer = canvas.toBuffer('image/png');
-  
-  // Use Sharp for additional quality optimization
-  const optimizedBuffer = await sharp.default(buffer)
-    .png({
-      quality: 100,
-      compressionLevel: 9,
-    })
-    .sharpen({
-      sigma: 0.5,
-    })
-    .toBuffer();
-  
-  return optimizedBuffer;
-}
-
-/**
- * Convert buffer to base64 data URL
- */
-function bufferToBase64(buffer: Buffer): string {
-  return `data:image/png;base64,${buffer.toString('base64')}`;
-}
 
 export interface BarChartData {
   labels: string[];
   values: number[];
   label?: string;
-  color?: string;
-  images?: (string | null)[];  // Optional images for each bar
 }
 
 export interface ChartOptions {
-  title?: string;
   showValues?: boolean;
-  showLegend?: boolean;
   maxValue?: number;
-  horizontal?: boolean;
   gradient?: boolean;
-  darkMode?: boolean;
 }
 
 /**
- * Generate a PREMIUM bar chart with ECharts
- * Features: Gradients, rounded corners, shadows, data labels
+ * Generate a premium bar chart as SVG base64
  */
 export async function generatePremiumBarChart(
   data: BarChartData,
   options: ChartOptions = {}
 ): Promise<string> {
-  const {
-    showValues = true,
-    maxValue,
-    gradient = true,
-  } = options;
-
-  const { canvas, chart } = createEChartsCanvas(CHART_WIDTH, CHART_HEIGHT);
-
-  // Premium gradient configuration
-  const barColor = gradient ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-    { offset: 0, color: PREMIUM_COLORS.chartBlue },
-    { offset: 1, color: PREMIUM_COLORS.primaryDark },
-  ]) : PREMIUM_COLORS.chartBlue;
-
-  const chartOption: echarts.EChartsOption = {
-    backgroundColor: PREMIUM_COLORS.white,
-    animation: false,
-    grid: {
-      left: 100 * SCALE_FACTOR,
-      right: 80 * SCALE_FACTOR,
-      top: 120 * SCALE_FACTOR,
-      bottom: 100 * SCALE_FACTOR,
-      containLabel: false,
-    },
-    xAxis: {
-      type: 'category',
-      data: data.labels,
-      axisLine: {
-        show: false,
-      },
-      axisTick: {
-        show: false,
-      },
-      axisLabel: {
-        fontSize: FONT_CONFIG.labelSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray600,
-        margin: 20 * SCALE_FACTOR,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      max: maxValue,
-      axisLine: {
-        show: false,
-      },
-      axisTick: {
-        show: false,
-      },
-      splitLine: {
-        lineStyle: {
-          color: PREMIUM_COLORS.gray200,
-          width: 2 * SCALE_FACTOR,
-          type: 'dashed',
-        },
-      },
-      axisLabel: {
-        fontSize: FONT_CONFIG.tickSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray500,
-        formatter: (value: number) => value.toLocaleString('de-DE'),
-      },
-    },
-    series: [
-      {
-        name: data.label || 'Wert',
-        type: 'bar',
-        data: data.values,
-        barWidth: '60%',
-        itemStyle: {
-          color: barColor,
-          borderRadius: [12 * SCALE_FACTOR, 12 * SCALE_FACTOR, 0, 0],
-          shadowColor: 'rgba(37, 99, 235, 0.3)',
-          shadowBlur: 20 * SCALE_FACTOR,
-          shadowOffsetY: 10 * SCALE_FACTOR,
-        },
-        label: showValues ? {
-          show: true,
-          position: 'top',
-          fontSize: FONT_CONFIG.valueSize * SCALE_FACTOR,
-          fontFamily: FONT_CONFIG.family,
-          fontWeight: 'bold',
-          color: PREMIUM_COLORS.gray800,
-          formatter: '{c}',
-          distance: 15 * SCALE_FACTOR,
-        } : { show: false },
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 30 * SCALE_FACTOR,
-            shadowColor: 'rgba(37, 99, 235, 0.5)',
-          },
-        },
-      },
-    ],
-  };
-
-  chart.setOption(chartOption);
+  const { showValues = true, maxValue: customMaxValue, gradient = true } = options;
   
-  const buffer = await renderChartToBuffer(canvas);
-  chart.dispose();
+  const width = 1200;
+  const height = 500;
+  const padding = { top: 80, right: 60, bottom: 100, left: 100 };
   
-  return bufferToBase64(buffer);
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  
+  const maxValue = customMaxValue || Math.max(...data.values) * 1.3;
+  const barCount = data.values.length;
+  const barWidth = (chartWidth / barCount) * 0.65;
+  const barSpacing = chartWidth / barCount;
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  
+  // Background
+  svg += `<rect width="${width}" height="${height}" fill="${PREMIUM_COLORS.white}"/>`;
+  
+  // Gradient definitions
+  if (gradient) {
+    svg += `<defs>`;
+    svg += `<linearGradient id="premiumBarGrad" x1="0%" y1="0%" x2="0%" y2="100%">`;
+    svg += `<stop offset="0%" style="stop-color:${PREMIUM_COLORS.chartBlue};stop-opacity:1"/>`;
+    svg += `<stop offset="100%" style="stop-color:${PREMIUM_COLORS.primaryDark};stop-opacity:1"/>`;
+    svg += `</linearGradient>`;
+    svg += `<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">`;
+    svg += `<feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="${PREMIUM_COLORS.chartBlue}" flood-opacity="0.3"/>`;
+    svg += `</filter>`;
+    svg += `</defs>`;
+  }
+  
+  // Grid lines (dashed, subtle)
+  for (let i = 0; i <= 5; i++) {
+    const y = padding.top + (chartHeight / 5) * i;
+    const gridValue = Math.round(maxValue - (maxValue / 5) * i);
+    
+    svg += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="${PREMIUM_COLORS.gray200}" stroke-width="2" stroke-dasharray="8,8"/>`;
+    
+    // Y-axis labels
+    svg += `<text x="${padding.left - 15}" y="${y + 5}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray500}">${gridValue.toLocaleString('de-DE')}</text>`;
+  }
+  
+  // Bars
+  data.values.forEach((value, index) => {
+    const barHeight = (value / maxValue) * chartHeight;
+    const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+    const y = padding.top + chartHeight - barHeight;
+    
+    // Bar with rounded top corners and shadow
+    svg += `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="${gradient ? 'url(#premiumBarGrad)' : PREMIUM_COLORS.chartBlue}" rx="8" ry="8" filter="url(#shadow)"/>`;
+    
+    // Value label above bar
+    if (showValues) {
+      svg += `<text x="${x + barWidth / 2}" y="${y - 15}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold" fill="${PREMIUM_COLORS.gray800}">${value.toLocaleString('de-DE')}</text>`;
+    }
+    
+    // X-axis label
+    svg += `<text x="${x + barWidth / 2}" y="${height - padding.bottom + 35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray600}">${data.labels[index]}</text>`;
+  });
+  
+  svg += '</svg>';
+  
+  const base64 = Buffer.from(svg).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 /**
- * Generate a comparison bar chart (current vs previous period)
- * Features: Grouped bars, legend, gradient fills
+ * Generate a comparison bar chart
  */
 export async function generatePremiumComparisonChart(
   currentData: BarChartData,
   previousData: BarChartData
 ): Promise<string> {
-  const { canvas, chart } = createEChartsCanvas(CHART_WIDTH, CHART_HEIGHT);
-
-  const chartOption: echarts.EChartsOption = {
-    backgroundColor: PREMIUM_COLORS.white,
-    animation: false,
-    legend: {
-      show: true,
-      top: 30 * SCALE_FACTOR,
-      textStyle: {
-        fontSize: FONT_CONFIG.labelSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray700,
-      },
-      itemWidth: 40 * SCALE_FACTOR,
-      itemHeight: 20 * SCALE_FACTOR,
-      itemGap: 40 * SCALE_FACTOR,
-    },
-    grid: {
-      left: 100 * SCALE_FACTOR,
-      right: 80 * SCALE_FACTOR,
-      top: 150 * SCALE_FACTOR,
-      bottom: 100 * SCALE_FACTOR,
-    },
-    xAxis: {
-      type: 'category',
-      data: currentData.labels,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        fontSize: FONT_CONFIG.labelSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray600,
-        margin: 20 * SCALE_FACTOR,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: {
-        lineStyle: {
-          color: PREMIUM_COLORS.gray200,
-          width: 2 * SCALE_FACTOR,
-          type: 'dashed',
-        },
-      },
-      axisLabel: {
-        fontSize: FONT_CONFIG.tickSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray500,
-        formatter: (value: number) => value.toLocaleString('de-DE'),
-      },
-    },
-    series: [
-      {
-        name: currentData.label || 'Aktuell',
-        type: 'bar',
-        data: currentData.values,
-        barWidth: '35%',
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: PREMIUM_COLORS.chartBlue },
-            { offset: 1, color: PREMIUM_COLORS.primaryDark },
-          ]),
-          borderRadius: [8 * SCALE_FACTOR, 8 * SCALE_FACTOR, 0, 0],
-          shadowColor: 'rgba(37, 99, 235, 0.2)',
-          shadowBlur: 15 * SCALE_FACTOR,
-        },
-        label: {
-          show: true,
-          position: 'top',
-          fontSize: FONT_CONFIG.tickSize * SCALE_FACTOR,
-          fontFamily: FONT_CONFIG.family,
-          fontWeight: 'bold',
-          color: PREMIUM_COLORS.gray800,
-          formatter: '{c}',
-        },
-      },
-      {
-        name: previousData.label || 'Vormonat',
-        type: 'bar',
-        data: previousData.values,
-        barWidth: '35%',
-        itemStyle: {
-          color: PREMIUM_COLORS.gray300,
-          borderRadius: [8 * SCALE_FACTOR, 8 * SCALE_FACTOR, 0, 0],
-        },
-        label: {
-          show: true,
-          position: 'top',
-          fontSize: FONT_CONFIG.tickSize * SCALE_FACTOR,
-          fontFamily: FONT_CONFIG.family,
-          color: PREMIUM_COLORS.gray600,
-          formatter: '{c}',
-        },
-      },
-    ],
-  };
-
-  chart.setOption(chartOption);
+  const width = 1200;
+  const height = 500;
+  const padding = { top: 100, right: 60, bottom: 100, left: 100 };
   
-  const buffer = await renderChartToBuffer(canvas);
-  chart.dispose();
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
   
-  return bufferToBase64(buffer);
+  const allValues = [...currentData.values, ...previousData.values];
+  const maxValue = Math.max(...allValues) * 1.3;
+  const barCount = currentData.values.length;
+  const groupWidth = chartWidth / barCount;
+  const barWidth = groupWidth * 0.35;
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  
+  // Background
+  svg += `<rect width="${width}" height="${height}" fill="${PREMIUM_COLORS.white}"/>`;
+  
+  // Gradients
+  svg += `<defs>`;
+  svg += `<linearGradient id="currentGrad" x1="0%" y1="0%" x2="0%" y2="100%">`;
+  svg += `<stop offset="0%" style="stop-color:${PREMIUM_COLORS.chartBlue};stop-opacity:1"/>`;
+  svg += `<stop offset="100%" style="stop-color:${PREMIUM_COLORS.primaryDark};stop-opacity:1"/>`;
+  svg += `</linearGradient>`;
+  svg += `</defs>`;
+  
+  // Legend
+  svg += `<rect x="${padding.left}" y="30" width="20" height="20" fill="url(#currentGrad)" rx="4"/>`;
+  svg += `<text x="${padding.left + 30}" y="45" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray700}">${currentData.label || 'Aktuell'}</text>`;
+  svg += `<rect x="${padding.left + 150}" y="30" width="20" height="20" fill="${PREMIUM_COLORS.gray300}" rx="4"/>`;
+  svg += `<text x="${padding.left + 180}" y="45" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray700}">${previousData.label || 'Vormonat'}</text>`;
+  
+  // Grid lines
+  for (let i = 0; i <= 5; i++) {
+    const y = padding.top + (chartHeight / 5) * i;
+    svg += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="${PREMIUM_COLORS.gray200}" stroke-width="2" stroke-dasharray="8,8"/>`;
+  }
+  
+  // Bars
+  currentData.values.forEach((value, index) => {
+    const prevValue = previousData.values[index] || 0;
+    const groupX = padding.left + index * groupWidth;
+    
+    // Current bar
+    const currentHeight = (value / maxValue) * chartHeight;
+    const currentX = groupX + groupWidth * 0.15;
+    const currentY = padding.top + chartHeight - currentHeight;
+    svg += `<rect x="${currentX}" y="${currentY}" width="${barWidth}" height="${currentHeight}" fill="url(#currentGrad)" rx="6"/>`;
+    svg += `<text x="${currentX + barWidth / 2}" y="${currentY - 10}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="${PREMIUM_COLORS.gray800}">${value.toLocaleString('de-DE')}</text>`;
+    
+    // Previous bar
+    const prevHeight = (prevValue / maxValue) * chartHeight;
+    const prevX = groupX + groupWidth * 0.5;
+    const prevY = padding.top + chartHeight - prevHeight;
+    svg += `<rect x="${prevX}" y="${prevY}" width="${barWidth}" height="${prevHeight}" fill="${PREMIUM_COLORS.gray300}" rx="6"/>`;
+    svg += `<text x="${prevX + barWidth / 2}" y="${prevY - 10}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="${PREMIUM_COLORS.gray600}">${prevValue.toLocaleString('de-DE')}</text>`;
+    
+    // X-axis label
+    svg += `<text x="${groupX + groupWidth / 2}" y="${height - padding.bottom + 35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray600}">${currentData.labels[index]}</text>`;
+  });
+  
+  svg += '</svg>';
+  
+  const base64 = Buffer.from(svg).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 /**
- * Generate a premium line chart for trends
- * Features: Smooth curves, area fill, gradient, animated feel
+ * Generate a line chart for trends
  */
 export async function generatePremiumLineChart(
   data: BarChartData
 ): Promise<string> {
-  const { canvas, chart } = createEChartsCanvas(CHART_WIDTH, CHART_HEIGHT);
-
-  const chartOption: echarts.EChartsOption = {
-    backgroundColor: PREMIUM_COLORS.white,
-    animation: false,
-    grid: {
-      left: 100 * SCALE_FACTOR,
-      right: 80 * SCALE_FACTOR,
-      top: 100 * SCALE_FACTOR,
-      bottom: 100 * SCALE_FACTOR,
-    },
-    xAxis: {
-      type: 'category',
-      data: data.labels,
-      boundaryGap: false,
-      axisLine: {
-        lineStyle: {
-          color: PREMIUM_COLORS.gray300,
-          width: 2 * SCALE_FACTOR,
-        },
-      },
-      axisTick: { show: false },
-      axisLabel: {
-        fontSize: FONT_CONFIG.labelSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray600,
-        margin: 20 * SCALE_FACTOR,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: {
-        lineStyle: {
-          color: PREMIUM_COLORS.gray200,
-          width: 2 * SCALE_FACTOR,
-          type: 'dashed',
-        },
-      },
-      axisLabel: {
-        fontSize: FONT_CONFIG.tickSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray500,
-        formatter: (value: number) => value.toLocaleString('de-DE'),
-      },
-    },
-    series: [
-      {
-        name: data.label || 'Trend',
-        type: 'line',
-        data: data.values,
-        smooth: 0.4,
-        symbol: 'circle',
-        symbolSize: 16 * SCALE_FACTOR,
-        lineStyle: {
-          width: 6 * SCALE_FACTOR,
-          color: PREMIUM_COLORS.chartBlue,
-          shadowColor: 'rgba(37, 99, 235, 0.3)',
-          shadowBlur: 15 * SCALE_FACTOR,
-          shadowOffsetY: 8 * SCALE_FACTOR,
-        },
-        itemStyle: {
-          color: PREMIUM_COLORS.chartBlue,
-          borderColor: PREMIUM_COLORS.white,
-          borderWidth: 4 * SCALE_FACTOR,
-          shadowColor: 'rgba(37, 99, 235, 0.4)',
-          shadowBlur: 10 * SCALE_FACTOR,
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(37, 99, 235, 0.25)' },
-            { offset: 1, color: 'rgba(37, 99, 235, 0.02)' },
-          ]),
-        },
-        label: {
-          show: true,
-          position: 'top',
-          fontSize: FONT_CONFIG.valueSize * SCALE_FACTOR,
-          fontFamily: FONT_CONFIG.family,
-          fontWeight: 'bold',
-          color: PREMIUM_COLORS.gray800,
-          formatter: '{c}',
-          distance: 20 * SCALE_FACTOR,
-        },
-      },
-    ],
-  };
-
-  chart.setOption(chartOption);
+  const width = 1200;
+  const height = 500;
+  const padding = { top: 80, right: 60, bottom: 100, left: 100 };
   
-  const buffer = await renderChartToBuffer(canvas);
-  chart.dispose();
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
   
-  return bufferToBase64(buffer);
+  const maxValue = Math.max(...data.values) * 1.3;
+  const pointCount = data.values.length;
+  const pointSpacing = chartWidth / (pointCount - 1);
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  
+  // Background
+  svg += `<rect width="${width}" height="${height}" fill="${PREMIUM_COLORS.white}"/>`;
+  
+  // Gradient for area fill
+  svg += `<defs>`;
+  svg += `<linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">`;
+  svg += `<stop offset="0%" style="stop-color:${PREMIUM_COLORS.chartBlue};stop-opacity:0.25"/>`;
+  svg += `<stop offset="100%" style="stop-color:${PREMIUM_COLORS.chartBlue};stop-opacity:0.02"/>`;
+  svg += `</linearGradient>`;
+  svg += `</defs>`;
+  
+  // Grid lines
+  for (let i = 0; i <= 5; i++) {
+    const y = padding.top + (chartHeight / 5) * i;
+    svg += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="${PREMIUM_COLORS.gray200}" stroke-width="2" stroke-dasharray="8,8"/>`;
+  }
+  
+  // Calculate points
+  const points: Array<{ x: number; y: number }> = data.values.map((value, index) => ({
+    x: padding.left + index * pointSpacing,
+    y: padding.top + chartHeight - (value / maxValue) * chartHeight,
+  }));
+  
+  // Area fill
+  let areaPath = `M ${points[0].x} ${padding.top + chartHeight}`;
+  points.forEach(p => { areaPath += ` L ${p.x} ${p.y}`; });
+  areaPath += ` L ${points[points.length - 1].x} ${padding.top + chartHeight} Z`;
+  svg += `<path d="${areaPath}" fill="url(#areaGrad)"/>`;
+  
+  // Line
+  let linePath = `M ${points[0].x} ${points[0].y}`;
+  points.slice(1).forEach(p => { linePath += ` L ${p.x} ${p.y}`; });
+  svg += `<path d="${linePath}" fill="none" stroke="${PREMIUM_COLORS.chartBlue}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  
+  // Points and labels
+  points.forEach((point, index) => {
+    svg += `<circle cx="${point.x}" cy="${point.y}" r="8" fill="${PREMIUM_COLORS.chartBlue}" stroke="${PREMIUM_COLORS.white}" stroke-width="4"/>`;
+    svg += `<text x="${point.x}" y="${point.y - 20}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="bold" fill="${PREMIUM_COLORS.gray800}">${data.values[index].toLocaleString('de-DE')}</text>`;
+    svg += `<text x="${point.x}" y="${height - padding.bottom + 35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray600}">${data.labels[index]}</text>`;
+  });
+  
+  svg += '</svg>';
+  
+  const base64 = Buffer.from(svg).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 /**
- * Generate a premium doughnut/pie chart
- * Features: 3D effect, shadows, gradient fills, elegant labels
+ * Generate a doughnut chart
  */
 export async function generatePremiumDoughnutChart(
   labels: string[],
   values: number[],
-  colors?: string[],
-  options: ChartOptions = {}
+  colors?: string[]
 ): Promise<string> {
-  const { canvas, chart } = createEChartsCanvas(CHART_WIDTH, CHART_HEIGHT);
-
+  const width = 600;
+  const height = 500;
+  const centerX = 200;
+  const centerY = 250;
+  const outerRadius = 150;
+  const innerRadius = 90;
+  
+  const total = values.reduce((a, b) => a + b, 0);
   const defaultColors = [
     PREMIUM_COLORS.chartBlue,
     PREMIUM_COLORS.chartGreen,
     PREMIUM_COLORS.chartPurple,
     PREMIUM_COLORS.chartOrange,
-    PREMIUM_COLORS.danger,
+    '#EF4444',
   ];
-
   const chartColors = colors || defaultColors;
-
-  const chartData = labels.map((label, index) => ({
-    name: label,
-    value: values[index],
-    itemStyle: {
-      color: chartColors[index % chartColors.length],
-      shadowColor: 'rgba(0, 0, 0, 0.15)',
-      shadowBlur: 20 * SCALE_FACTOR,
-      shadowOffsetX: 5 * SCALE_FACTOR,
-      shadowOffsetY: 5 * SCALE_FACTOR,
-    },
-  }));
-
-  const chartOption: echarts.EChartsOption = {
-    backgroundColor: PREMIUM_COLORS.white,
-    animation: false,
-    legend: {
-      show: true,
-      orient: 'vertical',
-      right: 80 * SCALE_FACTOR,
-      top: 'center',
-      textStyle: {
-        fontSize: FONT_CONFIG.labelSize * SCALE_FACTOR,
-        fontFamily: FONT_CONFIG.family,
-        color: PREMIUM_COLORS.gray700,
-      },
-      itemWidth: 30 * SCALE_FACTOR,
-      itemHeight: 20 * SCALE_FACTOR,
-      itemGap: 30 * SCALE_FACTOR,
-    },
-    series: [
-      {
-        name: options.title || 'Verteilung',
-        type: 'pie',
-        radius: ['45%', '75%'],
-        center: ['35%', '50%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 12 * SCALE_FACTOR,
-          borderColor: PREMIUM_COLORS.white,
-          borderWidth: 4 * SCALE_FACTOR,
-        },
-        label: {
-          show: true,
-          position: 'outside',
-          fontSize: FONT_CONFIG.valueSize * SCALE_FACTOR,
-          fontFamily: FONT_CONFIG.family,
-          fontWeight: 'bold',
-          color: PREMIUM_COLORS.gray800,
-          formatter: '{d}%',
-        },
-        labelLine: {
-          show: true,
-          length: 30 * SCALE_FACTOR,
-          length2: 20 * SCALE_FACTOR,
-          lineStyle: {
-            width: 3 * SCALE_FACTOR,
-            color: PREMIUM_COLORS.gray400,
-          },
-        },
-        data: chartData,
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 30 * SCALE_FACTOR,
-            shadowColor: 'rgba(0, 0, 0, 0.3)',
-          },
-          scale: true,
-          scaleSize: 10,
-        },
-      },
-    ],
-  };
-
-  chart.setOption(chartOption);
   
-  const buffer = await renderChartToBuffer(canvas);
-  chart.dispose();
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  svg += `<rect width="${width}" height="${height}" fill="${PREMIUM_COLORS.white}"/>`;
   
-  return bufferToBase64(buffer);
+  let currentAngle = -Math.PI / 2;
+  
+  values.forEach((value, index) => {
+    const sliceAngle = (value / total) * 2 * Math.PI;
+    const endAngle = currentAngle + sliceAngle;
+    
+    const x1 = centerX + outerRadius * Math.cos(currentAngle);
+    const y1 = centerY + outerRadius * Math.sin(currentAngle);
+    const x2 = centerX + outerRadius * Math.cos(endAngle);
+    const y2 = centerY + outerRadius * Math.sin(endAngle);
+    const x3 = centerX + innerRadius * Math.cos(endAngle);
+    const y3 = centerY + innerRadius * Math.sin(endAngle);
+    const x4 = centerX + innerRadius * Math.cos(currentAngle);
+    const y4 = centerY + innerRadius * Math.sin(currentAngle);
+    
+    const largeArc = sliceAngle > Math.PI ? 1 : 0;
+    
+    const path = `M ${x1} ${y1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`;
+    
+    svg += `<path d="${path}" fill="${chartColors[index % chartColors.length]}"/>`;
+    
+    currentAngle = endAngle;
+  });
+  
+  // Legend
+  labels.forEach((label, index) => {
+    const y = 50 + index * 35;
+    svg += `<rect x="420" y="${y}" width="20" height="20" fill="${chartColors[index % chartColors.length]}" rx="4"/>`;
+    svg += `<text x="450" y="${y + 15}" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="${PREMIUM_COLORS.gray700}">${label}</text>`;
+    svg += `<text x="580" y="${y + 15}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="${PREMIUM_COLORS.gray800}">${Math.round((values[index] / total) * 100)}%</text>`;
+  });
+  
+  svg += '</svg>';
+  
+  const base64 = Buffer.from(svg).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 /**
- * Optimize an image using Sharp for maximum quality
- * Features: Resize, sharpen, optimize compression
- */
-export async function optimizeImage(
-  imageBuffer: Buffer,
-  width: number = 1080,
-  height: number = 1080
-): Promise<Buffer> {
-  return await sharp.default(imageBuffer)
-    .resize(width, height, {
-      fit: 'cover',
-      position: 'center',
-      kernel: 'lanczos3',  // Best quality resampling
-    })
-    .sharpen({
-      sigma: 1.0,
-    })
-    .png({
-      quality: 100,
-      compressionLevel: 9,
-    })
-    .toBuffer();
-}
-
-/**
- * Fetch and optimize an image from URL
+ * Fetch and return image as base64
  */
 export async function fetchAndOptimizeImage(
   url: string,
-  width: number = 1080,
-  height: number = 1080
+  _width: number = 400,
+  _height: number = 400
 ): Promise<string | null> {
   try {
     if (!url) return null;
     
-    // Try to get higher resolution image
-    let highResUrl = url;
-    if (url.includes('fbcdn.net') || url.includes('cdninstagram.com')) {
-      highResUrl = url.replace(/\/s\d+x\d+\//, '/s1080x1080/');
-    }
-    
-    const response = await fetch(highResUrl, {
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
       },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(10000),
     });
     
-    if (!response.ok) {
-      // Fallback to original URL
-      const fallbackResponse = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!fallbackResponse.ok) return null;
-      
-      const buffer = Buffer.from(await fallbackResponse.arrayBuffer());
-      const optimized = await optimizeImage(buffer, width, height);
-      return `data:image/png;base64,${optimized.toString('base64')}`;
-    }
+    if (!response.ok) return null;
     
     const buffer = Buffer.from(await response.arrayBuffer());
-    const optimized = await optimizeImage(buffer, width, height);
-    return `data:image/png;base64,${optimized.toString('base64')}`;
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
   } catch (error) {
-    console.error('Image fetch/optimize error:', error);
+    console.error('Image fetch error:', error);
     return null;
   }
 }
-
-// Export color constants for use in other modules
-export { PREMIUM_COLORS, FONT_CONFIG, SCALE_FACTOR };
