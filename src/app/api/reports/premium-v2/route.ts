@@ -22,8 +22,8 @@ interface CustomerRow {
 }
 
 interface AccountRow {
+  id: number;
   account_id: string;
-  platform_account_id: string;
   account_name: string;
 }
 
@@ -86,14 +86,14 @@ export async function POST(request: NextRequest) {
     
     // Get Facebook accounts for this customer
     const fbAccounts = await query(`
-      SELECT account_id, platform_account_id, account_name
+      SELECT id, account_id, account_name
       FROM customer_accounts
       WHERE customer_id = $1 AND platform = 'facebook' AND is_active = true
     `, [customerId]) as AccountRow[];
     
     // Get Instagram accounts for this customer
     const igAccounts = await query(`
-      SELECT account_id, platform_account_id, account_name
+      SELECT id, account_id, account_name
       FROM customer_accounts
       WHERE customer_id = $1 AND platform = 'instagram' AND is_active = true
     `, [customerId]) as AccountRow[];
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     
     // Get Facebook data
     if (fbAccounts && fbAccounts.length > 0) {
-      const fbPageIds = fbAccounts.map(a => a.platform_account_id);
+      const fbPageIds = fbAccounts.map(a => a.account_id);
       
       // Get KPIs for 3 months
       const fbKpis: FacebookKPIs[] = [];
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     
     // Get Instagram data
     if (igAccounts && igAccounts.length > 0) {
-      const igAccountIds = igAccounts.map(a => a.platform_account_id);
+      const igAccountIds = igAccounts.map(a => a.account_id);
       
       // Get KPIs for 3 months
       const igKpis: InstagramKPIs[] = [];
