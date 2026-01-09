@@ -128,7 +128,7 @@ export async function generateBarChart(
             font: {
               family: FONT_FAMILY,
               size: baseFontSize,
-              weight: '500',
+              weight: 'normal',
             },
             color: COLORS.gray,
             padding: 10 * SCALE_FACTOR,
