@@ -66,7 +66,6 @@ export async function generateBarChart(
 
   // Scale font sizes for high resolution
   const baseFontSize = 14 * SCALE_FACTOR;
-  const titleFontSize = 18 * SCALE_FACTOR;
   const valueFontSize = 16 * SCALE_FACTOR;
 
   const configuration: ChartConfiguration = {
