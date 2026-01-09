@@ -102,7 +102,6 @@ export async function generateBarChart(
         title: {
           display: false,
         },
-        // @ts-expect-error - datalabels plugin
         datalabels: {
           display: showValues,
           anchor: 'end',
