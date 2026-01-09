@@ -28,7 +28,7 @@ interface FBMetricsRow {
   impressions: number;
   video_3s_views: number;
   interactions_total: number;
-  cached_image_url: string;
+  image_url: string;
 }
 
 interface IGMetricsRow {
@@ -45,7 +45,7 @@ interface IGMetricsRow {
   impressions: number;
   plays: number;
   interactions_total: number;
-  cached_image_url: string;
+  thumbnail_url: string;
 }
 
 interface FBKPIRow {
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Get top Facebook posts (images) by interactions
+      // Get top Facebook posts (images) by interactions - using fb_posts.image_url
       const fbPostsResult = await query<FBMetricsRow>(`
         SELECT 
           m.post_id, m.page_id, m.created_time, m.type, m.permalink, m.message,
@@ -173,9 +173,9 @@ export async function POST(request: NextRequest) {
           COALESCE(m.reach, 0) as reach, COALESCE(m.impressions, 0) as impressions,
           COALESCE(m.video_3s_views, 0) as video_3s_views,
           (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) as interactions_total,
-          COALESCE(u.cached_url, '') as cached_image_url
+          COALESCE(p.image_url, '') as image_url
         FROM view_fb_monthly_post_metrics m
-        LEFT JOIN fb_media_urls u ON m.post_id = u.post_id
+        LEFT JOIN fb_posts p ON m.post_id = p.post_id
         WHERE m.page_id = ANY($1) 
           AND m.month = $2::date
           AND m.type IN ('photo', 'link', 'status')
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         impressions: p.impressions,
         videoViews: p.video_3s_views,
         interactions: p.interactions_total,
-        imageUrl: p.cached_image_url,
+        imageUrl: p.image_url,
       }));
 
       // Get top Facebook videos
@@ -206,9 +206,9 @@ export async function POST(request: NextRequest) {
           COALESCE(m.reach, 0) as reach, COALESCE(m.impressions, 0) as impressions,
           COALESCE(m.video_3s_views, 0) as video_3s_views,
           (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) as interactions_total,
-          COALESCE(u.cached_url, '') as cached_image_url
+          COALESCE(p.image_url, '') as image_url
         FROM view_fb_monthly_post_metrics m
-        LEFT JOIN fb_media_urls u ON m.post_id = u.post_id
+        LEFT JOIN fb_posts p ON m.post_id = p.post_id
         WHERE m.page_id = ANY($1) 
           AND m.month = $2::date
           AND m.type = 'video'
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
         videoViews: v.video_3s_views,
         reach: v.reach,
         interactions: v.interactions_total,
-        imageUrl: v.cached_image_url,
+        imageUrl: v.image_url,
       }));
 
       reportData.facebook = {
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Get top Instagram posts (images)
+      // Get top Instagram posts (images) - using ig_posts.thumbnail_url
       const igPostsResult = await query<IGMetricsRow>(`
         SELECT 
           m.media_id, m.account_id, m.timestamp, m.media_type, m.permalink, m.caption,
@@ -282,9 +282,9 @@ export async function POST(request: NextRequest) {
           COALESCE(m.saves, 0) as saves, COALESCE(m.reach, 0) as reach,
           COALESCE(m.impressions, 0) as impressions, COALESCE(m.plays, 0) as plays,
           (COALESCE(m.likes, 0) + COALESCE(m.comments, 0) + COALESCE(m.saves, 0)) as interactions_total,
-          COALESCE(u.cached_url, '') as cached_image_url
+          COALESCE(p.thumbnail_url, '') as thumbnail_url
         FROM view_ig_monthly_post_metrics m
-        LEFT JOIN ig_media_urls u ON m.media_id = u.media_id
+        LEFT JOIN ig_posts p ON m.media_id = p.media_id
         WHERE m.account_id = ANY($1) 
           AND m.month = $2::date
           AND m.media_type IN ('IMAGE', 'CAROUSEL_ALBUM')
@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
         impressions: p.impressions,
         plays: p.plays,
         interactions: p.interactions_total,
-        imageUrl: p.cached_image_url,
+        imageUrl: p.thumbnail_url,
       }));
 
       // Get top Instagram reels
@@ -315,9 +315,9 @@ export async function POST(request: NextRequest) {
           COALESCE(m.saves, 0) as saves, COALESCE(m.reach, 0) as reach,
           COALESCE(m.impressions, 0) as impressions, COALESCE(m.plays, 0) as plays,
           (COALESCE(m.likes, 0) + COALESCE(m.comments, 0) + COALESCE(m.saves, 0)) as interactions_total,
-          COALESCE(u.cached_url, '') as cached_image_url
+          COALESCE(p.thumbnail_url, '') as thumbnail_url
         FROM view_ig_monthly_post_metrics m
-        LEFT JOIN ig_media_urls u ON m.media_id = u.media_id
+        LEFT JOIN ig_posts p ON m.media_id = p.media_id
         WHERE m.account_id = ANY($1) 
           AND m.month = $2::date
           AND m.media_type IN ('VIDEO', 'REELS')
@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
         saves: r.saves,
         reach: r.reach,
         interactions: r.interactions_total,
-        imageUrl: r.cached_image_url,
+        imageUrl: r.thumbnail_url,
       }));
 
       reportData.instagram = {
