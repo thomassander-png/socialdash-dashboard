@@ -388,7 +388,7 @@ async function createFacebookKPISlide(pptx: PptxGenJS, data: ReportData) {
   });
   
   // Subtitle with months
-  const months = data.facebook?.kpis.map(k => formatShortMonth(k.month)).join(' | ') || '';
+  const months = data.facebook?.kpis?.map(k => formatShortMonth(k.month)).join(' | ') || '';
   slide.addText(`Vergleich: ${months}`, {
     x: 0.5,
     y: 0.9,
@@ -697,7 +697,7 @@ async function createInstagramKPISlide(pptx: PptxGenJS, data: ReportData) {
   });
   
   // Subtitle with months
-  const months = data.instagram?.kpis.map(k => formatShortMonth(k.month)).join(' | ') || '';
+  const months = data.instagram?.kpis?.map(k => formatShortMonth(k.month)).join(' | ') || '';
   slide.addText(`Vergleich: ${months}`, {
     x: 0.5,
     y: 0.9,
