@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import PptxGenJS from 'pptxgenjs';
+import { generateBarChart } from '@/lib/chart-generator';
 
 // Types
 interface FacebookPost {
@@ -548,39 +549,43 @@ export async function POST(request: NextRequest) {
           color: COLORS.black,
         });
 
-        // Create bar chart data
-        const chartData = [{
-          name: 'Interaktionen',
-          labels: fbPosts.map(p => formatDate(p.created_time)),
-          values: fbPosts.map(p => p.interactions_total),
-        }];
+        // Generate Chart.js bar chart
+        const fbChartPosts = fbPosts.slice(0, 6);
+        const chartImage = await generateBarChart(
+          {
+            labels: fbChartPosts.map(p => formatDate(p.created_time)),
+            values: fbChartPosts.map(p => p.interactions_total),
+            label: 'Interaktionen',
+            color: COLORS.secondary,
+          },
+          {
+            showValues: true,
+            maxValue: Math.max(...fbChartPosts.map(p => p.interactions_total)) * 1.3,
+          }
+        );
 
-        fbPostsSlide.addChart(pptx.ChartType.bar, chartData, {
+        // Add Chart.js chart as image
+        fbPostsSlide.addImage({
+          data: chartImage,
           x: 1.0,
           y: 1.2,
           w: 11.3,
-          h: 4.5,
-          barDir: 'col',
-          showValue: false,
-          showLegend: false,
-          chartColors: [COLORS.secondary],
-          valAxisMaxVal: Math.max(...fbPosts.map(p => p.interactions_total)) * 1.2,
-          catAxisTitle: '',
-          valAxisTitle: '',
+          h: 4.0,
         });
 
-        // Add post images above bars
-        const barWidth = 11.3 / fbPosts.length;
-        for (let i = 0; i < Math.min(fbPosts.length, 6); i++) {
-          const post = fbPosts[i];
+        // Add post images above chart
+        const barWidth = 11.3 / fbChartPosts.length;
+        const maxVal = Math.max(...fbChartPosts.map(p => p.interactions_total)) * 1.3;
+        for (let i = 0; i < fbChartPosts.length; i++) {
+          const post = fbChartPosts[i];
           if (post.image_url) {
             const imgData = await fetchImageAsBase64(post.image_url);
             if (imgData) {
-              const barHeight = (post.interactions_total / (Math.max(...fbPosts.map(p => p.interactions_total)) * 1.2)) * 4.5;
+              const barHeight = (post.interactions_total / maxVal) * 3.5;
               fbPostsSlide.addImage({
                 data: imgData,
                 x: 1.0 + (i * barWidth) + (barWidth * 0.15),
-                y: 5.7 - barHeight - 0.9,
+                y: 5.2 - barHeight - 0.9,
                 w: barWidth * 0.7,
                 h: 0.8,
               });

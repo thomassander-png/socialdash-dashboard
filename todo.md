@@ -1,5 +1,11 @@
 # SocialDash TODO
 
+## Chart.js Integration für Premium-Diagramme
+- [ ] Installiere chart.js und chartjs-node-canvas
+- [ ] Erstelle Chart-Generator Modul
+- [ ] Ersetze PptxGenJS Charts durch Chart.js Bilder
+- [ ] Teste hochwertige Balkendiagramme
+
 ## Report Generator Premium-Upgrade
 - [ ] Perfekte KPI-Tabellen mit 3-Monats-Vergleich (Dez/Nov/Okt)
 - [ ] Hochwertige Diagramme mit professionellem Layout
