@@ -13,6 +13,7 @@ import Exports from "./pages/Exports";
 import AdminCustomers from "./pages/admin/Customers";
 import AdminAccounts from "./pages/admin/Accounts";
 import AdminReports from "./pages/admin/Reports";
+import VisualizationDemo from "./pages/VisualizationDemo";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/accounts" component={AdminAccounts} />
       <Route path="/admin/reports" component={AdminReports} />
+      <Route path="/demo/visualizations" component={VisualizationDemo} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

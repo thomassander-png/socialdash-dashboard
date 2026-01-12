@@ -33,7 +33,8 @@ import {
   Building2,
   Link2,
   FileBarChart,
-  Settings
+  Settings,
+  Palette
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -53,6 +54,10 @@ const adminMenuItems = [
   { icon: Building2, label: "Kunden", path: "/admin/customers" },
   { icon: Link2, label: "Accounts", path: "/admin/accounts" },
   { icon: FileBarChart, label: "Reports", path: "/admin/reports" },
+];
+
+const demoMenuItems = [
+  { icon: Palette, label: "Visualisierungen", path: "/demo/visualizations" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -235,6 +240,38 @@ function DashboardLayoutContent({
               })}
             </SidebarMenu>
             
+            {/* Demo Section */}
+            <div className="px-4 py-3 mt-4">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <Palette className="h-3 w-3" />
+                {!isCollapsed && <span>Demo</span>}
+              </div>
+            </div>
+            <SidebarMenu className="px-2 py-1 space-y-1">
+              {demoMenuItems.map(item => {
+                const isActive = location === item.path;
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      onClick={() => setLocation(item.path)}
+                      tooltip={item.label}
+                      className={`h-10 transition-all font-normal ${
+                        isActive 
+                          ? "bg-primary/10 text-primary border-l-2 border-primary" 
+                          : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <item.icon
+                        className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                      />
+                      <span className={isActive ? "font-medium" : ""}>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+
             {/* Admin Section */}
             {isAdmin && (
               <>

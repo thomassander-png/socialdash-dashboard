@@ -125,3 +125,35 @@
 - [x] Create Instagram page with famefact design (lime green primary)
 - [x] Add Instagram to sidebar navigation
 - [x] Create Instagram tRPC routes and database helpers
+
+
+## Report Generator Enhancement (Task 8)
+- [ ] Verbesserte Report-Seite mit Kundenauswahl-Dropdown
+- [ ] Report-Generator mit Post-Bildern aus Supabase Storage
+- [ ] Kundenspezifische Reports (nur zugewiesene Accounts)
+- [ ] Automatische Bild-Integration in PPTX
+- [ ] PDF-Export Option hinzufügen
+
+
+## Visualisierungs-Bibliotheken Upgrade (Task 9)
+
+### Recherche & Evaluierung
+- [x] Recherche aller Chart-Bibliotheken (Recharts, Tremor, Chart.js, ApexCharts, Nivo, etc.)
+- [x] Bewertungsmatrix mit Scores erstellen (Visuelle Qualität, Anpassbarkeit, Performance, Doku)
+- [x] Beste Dashboard-Lösung auswählen (shadcn/ui Charts + Tremor)
+
+### Dashboard Implementierung
+- [x] KPI-Karten mit Trend-Pfeilen und Sparklines (kpi-card.tsx)
+- [x] Balkendiagramm mit Bildern über Balken (premium-bar-chart.tsx)
+- [x] Tabelle mit eingebetteten Thumbnails (premium-table.tsx)
+- [x] Line Chart für Trends (premium-line-chart.tsx)
+- [x] Demo-Seite erstellen (/demo/visualizations)
+
+### PPTX Reports
+- [x] PPTX Report Generator mit Premium Design aktualisieren
+- [x] Native PowerPoint Charts integriert (Bar Charts)
+- [x] Premium KPI-Karten Layout implementiert
+
+### Dokumentation
+- [x] Vorher/Nachher Screenshots (docs/screenshots/)
+- [x] Dokumentation der Nutzung (docs/VISUALIZATIONS.md)
