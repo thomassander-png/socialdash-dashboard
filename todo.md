@@ -157,3 +157,32 @@
 ### Dokumentation
 - [x] Vorher/Nachher Screenshots (docs/screenshots/)
 - [x] Dokumentation der Nutzung (docs/VISUALIZATIONS.md)
+
+
+## FAMEFACT STANDARD TEMPLATE Implementation (NEU)
+
+### Phase 1: Assets
+- [ ] Logos aus Google Drive herunterladen
+- [ ] famefact-icon.png für Footer erstellen/herunterladen
+- [ ] facebook-icon-outline.svg erstellen (f im Kreis, Outline)
+- [ ] instagram-icon-outline.svg erstellen (Kamera im Kreis, Outline)
+- [ ] robert-arnold.jpg für Outro herunterladen
+- [ ] deko-chevron.png für Outro erstellen
+
+### Phase 2: Report Generator Überarbeitung
+- [ ] Bilder MITTIG IM Balken positionieren (nicht darüber!)
+- [ ] Balken RECHTECKIG machen (keine abgerundeten Ecken!)
+- [ ] KPI-Tabelle ohne Trend-Pfeile (nur Zahlen)
+- [ ] Tabellen-Header dunkelblau (#1a3a5c) statt Facebook-blau
+- [ ] Platform-Icons als Outline-Stil (nicht gefüllt)
+- [ ] PPA Ausgaben in € als zusätzliche KPI-Zeile
+- [ ] Footer mit famefact-Icon links und Seitenzahl rechts
+- [ ] Separator-Slides mit Screenshot der Seite
+- [ ] Fazit-Slide mit Fließtext (nicht KPI-Karten)
+- [ ] Outro-Slide mit Ansprechpartner-Foto und Kontaktdaten
+
+### Phase 3: Test & Deployment
+- [ ] Test-Report für Vergleich.org Dezember 2025 generieren
+- [ ] Visueller Vergleich mit Referenz-PDF
+- [ ] Code in GitHub pushen
+- [ ] Vercel Deployment prüfen

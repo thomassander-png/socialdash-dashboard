@@ -21,6 +21,7 @@ import {
   getInstagramAvailableMonths,
 } from "./instagram-db";
 import { generateReport } from "./report-generator";
+import { generateFamefactReport } from "./famefact-report-generator";
 import {
   getCustomers,
   getCustomer,
@@ -203,6 +204,39 @@ export const appRouter = router({
           };
         } catch (error: any) {
           console.error('Report generation failed:', error);
+          return {
+            success: false,
+            error: error.message || 'Report generation failed',
+          };
+        }
+      }),
+
+    // Generate FAMEFACT Standard PPTX report
+    generateFamefact: publicProcedure
+      .input(z.object({
+        clientName: z.string().min(1, "Client name is required"),
+        clientLogoUrl: z.string().url().optional(),
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format"),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const pptxBuffer = await generateFamefactReport({
+            clientName: input.clientName,
+            clientLogoUrl: input.clientLogoUrl,
+            reportMonth: input.month,
+          });
+          
+          // Convert buffer to base64 for transmission
+          const base64 = pptxBuffer.toString('base64');
+          
+          return {
+            success: true,
+            filename: `famefact_report_${input.clientName.toLowerCase().replace(/\s+/g, '_')}_${input.month}.pptx`,
+            data: base64,
+            mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          };
+        } catch (error: any) {
+          console.error('FAMEFACT Report generation failed:', error);
           return {
             success: false,
             error: error.message || 'Report generation failed',
