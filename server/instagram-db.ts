@@ -3,6 +3,10 @@
  * 
  * This module provides query functions for reading Instagram data
  * from the external PostgreSQL database (Supabase).
+ * 
+ * Database schema:
+ * - ig_posts: media_id, account_id, media_type, caption, permalink, timestamp, media_url, thumbnail_url
+ * - ig_post_metrics: id, media_id, snapshot_time, likes, comments, saves, reach, impressions, plays
  */
 
 import { getFacebookPool } from './facebook-db';
@@ -15,13 +19,14 @@ export interface InstagramAccount {
 }
 
 export interface InstagramPost {
-  post_id: string;
+  media_id: string;
   account_id: string;
   created_time: Date;
   media_type: string | null;
   permalink: string | null;
   caption: string | null;
   media_url: string | null;
+  thumbnail_url: string | null;
   created_at: Date;
 }
 
@@ -33,6 +38,7 @@ export interface InstagramPostMetrics {
   permalink: string | null;
   caption: string | null;
   media_url: string | null;
+  thumbnail_url: string | null;
   snapshot_time: Date;
   likes_count: number;
   comments_count: number;
@@ -97,23 +103,24 @@ export async function getInstagramMonthlyStats(month: string): Promise<MonthlyAc
     `);
     
     if (!viewCheck.rows[0]?.exists) {
-      // Fallback: aggregate from raw tables
+      // Fallback: aggregate from raw tables using correct column names
       const result = await pool.query(`
         WITH latest_metrics AS (
-          SELECT DISTINCT ON (m.post_id)
-            m.post_id,
+          SELECT DISTINCT ON (m.media_id)
+            m.media_id,
             p.account_id,
-            DATE_TRUNC('month', p.created_time) as month,
-            m.likes_count,
-            m.comments_count,
+            DATE_TRUNC('month', p.timestamp) as month,
+            m.likes as likes_count,
+            m.comments as comments_count,
             m.reach,
             m.impressions,
-            m.saved,
-            COALESCE(m.likes_count, 0) + COALESCE(m.comments_count, 0) as interactions
+            m.saves as saved,
+            m.plays,
+            COALESCE(m.likes, 0) + COALESCE(m.comments, 0) as interactions
           FROM ig_post_metrics m
-          JOIN ig_posts p ON m.post_id = p.post_id
-          WHERE DATE_TRUNC('month', p.created_time) = $1::date
-          ORDER BY m.post_id, m.snapshot_time DESC
+          JOIN ig_posts p ON m.media_id = p.media_id
+          WHERE DATE_TRUNC('month', p.timestamp) = $1::date
+          ORDER BY m.media_id, m.snapshot_time DESC
         )
         SELECT 
           account_id,
@@ -124,7 +131,7 @@ export async function getInstagramMonthlyStats(month: string): Promise<MonthlyAc
           COALESCE(SUM(reach), 0) as total_reach,
           COALESCE(SUM(impressions), 0) as total_impressions,
           COALESCE(SUM(saved), 0) as total_saved,
-          0 as total_plays,
+          COALESCE(SUM(plays), 0) as total_plays,
           COALESCE(SUM(interactions), 0) as total_interactions,
           CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(reach), 0) / COUNT(*) ELSE 0 END as avg_reach_per_post,
           CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(interactions), 0)::float / COUNT(*) ELSE 0 END as avg_interactions_per_post
@@ -196,27 +203,30 @@ export async function getInstagramMonthlyPosts(
   if (sortBy === 'saves') orderColumn = 'saved';
   
   try {
+    // Use correct column names: media_id, timestamp, likes, comments, saves
     let query = `
       WITH latest_metrics AS (
-        SELECT DISTINCT ON (m.post_id)
-          m.post_id,
+        SELECT DISTINCT ON (m.media_id)
+          m.media_id as post_id,
           p.account_id,
-          p.created_time,
+          p.timestamp as created_time,
           p.media_type,
           p.permalink,
           p.caption,
           p.media_url,
+          p.thumbnail_url,
           m.snapshot_time,
-          m.likes_count,
-          m.comments_count,
+          m.likes as likes_count,
+          m.comments as comments_count,
           m.reach,
           m.impressions,
-          m.saved,
-          (COALESCE(m.likes_count, 0) + COALESCE(m.comments_count, 0)) as interactions_total
+          m.saves as saved,
+          m.plays,
+          (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) as interactions_total
         FROM ig_post_metrics m
-        JOIN ig_posts p ON m.post_id = p.post_id
-        WHERE DATE_TRUNC('month', p.created_time) = $1::date
-        ORDER BY m.post_id, m.snapshot_time DESC
+        JOIN ig_posts p ON m.media_id = p.media_id
+        WHERE DATE_TRUNC('month', p.timestamp) = $1::date
+        ORDER BY m.media_id, m.snapshot_time DESC
       )
       SELECT * FROM latest_metrics
       WHERE 1=1
@@ -335,7 +345,7 @@ export async function getInstagramAvailableMonths(): Promise<string[]> {
   
   try {
     const result = await pool.query(`
-      SELECT DISTINCT TO_CHAR(DATE_TRUNC('month', created_time), 'YYYY-MM') as month
+      SELECT DISTINCT TO_CHAR(DATE_TRUNC('month', timestamp), 'YYYY-MM') as month
       FROM ig_posts
       ORDER BY month DESC
       LIMIT 24
