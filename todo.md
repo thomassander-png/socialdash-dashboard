@@ -170,26 +170,19 @@
 - [ ] deko-chevron.png für Outro erstellen
 
 ### Phase 2: Report Generator Überarbeitung
-- [x] Bilder MITTIG IM Balken positionieren (nicht darüber!)
-- [x] Balken RECHTECKIG machen (keine abgerundeten Ecken!)
-- [x] KPI-Tabelle ohne Trend-Pfeile (nur Zahlen)
-- [x] Tabellen-Header dunkelblau (#1a3a5c) statt Facebook-blau
-- [x] Platform-Icons als Outline-Stil (nicht gefüllt)
+- [ ] Bilder MITTIG IM Balken positionieren (nicht darüber!)
+- [ ] Balken RECHTECKIG machen (keine abgerundeten Ecken!)
+- [ ] KPI-Tabelle ohne Trend-Pfeile (nur Zahlen)
+- [ ] Tabellen-Header dunkelblau (#1a3a5c) statt Facebook-blau
+- [ ] Platform-Icons als Outline-Stil (nicht gefüllt)
 - [ ] PPA Ausgaben in € als zusätzliche KPI-Zeile
-- [x] Footer mit famefact-Icon links und Seitenzahl rechts
+- [ ] Footer mit famefact-Icon links und Seitenzahl rechts
 - [ ] Separator-Slides mit Screenshot der Seite
-- [x] Fazit-Slide mit Fließtext (nicht KPI-Karten)
-- [x] Outro-Slide mit Ansprechpartner-Foto und Kontaktdaten
+- [ ] Fazit-Slide mit Fließtext (nicht KPI-Karten)
+- [ ] Outro-Slide mit Ansprechpartner-Foto und Kontaktdaten
 
 ### Phase 3: Test & Deployment
-- [x] Test-Report für Vergleich.org Dezember 2025 generieren
-- [x] Visueller Vergleich mit Referenz-PDF
-- [x] Code in GitHub pushen
-- [x] Vercel Deployment prüfen
-- [x] Instagram Bar-Chart Bilder anzeigen (min bar height auf 0.8 Zoll erhöht)
-- [x] ALL posts displayed in bar charts (slice(0, 4) entfernt)
-- [x] Dynamic bar width based on number of posts
-
-### Bekannte Einschränkungen
-- [ ] Instagram Reach-Daten zeigen 0 (erfordert zusätzliche API-Berechtigungen)
-- [ ] Reels Video-Thumbnails laden nicht (Meta API Einschränkung für Video-Inhalte)
+- [ ] Test-Report für Vergleich.org Dezember 2025 generieren
+- [ ] Visueller Vergleich mit Referenz-PDF
+- [ ] Code in GitHub pushen
+- [ ] Vercel Deployment prüfen
