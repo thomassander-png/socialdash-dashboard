@@ -11,12 +11,15 @@ export async function GET(request: NextRequest) {
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
   const customer = searchParams.get('customer');
   
+  const headers = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+  };
+  
   const startDate = `${month}-01`;
   const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   
   try {
-    console.log('Fetching Facebook posts for:', { month, startDate, endDate, customer });
-    
     let query = `
       SELECT 
         p.post_id,
@@ -55,11 +58,10 @@ export async function GET(request: NextRequest) {
     query += ` ORDER BY (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) DESC LIMIT 100`;
     
     const result = await pool.query(query, params);
-    console.log('Facebook posts query result:', result.rows.length, 'rows');
     
-    return NextResponse.json({ posts: result.rows });
+    return NextResponse.json({ posts: result.rows }, { headers });
   } catch (error) {
     console.error('Error fetching Facebook posts:', error);
-    return NextResponse.json({ posts: [], error: String(error) }, { status: 500 });
+    return NextResponse.json({ posts: [], error: String(error) }, { status: 500, headers });
   }
 }
