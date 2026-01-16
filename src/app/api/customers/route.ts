@@ -4,17 +4,21 @@ import { query } from '@/lib/db';
 export async function GET() {
   try {
     const customers = await query<{
-      id: number;
+      customer_id: string;
       name: string;
       slug: string;
-      logo_url: string | null;
-      primary_color: string | null;
+      is_active: boolean;
     }>(`
-      SELECT c.id, c.name, c.slug, c.logo_url, c.primary_color
+      SELECT 
+        c.customer_id, 
+        c.name, 
+        LOWER(REPLACE(c.name, ' ', '-')) as slug,
+        c.is_active
       FROM customers c
-      WHERE EXISTS (
-        SELECT 1 FROM customer_accounts ca WHERE ca.customer_id = c.id
-      )
+      WHERE c.is_active = true
+        AND EXISTS (
+          SELECT 1 FROM customer_accounts ca WHERE ca.customer_id = c.customer_id
+        )
       ORDER BY c.name
     `);
 
