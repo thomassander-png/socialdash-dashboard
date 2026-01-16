@@ -30,3 +30,10 @@
 - [x] Top 5 Posts Chart: Größere Bilder über den Balken, bessere Proportionen
 - [x] Posts Tabelle: Exakt wie im alten Dashboard mit allen Spalten
 - [x] Follower-Seite: Integration sicherstellen
+
+
+## Top 5 Posts Chart Anpassungen
+
+- [x] Bilder über den Balken positionieren (nicht neben dem Balken)
+- [x] Datum des Posts unter jedem Post anzeigen
+- [x] Layout exakt wie im alten Dashboard

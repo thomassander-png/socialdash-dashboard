@@ -28,10 +28,14 @@ function formatNumber(num: number): string {
   return num.toLocaleString('de-DE');
 }
 
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
 export default function Top5PostsChart({ posts, platform, totalPosts }: Top5PostsChartProps) {
   const barColor = platform === 'facebook' ? 'bg-blue-500' : 'bg-pink-500';
-  const title = platform === 'facebook' ? 'Top 5 Posts nach Interaktionen' : 'Top 5 Posts nach Interaktionen';
-  const subtitle = 'Mit Post-Vorschaubildern';
+  const title = platform === 'facebook' ? 'Top 5 Facebook Posts' : 'Top 5 Instagram Posts';
   
   // Get top 5 posts sorted by interactions
   const topPosts = posts
@@ -49,11 +53,8 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-white font-bold text-lg">{title}</h3>
-          <p className="text-gray-500 text-sm">{subtitle}</p>
+          <p className="text-gray-500 text-sm">Nach Interaktionen sortiert</p>
         </div>
-        <span className="bg-[#84cc16] text-black text-xs font-bold px-2 py-1 rounded">
-          {totalPosts}
-        </span>
       </div>
       
       {topPosts.length === 0 ? (
@@ -61,18 +62,20 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
           Keine Posts verfügbar
         </div>
       ) : (
-        <div className="flex items-end justify-between gap-3 h-72">
+        <div className="flex items-end justify-between gap-4 h-80">
           {topPosts.map((post, index) => {
             const heightPercent = (post.interactions / maxInteractions) * 100;
+            const barHeight = Math.max(heightPercent * 0.6, 15);
+            
             return (
-              <div key={post.post_id} className="flex-1 flex flex-col items-center">
-                {/* Interaction count */}
+              <div key={post.post_id} className="flex-1 flex flex-col items-center h-full justify-end">
+                {/* Interaction count above image */}
                 <span className="text-white text-sm font-bold mb-2">
                   {formatNumber(post.interactions)}
                 </span>
                 
-                {/* Post image - größer wie im alten Dashboard */}
-                <div className="w-16 h-16 mb-2 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
+                {/* Post image - positioned above the bar */}
+                <div className="w-14 h-14 mb-1 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
                   {post.thumbnail_url ? (
                     <img 
                       src={post.thumbnail_url} 
@@ -89,11 +92,14 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
                 {/* Bar */}
                 <div 
                   className={`w-full ${barColor} rounded-t transition-all duration-500`}
-                  style={{ height: `${Math.max(heightPercent * 0.55, 20)}%` }}
+                  style={{ height: `${barHeight}%` }}
                 ></div>
                 
-                {/* Label */}
-                <span className="text-gray-500 text-xs mt-2">Post {index + 1}</span>
+                {/* Post label and date */}
+                <div className="mt-2 text-center">
+                  <span className="text-gray-400 text-xs block">Post {index + 1}</span>
+                  <span className="text-gray-500 text-xs block">{formatDate(post.created_time)}</span>
+                </div>
               </div>
             );
           })}
