@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     if (customer && customer !== 'all') {
       const accounts = await query<{ platform: string; account_id: string }>(
         `SELECT platform, account_id FROM customer_accounts ca
-         JOIN customers c ON ca.customer_id = c.id
-         WHERE c.slug = $1`,
+         JOIN customers c ON ca.customer_id = c.customer_id
+         WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1)`,
         [customer]
       );
       fbPageIds = accounts.filter(a => a.platform === 'facebook').map(a => a.account_id);

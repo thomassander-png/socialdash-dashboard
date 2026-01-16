@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       igAccountIds = accounts.filter(a => a.platform === 'instagram').map(a => a.account_id);
     }
 
-    // Facebook Stats - using view_fb_post_latest_metrics if available, otherwise subquery
+    // Facebook Stats - using CTE for latest metrics
     const fbStatsQuery = `
       WITH latest_metrics AS (
         SELECT DISTINCT ON (fpm.post_id) 
@@ -48,27 +48,27 @@ export async function GET(request: NextRequest) {
       fbStatsQuery, fbParams
     );
 
-    // Instagram Stats - using similar approach
+    // Instagram Stats - using correct column names: media_id, timestamp, likes, comments, saves
     const igStatsQuery = `
       WITH latest_metrics AS (
-        SELECT DISTINCT ON (ipm.post_id) 
-          ipm.post_id,
-          ipm.likes_count,
-          ipm.comments_count,
-          ipm.saved,
+        SELECT DISTINCT ON (ipm.media_id) 
+          ipm.media_id,
+          ipm.likes,
+          ipm.comments,
+          ipm.saves,
           ipm.reach
         FROM ig_post_metrics ipm
-        ORDER BY ipm.post_id, ipm.snapshot_time DESC
+        ORDER BY ipm.media_id, ipm.snapshot_time DESC
       )
       SELECT 
-        COALESCE(SUM(lm.likes_count), 0) as likes,
-        COALESCE(SUM(lm.comments_count), 0) as comments,
-        COALESCE(SUM(lm.saved), 0) as saves,
+        COALESCE(SUM(lm.likes), 0) as likes,
+        COALESCE(SUM(lm.comments), 0) as comments,
+        COALESCE(SUM(lm.saves), 0) as saves,
         COALESCE(SUM(lm.reach), 0) as reach,
-        COUNT(DISTINCT p.post_id) as posts
+        COUNT(DISTINCT p.media_id) as posts
       FROM ig_posts p
-      LEFT JOIN latest_metrics lm ON lm.post_id = p.post_id
-      WHERE TO_CHAR(p.created_time, 'YYYY-MM') = $1
+      LEFT JOIN latest_metrics lm ON lm.media_id = p.media_id
+      WHERE TO_CHAR(p.timestamp, 'YYYY-MM') = $1
       ${igAccountIds.length > 0 ? `AND p.account_id = ANY($2)` : ''}
     `;
     const igParams = igAccountIds.length > 0 ? [month, igAccountIds] : [month];
