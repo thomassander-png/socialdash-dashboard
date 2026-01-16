@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 
 // Use connection pooling for serverless
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.FACEBOOK_DATABASE_URL || process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   },
