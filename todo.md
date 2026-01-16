@@ -21,3 +21,12 @@
 - [x] Management Summary Button auf Facebook/Instagram Seiten
 - [x] API-Routen für Facebook und Instagram Posts
 - [x] Instagram API Hinweise Info-Box
+
+## Design-Anpassungen an altes Dashboard
+
+- [x] Navigation: Follower-Link hinzufügen (📈 Follower)
+- [x] KPI-Karten: Zahlen in Weiß statt Gelb, Emoji-Icons statt Lucide-Icons
+- [x] Interaktionen Vergleich: Beide Zahlen nebeneinander (aktuell links, vorherig rechts)
+- [x] Top 5 Posts Chart: Größere Bilder über den Balken, bessere Proportionen
+- [x] Posts Tabelle: Exakt wie im alten Dashboard mit allen Spalten
+- [x] Follower-Seite: Integration sicherstellen

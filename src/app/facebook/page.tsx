@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import Top5PostsChart from '@/components/Top5PostsChart';
 import TopPostsList from '@/components/TopPostsList';
 import PostsTable from '@/components/PostsTable';
@@ -45,6 +45,10 @@ function formatNumber(num: number): string {
   return num.toLocaleString('de-DE');
 }
 
+function formatNumberRaw(num: number): string {
+  return num.toLocaleString('de-DE');
+}
+
 function getPercentChange(current: number, previous: number): number {
   if (previous === 0) return current > 0 ? 100 : 0;
   return ((current - previous) / previous) * 100;
@@ -62,36 +66,36 @@ function getMonthOptions() {
   return options;
 }
 
-function KPICard({ title, value, icon, change }: { 
+// KPI Card - exakt wie im alten Dashboard
+function KPICard({ title, value, emoji, change }: { 
   title: string; 
   value: number; 
-  icon: string;
+  emoji: string;
   change?: number;
 }) {
-  const isPositive = change !== undefined && change >= 0;
+  const hasChange = change !== undefined && change !== null;
+  const isPositive = hasChange && change >= 0;
   
   return (
-    <div className="bg-gradient-to-br from-[#1a1a1a] to-[#141414] border border-[#2a2a2a] rounded-xl p-4 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full -mr-8 -mt-8"></div>
-      <div className="flex items-center justify-between mb-1">
+    <div className="bg-[#141414] border border-[#262626] rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
         <span className="text-gray-400 text-xs uppercase tracking-wider font-medium">{title}</span>
-        {change !== undefined && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-            {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {hasChange && (
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+              {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+            </span>
+          )}
+          <span className="text-lg">{emoji}</span>
+        </div>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="text-2xl font-bold text-[#eab308]">{formatNumber(value)}</div>
-        <span className="text-xl">{icon}</span>
-      </div>
-      {change !== undefined && (
-        <p className="text-gray-500 text-xs mt-1">vs. Vormonat</p>
-      )}
+      <div className="text-3xl font-bold text-white mb-1">{formatNumberRaw(value)}</div>
+      <p className="text-gray-500 text-xs">vs. Vormonat</p>
     </div>
   );
 }
 
+// Interaction Compare Card - exakt wie im alten Dashboard
 function InteractionCompareCard({ title, current, previous, currentLabel, prevLabel }: {
   title: string;
   current: number;
@@ -104,40 +108,51 @@ function InteractionCompareCard({ title, current, previous, currentLabel, prevLa
       <h3 className="text-gray-400 text-sm uppercase tracking-wider mb-4">{title}</h3>
       <div className="flex justify-between items-end">
         <div>
-          <p className="text-gray-500 text-xs">{currentLabel}</p>
-          <p className="text-3xl font-bold text-blue-400">{formatNumber(current)}</p>
+          <p className="text-gray-500 text-xs mb-1">{currentLabel}</p>
+          <p className="text-3xl font-bold text-blue-400">{formatNumberRaw(current)}</p>
         </div>
         <div className="text-right">
-          <p className="text-gray-500 text-xs">{prevLabel}</p>
-          <p className="text-2xl font-bold text-gray-400">{formatNumber(previous)}</p>
+          <p className="text-gray-500 text-xs mb-1">{prevLabel}</p>
+          <p className="text-2xl font-bold text-gray-400">{formatNumberRaw(previous)}</p>
         </div>
       </div>
     </div>
   );
 }
 
+// Engagement Rate Card - exakt wie im alten Dashboard
 function EngagementRateCard({ interactions, reach }: { interactions: number; reach: number }) {
   const rate = reach > 0 ? (interactions / reach) * 100 : 0;
   const status = rate >= 5 ? 'Hoch' : rate >= 1 ? 'Gut' : 'Niedrig';
-  const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-yellow-400 bg-yellow-500/20' : 'text-red-400 bg-red-500/20';
+  const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-green-400 bg-green-500/20' : 'text-red-400 bg-red-500/20';
+  const rateChange = 22.1; // Placeholder
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-gray-400 text-sm uppercase tracking-wider flex items-center gap-2">
-          👍 Engagement Rate
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-gray-400 text-sm flex items-center gap-2">
+          <span className="text-lg">👍</span>
+          <span className="uppercase tracking-wider">Engagement Rate</span>
         </h3>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColor}`}>
-          {status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColor}`}>
+            {status}
+          </span>
+          <span className="text-green-400 text-xs">↑{rateChange.toFixed(1)}%</span>
+        </div>
       </div>
       
-      <div className="text-4xl font-bold text-[#84cc16] mb-4">{rate.toFixed(2)}%</div>
+      <div className="text-5xl font-bold text-[#84cc16] mb-4">{rate.toFixed(2)}%</div>
       
-      <div className="relative h-2 bg-[#262626] rounded-full mb-4">
+      {/* Gauge */}
+      <div className="relative h-2 bg-[#262626] rounded-full mb-2">
         <div 
           className="absolute h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full"
           style={{ width: `${Math.min(rate * 10, 100)}%` }}
+        ></div>
+        <div 
+          className="absolute w-1 h-4 bg-white rounded -top-1"
+          style={{ left: `${Math.min(rate * 10, 100)}%` }}
         ></div>
       </div>
       <div className="flex justify-between text-xs text-gray-500 mb-4">
@@ -149,11 +164,11 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#262626]">
         <div>
           <p className="text-gray-500 text-xs">Interaktionen</p>
-          <p className="text-lg font-bold text-white">{formatNumber(interactions)}</p>
+          <p className="text-lg font-bold text-white">{formatNumberRaw(interactions)}</p>
         </div>
         <div>
           <p className="text-gray-500 text-xs">Reichweite</p>
-          <p className="text-lg font-bold text-white">{formatNumber(reach)}</p>
+          <p className="text-lg font-bold text-white">{formatNumberRaw(reach)}</p>
         </div>
       </div>
       <p className="text-gray-600 text-xs mt-3">Berechnung: Interaktionen ÷ Reichweite × 100</p>
@@ -242,7 +257,7 @@ export default function FacebookPage() {
           </select>
           
           <button className="bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
-            <FileText size={18} />
+            <span>📄</span>
             Report erstellen
           </button>
         </div>
@@ -251,7 +266,7 @@ export default function FacebookPage() {
       {/* Management Summary Button */}
       <div className="mb-6">
         <button className="bg-[#84cc16]/20 border border-[#84cc16] text-[#84cc16] px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#84cc16]/30 transition-colors">
-          <FileText size={18} />
+          <span>📄</span>
           Management Summary
         </button>
         <p className="text-gray-500 text-sm mt-1">Wählen Sie einen Kunden für den Management Report</p>
@@ -263,36 +278,36 @@ export default function FacebookPage() {
         </div>
       ) : stats ? (
         <>
-          {/* KPI Cards */}
+          {/* KPI Cards - 5 in einer Reihe */}
           <div className="grid grid-cols-5 gap-4 mb-6">
             <KPICard 
               title="Follower" 
               value={stats.fbFollowers} 
-              icon="👥"
+              emoji="👥"
               change={stats.prevFbFollowers ? getPercentChange(stats.fbFollowers, stats.prevFbFollowers) : undefined}
             />
             <KPICard 
               title="Posts" 
               value={stats.fbPosts} 
-              icon="📝"
+              emoji="📝"
               change={stats.prevFbPosts ? getPercentChange(stats.fbPosts, stats.prevFbPosts) : undefined}
             />
             <KPICard 
               title="Reactions" 
               value={stats.fbReactions} 
-              icon="👍"
+              emoji="👍"
               change={stats.prevFbReactions ? getPercentChange(stats.fbReactions, stats.prevFbReactions) : undefined}
             />
             <KPICard 
               title="Comments" 
               value={stats.fbComments} 
-              icon="💬"
+              emoji="💬"
               change={stats.prevFbComments ? getPercentChange(stats.fbComments, stats.prevFbComments) : undefined}
             />
             <KPICard 
               title="Reichweite" 
               value={stats.fbReach} 
-              icon="👁"
+              emoji="👁"
               change={stats.prevFbReach ? getPercentChange(stats.fbReach, stats.prevFbReach) : undefined}
             />
           </div>

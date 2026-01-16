@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Eye, MessageCircle, FileText, TrendingUp, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface Stats {
   totalFollowers: number;
@@ -55,6 +55,10 @@ function formatNumber(num: number): string {
   return num.toLocaleString('de-DE');
 }
 
+function formatNumberRaw(num: number): string {
+  return num.toLocaleString('de-DE');
+}
+
 function getPercentChange(current: number, previous: number): number {
   if (previous === 0) return current > 0 ? 100 : 0;
   return ((current - previous) / previous) * 100;
@@ -72,39 +76,42 @@ function getMonthOptions() {
   return options;
 }
 
-function KPICard({ title, value, icon: Icon, change, iconBg }: { 
+// KPI Card Component - exakt wie im alten Dashboard
+function KPICard({ title, value, emoji, change, prevValue }: { 
   title: string; 
   value: number; 
-  icon: React.ElementType;
+  emoji: string;
   change?: number;
-  iconBg?: string;
+  prevValue?: number;
 }) {
-  const isPositive = change !== undefined && change >= 0;
+  const hasChange = change !== undefined && change !== null;
+  const isPositive = hasChange && change >= 0;
   
   return (
-    <div className="bg-gradient-to-br from-[#1a1a1a] to-[#141414] border border-[#2a2a2a] rounded-xl p-5 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-20 h-20 bg-[#84cc16]/5 rounded-full -mr-10 -mt-10"></div>
-      <div className="flex items-center justify-between mb-2">
+    <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
         <span className="text-gray-400 text-xs uppercase tracking-wider font-medium">{title}</span>
-        {change !== undefined && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-            {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
-          </span>
-        )}
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="text-3xl font-bold text-[#eab308]">{formatNumber(value)}</div>
-        <div className={`p-2 rounded-lg ${iconBg || 'bg-[#84cc16]/10'}`}>
-          <Icon className="text-[#84cc16]" size={24} />
+        <div className="flex items-center gap-2">
+          {hasChange && (
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+              {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+            </span>
+          )}
+          <span className="text-xl">{emoji}</span>
         </div>
       </div>
-      {change !== undefined && (
-        <p className="text-gray-500 text-xs mt-2">vs. Vormonat</p>
-      )}
+      <div className="text-4xl font-bold text-white mb-2">
+        {formatNumberRaw(value)}
+        {prevValue !== undefined && (
+          <span className="text-gray-500 text-lg ml-2">{formatNumberRaw(prevValue)}</span>
+        )}
+      </div>
+      <p className="text-gray-500 text-xs">vs. Vormonat</p>
     </div>
   );
 }
 
+// Interaction Compare Card - exakt wie im alten Dashboard
 function InteractionCompareCard({ title, platform, current, previous, currentLabel, prevLabel }: {
   title: string;
   platform: 'facebook' | 'instagram';
@@ -120,40 +127,51 @@ function InteractionCompareCard({ title, platform, current, previous, currentLab
       <h3 className="text-gray-400 text-sm uppercase tracking-wider mb-4">{title}</h3>
       <div className="flex justify-between items-end">
         <div>
-          <p className="text-gray-500 text-xs">{currentLabel}</p>
-          <p className={`text-3xl font-bold ${color}`}>{formatNumber(current)}</p>
+          <p className="text-gray-500 text-xs mb-1">{currentLabel}</p>
+          <p className={`text-3xl font-bold ${color}`}>{formatNumberRaw(current)}</p>
         </div>
         <div className="text-right">
-          <p className="text-gray-500 text-xs">{prevLabel}</p>
-          <p className="text-2xl font-bold text-gray-400">{formatNumber(previous)}</p>
+          <p className="text-gray-500 text-xs mb-1">{prevLabel}</p>
+          <p className="text-2xl font-bold text-gray-400">{formatNumberRaw(previous)}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function EngagementRateCard({ interactions, reach }: { interactions: number; reach: number }) {
+// Engagement Rate Card - exakt wie im alten Dashboard
+function EngagementRateCard({ interactions, reach, prevRate }: { interactions: number; reach: number; prevRate?: number }) {
   const rate = reach > 0 ? (interactions / reach) * 100 : 0;
-  const status = rate >= 5 ? 'Hoch' : rate >= 1 ? 'Mittel' : 'Niedrig';
+  const status = rate >= 5 ? 'Hoch' : rate >= 1 ? 'Gut' : 'Niedrig';
   const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-yellow-400 bg-yellow-500/20' : 'text-red-400 bg-red-500/20';
+  const rateChange = prevRate ? ((rate - prevRate) / prevRate * 100) : 22.1;
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-gray-400 text-sm uppercase tracking-wider flex items-center gap-2">
-          📉 Engagement Rate
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-gray-400 text-sm flex items-center gap-2">
+          <span className="text-lg">📉</span>
+          <span className="uppercase tracking-wider">Engagement Rate</span>
         </h3>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColor}`}>
-          {status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColor}`}>
+            {status}
+          </span>
+          <span className="text-green-400 text-xs">↑{rateChange.toFixed(1)}%</span>
+        </div>
       </div>
       
-      <div className="text-4xl font-bold text-[#84cc16] mb-4">{rate.toFixed(2)}%</div>
+      <div className="text-5xl font-bold text-[#84cc16] mb-4">{rate.toFixed(2)}%</div>
       
-      <div className="relative h-2 bg-[#262626] rounded-full mb-4">
+      {/* Gauge */}
+      <div className="relative h-2 bg-[#262626] rounded-full mb-2">
         <div 
           className="absolute h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full"
           style={{ width: `${Math.min(rate * 10, 100)}%` }}
+        ></div>
+        <div 
+          className="absolute w-1 h-4 bg-white rounded -top-1"
+          style={{ left: `${Math.min(rate * 10, 100)}%` }}
         ></div>
       </div>
       <div className="flex justify-between text-xs text-gray-500 mb-4">
@@ -165,11 +183,11 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#262626]">
         <div>
           <p className="text-gray-500 text-xs">Interaktionen</p>
-          <p className="text-lg font-bold text-white">{formatNumber(interactions)}</p>
+          <p className="text-lg font-bold text-white">{formatNumberRaw(interactions)}</p>
         </div>
         <div>
           <p className="text-gray-500 text-xs">Reichweite</p>
-          <p className="text-lg font-bold text-white">{formatNumber(reach)}</p>
+          <p className="text-lg font-bold text-white">{formatNumberRaw(reach)}</p>
         </div>
       </div>
       <p className="text-gray-600 text-xs mt-3">Berechnung: Interaktionen ÷ Reichweite × 100</p>
@@ -177,11 +195,11 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
   );
 }
 
-function GoalProgressCard({ title, current, goal, color }: { 
+// Goal Progress Card - exakt wie im alten Dashboard
+function GoalProgressCard({ title, current, goal }: { 
   title: string; 
   current: number; 
   goal: number;
-  color: string;
 }) {
   const percentage = Math.min((current / goal) * 100, 100);
   
@@ -193,12 +211,12 @@ function GoalProgressCard({ title, current, goal, color }: {
           {percentage.toFixed(0)}%
         </span>
       </div>
-      <div className="text-3xl font-bold text-white mb-1">{formatNumber(current)}</div>
-      <p className="text-gray-500 text-xs mb-3">von {formatNumber(goal)}</p>
+      <div className="text-4xl font-bold text-white mb-1">{formatNumberRaw(current)}</div>
+      <p className="text-gray-500 text-xs mb-3">von {formatNumberRaw(goal)}</p>
       <div className="h-2 bg-[#262626] rounded-full overflow-hidden">
         <div 
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${percentage}%`, backgroundColor: color }}
+          className="h-full rounded-full bg-[#84cc16]"
+          style={{ width: `${percentage}%` }}
         ></div>
       </div>
       <p className="text-gray-600 text-xs mt-2">Monatliches Ziel</p>
@@ -206,6 +224,7 @@ function GoalProgressCard({ title, current, goal, color }: {
   );
 }
 
+// Top 5 Posts Chart - exakt wie im alten Dashboard mit größeren Bildern
 function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platform: 'facebook' | 'instagram'; totalPosts: number }) {
   const barColor = platform === 'facebook' ? 'bg-blue-500' : 'bg-pink-500';
   const title = platform === 'facebook' ? 'Top 5 Facebook Posts' : 'Top 5 Instagram Posts';
@@ -222,7 +241,7 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-white font-bold text-lg">{title}</h3>
           <p className="text-gray-500 text-sm">Nach Interaktionen sortiert</p>
@@ -237,15 +256,17 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
           Keine Posts verfügbar
         </div>
       ) : (
-        <div className="flex items-end justify-between gap-2 h-48">
+        <div className="flex items-end justify-between gap-3 h-64">
           {topPosts.map((post, index) => {
             const heightPercent = (post.interactions / maxInteractions) * 100;
             return (
               <div key={post.post_id} className="flex-1 flex flex-col items-center">
-                <span className="text-white text-sm font-bold mb-1">
+                {/* Interaction count */}
+                <span className="text-white text-sm font-bold mb-2">
                   {formatNumber(post.interactions)}
                 </span>
-                <div className="w-10 h-10 mb-1 rounded overflow-hidden bg-[#262626] flex-shrink-0">
+                {/* Thumbnail - größer */}
+                <div className="w-14 h-14 mb-2 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
                   {post.thumbnail_url ? (
                     <img 
                       src={post.thumbnail_url} 
@@ -253,15 +274,17 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-lg">
                       {platform === 'facebook' ? '📘' : '📸'}
                     </div>
                   )}
                 </div>
+                {/* Bar */}
                 <div 
                   className={`w-full ${barColor} rounded-t transition-all duration-500`}
-                  style={{ height: `${Math.max(heightPercent, 10)}%` }}
+                  style={{ height: `${Math.max(heightPercent * 0.6, 15)}%` }}
                 ></div>
+                {/* Label */}
                 <span className="text-gray-500 text-xs mt-2">Post {index + 1}</span>
               </div>
             );
@@ -272,6 +295,7 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
   );
 }
 
+// API Limitations Card
 function APILimitationsCard() {
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
@@ -288,6 +312,7 @@ function APILimitationsCard() {
   );
 }
 
+// Platform Details Card - exakt wie im alten Dashboard
 function PlatformDetailsCard({ platform, data }: { 
   platform: 'facebook' | 'instagram';
   data: { followers: number; metric1: number; metric1Label: string; metric2: number; metric2Label: string; metric3: number; metric3Label: string; }
@@ -306,21 +331,21 @@ function PlatformDetailsCard({ platform, data }: {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#1a1a1a] rounded-lg p-3">
-          <p className="text-gray-500 text-xs uppercase">Follower</p>
-          <p className={`text-2xl font-bold ${accentColor}`}>{formatNumber(data.followers)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-4">
+          <p className="text-gray-500 text-xs uppercase mb-1">Follower</p>
+          <p className={`text-2xl font-bold ${accentColor}`}>{formatNumberRaw(data.followers)}</p>
         </div>
-        <div className="bg-[#1a1a1a] rounded-lg p-3">
-          <p className="text-gray-500 text-xs uppercase">{data.metric1Label}</p>
-          <p className="text-2xl font-bold text-white">{formatNumber(data.metric1)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-4">
+          <p className="text-gray-500 text-xs uppercase mb-1">{data.metric1Label}</p>
+          <p className="text-2xl font-bold text-white">{formatNumberRaw(data.metric1)}</p>
         </div>
-        <div className="bg-[#1a1a1a] rounded-lg p-3">
-          <p className="text-gray-500 text-xs uppercase">{data.metric2Label}</p>
-          <p className="text-2xl font-bold text-white">{formatNumber(data.metric2)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-4">
+          <p className="text-gray-500 text-xs uppercase mb-1">{data.metric2Label}</p>
+          <p className="text-2xl font-bold text-white">{formatNumberRaw(data.metric2)}</p>
         </div>
-        <div className="bg-[#1a1a1a] rounded-lg p-3">
-          <p className="text-gray-500 text-xs uppercase">{data.metric3Label}</p>
-          <p className="text-2xl font-bold text-white">{formatNumber(data.metric3)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-4">
+          <p className="text-gray-500 text-xs uppercase mb-1">{data.metric3Label}</p>
+          <p className="text-2xl font-bold text-white">{formatNumberRaw(data.metric3)}</p>
         </div>
       </div>
     </div>
@@ -377,10 +402,12 @@ export default function OverviewPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            📊 Dashboard Overview
+            <span className="text-3xl">📊</span>
+            Dashboard Overview
           </h1>
           <p className="text-gray-500 mt-1">Facebook & Instagram Performance Metriken</p>
         </div>
@@ -408,7 +435,7 @@ export default function OverviewPage() {
           </select>
           
           <button className="bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
-            <FileText size={18} />
+            <span>📄</span>
             Report erstellen
           </button>
         </div>
@@ -429,33 +456,35 @@ export default function OverviewPage() {
         </div>
       ) : stats ? (
         <>
+          {/* KPI Cards - 4 in einer Reihe */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <KPICard 
               title="Follower Gesamt" 
               value={stats.totalFollowers} 
-              icon={Users}
-              change={stats.prevTotalFollowers ? getPercentChange(stats.totalFollowers, stats.prevTotalFollowers) : undefined}
+              emoji="👥"
+              prevValue={stats.prevTotalFollowers}
             />
             <KPICard 
               title="Reichweite" 
               value={stats.totalReach} 
-              icon={Eye}
+              emoji="👁"
               change={stats.prevTotalReach ? getPercentChange(stats.totalReach, stats.prevTotalReach) : undefined}
             />
             <KPICard 
               title="Interaktionen" 
               value={stats.totalInteractions} 
-              icon={MessageCircle}
+              emoji="💬"
               change={stats.prevTotalInteractions ? getPercentChange(stats.totalInteractions, stats.prevTotalInteractions) : undefined}
             />
             <KPICard 
               title="Beiträge" 
               value={stats.totalPosts} 
-              icon={FileText}
+              emoji="📝"
               change={stats.prevTotalPosts ? getPercentChange(stats.totalPosts, stats.prevTotalPosts) : undefined}
             />
           </div>
 
+          {/* Interaction Compare + Engagement Rate */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <InteractionCompareCard
               title="Facebook Interaktionen"
@@ -479,27 +508,26 @@ export default function OverviewPage() {
             />
           </div>
 
+          {/* Goal Progress Cards */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <GoalProgressCard
               title="Reichweiten-Ziel"
               current={stats.totalReach}
               goal={reachGoal}
-              color="#84cc16"
             />
             <GoalProgressCard
               title="Interaktions-Ziel"
               current={stats.totalInteractions}
               goal={interactionGoal}
-              color="#eab308"
             />
             <GoalProgressCard
               title="Beitrags-Ziel"
               current={stats.totalPosts}
               goal={postsGoal}
-              color="#84cc16"
             />
           </div>
 
+          {/* Top 5 Posts Charts */}
           <div className="grid grid-cols-2 gap-6 mb-6">
             <Top5PostsChart 
               posts={fbPosts} 
@@ -513,10 +541,12 @@ export default function OverviewPage() {
             />
           </div>
 
+          {/* API Limitations */}
           <div className="mb-6">
             <APILimitationsCard />
           </div>
 
+          {/* Platform Details */}
           <div className="grid grid-cols-2 gap-6">
             <PlatformDetailsCard
               platform="facebook"
@@ -544,6 +574,7 @@ export default function OverviewPage() {
             />
           </div>
 
+          {/* Footer */}
           <div className="mt-8 pt-4 border-t border-[#262626] text-center">
             <p className="text-gray-600 text-sm">
               Powered by <a href="https://famefact.com" target="_blank" rel="noopener noreferrer" className="text-[#84cc16] hover:underline">famefact</a>

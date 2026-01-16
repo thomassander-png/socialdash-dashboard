@@ -12,6 +12,8 @@ interface Post {
   shares_total?: number;
   reach?: number;
   impressions?: number;
+  likes?: number;
+  saves?: number;
 }
 
 interface Top5PostsChartProps {
@@ -28,13 +30,14 @@ function formatNumber(num: number): string {
 
 export default function Top5PostsChart({ posts, platform, totalPosts }: Top5PostsChartProps) {
   const barColor = platform === 'facebook' ? 'bg-blue-500' : 'bg-pink-500';
-  const title = platform === 'facebook' ? 'Top 5 Facebook Posts' : 'Top 5 Instagram Posts';
+  const title = platform === 'facebook' ? 'Top 5 Posts nach Interaktionen' : 'Top 5 Posts nach Interaktionen';
+  const subtitle = 'Mit Post-Vorschaubildern';
   
   // Get top 5 posts sorted by interactions
   const topPosts = posts
     .map(p => ({
       ...p,
-      interactions: p.reactions_total + p.comments_total
+      interactions: (p.reactions_total || p.likes || 0) + (p.comments_total || 0)
     }))
     .sort((a, b) => b.interactions - a.interactions)
     .slice(0, 5);
@@ -43,10 +46,10 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-white font-bold text-lg">{title}</h3>
-          <p className="text-gray-500 text-sm">Nach Interaktionen sortiert</p>
+          <p className="text-gray-500 text-sm">{subtitle}</p>
         </div>
         <span className="bg-[#84cc16] text-black text-xs font-bold px-2 py-1 rounded">
           {totalPosts}
@@ -58,18 +61,18 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
           Keine Posts verfügbar
         </div>
       ) : (
-        <div className="flex items-end justify-between gap-2 h-64">
+        <div className="flex items-end justify-between gap-3 h-72">
           {topPosts.map((post, index) => {
             const heightPercent = (post.interactions / maxInteractions) * 100;
             return (
               <div key={post.post_id} className="flex-1 flex flex-col items-center">
                 {/* Interaction count */}
-                <span className="text-white text-sm font-bold mb-1">
+                <span className="text-white text-sm font-bold mb-2">
                   {formatNumber(post.interactions)}
                 </span>
                 
-                {/* Post image */}
-                <div className="w-12 h-12 mb-1 rounded overflow-hidden bg-[#262626] flex-shrink-0">
+                {/* Post image - größer wie im alten Dashboard */}
+                <div className="w-16 h-16 mb-2 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
                   {post.thumbnail_url ? (
                     <img 
                       src={post.thumbnail_url} 
@@ -77,7 +80,7 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xl">
                       {platform === 'facebook' ? '📘' : '📸'}
                     </div>
                   )}
@@ -86,7 +89,7 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
                 {/* Bar */}
                 <div 
                   className={`w-full ${barColor} rounded-t transition-all duration-500`}
-                  style={{ height: `${Math.max(heightPercent, 10)}%` }}
+                  style={{ height: `${Math.max(heightPercent * 0.55, 20)}%` }}
                 ></div>
                 
                 {/* Label */}
