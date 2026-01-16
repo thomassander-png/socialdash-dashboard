@@ -230,28 +230,125 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
 
-// Top 5 Posts Chart - exakt wie im alten Dashboard mit Bildern über Balken und Datum
+function formatPercent(num: number): string {
+  return num.toFixed(2) + '%';
+}
+
+type SortOption = 'interactions' | 'engagement' | 'reach';
+
+// Top 5 Posts Chart - mit Sortierauswahl (Interaktionen, Engagement-Rate, Reichweite)
 function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platform: 'facebook' | 'instagram'; totalPosts: number }) {
+  const [sortBy, setSortBy] = useState<SortOption>('interactions');
+  
   const barColor = platform === 'facebook' ? 'bg-blue-500' : 'bg-pink-500';
   const title = platform === 'facebook' ? 'Top 5 Facebook Posts' : 'Top 5 Instagram Posts';
   
-  const topPosts = posts
-    .map(p => ({
+  // Calculate metrics for all posts
+  const postsWithMetrics = posts.map(p => {
+    const interactions = (p.reactions_total || p.likes || 0) + (p.comments_total || 0);
+    const reach = p.reach || 0;
+    const engagementRate = reach > 0 ? (interactions / reach) * 100 : 0;
+    return {
       ...p,
-      interactions: (p.reactions_total || p.likes || 0) + (p.comments_total || 0)
-    }))
-    .sort((a, b) => b.interactions - a.interactions)
+      interactions,
+      engagementRate
+    };
+  });
+  
+  // Sort based on selected option
+  const topPosts = [...postsWithMetrics]
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'interactions':
+          return b.interactions - a.interactions;
+        case 'engagement':
+          return b.engagementRate - a.engagementRate;
+        case 'reach':
+          return (b.reach || 0) - (a.reach || 0);
+        default:
+          return b.interactions - a.interactions;
+      }
+    })
     .slice(0, 5);
   
-  const maxInteractions = topPosts.length > 0 ? topPosts[0].interactions : 1;
+  // Get max value for bar scaling
+  const getMaxValue = () => {
+    if (topPosts.length === 0) return 1;
+    switch (sortBy) {
+      case 'interactions':
+        return topPosts[0].interactions;
+      case 'engagement':
+        return topPosts[0].engagementRate;
+      case 'reach':
+        return topPosts[0].reach || 1;
+      default:
+        return topPosts[0].interactions;
+    }
+  };
+  
+  const maxValue = getMaxValue();
+  
+  // Get display value for a post
+  const getDisplayValue = (post: typeof topPosts[0]) => {
+    switch (sortBy) {
+      case 'interactions':
+        return formatNumber(post.interactions);
+      case 'engagement':
+        return formatPercent(post.engagementRate);
+      case 'reach':
+        return formatNumber(post.reach || 0);
+      default:
+        return formatNumber(post.interactions);
+    }
+  };
+  
+  // Get bar height percentage
+  const getBarHeight = (post: typeof topPosts[0]) => {
+    let value = 0;
+    switch (sortBy) {
+      case 'interactions':
+        value = post.interactions;
+        break;
+      case 'engagement':
+        value = post.engagementRate;
+        break;
+      case 'reach':
+        value = post.reach || 0;
+        break;
+    }
+    return Math.max((value / maxValue) * 100 * 0.6, 15);
+  };
+  
+  const sortLabels: Record<SortOption, string> = {
+    interactions: 'Interaktionen',
+    engagement: 'Engagement-Rate',
+    reach: 'Reichweite'
+  };
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-white font-bold text-lg">{title}</h3>
-          <p className="text-gray-500 text-sm">Nach Interaktionen sortiert</p>
+          <p className="text-gray-500 text-sm">Nach {sortLabels[sortBy]} sortiert</p>
         </div>
+      </div>
+      
+      {/* Sort Options */}
+      <div className="flex gap-2 mb-6">
+        {(['interactions', 'engagement', 'reach'] as SortOption[]).map((option) => (
+          <button
+            key={option}
+            onClick={() => setSortBy(option)}
+            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+              sortBy === option 
+                ? 'bg-[#84cc16] text-black font-bold' 
+                : 'bg-[#262626] text-gray-400 hover:bg-[#363636]'
+            }`}
+          >
+            {sortLabels[option]}
+          </button>
+        ))}
       </div>
       
       {topPosts.length === 0 ? (
@@ -261,14 +358,13 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
       ) : (
         <div className="flex items-end justify-between gap-4 h-80">
           {topPosts.map((post, index) => {
-            const heightPercent = (post.interactions / maxInteractions) * 100;
-            const barHeight = Math.max(heightPercent * 0.6, 15);
+            const barHeight = getBarHeight(post);
             
             return (
               <div key={post.post_id} className="flex-1 flex flex-col items-center h-full justify-end">
-                {/* Interaction count above image */}
+                {/* Value above image */}
                 <span className="text-white text-sm font-bold mb-2">
-                  {formatNumber(post.interactions)}
+                  {getDisplayValue(post)}
                 </span>
                 
                 {/* Post image - positioned above the bar */}

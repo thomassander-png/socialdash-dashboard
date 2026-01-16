@@ -37,3 +37,11 @@
 - [x] Bilder über den Balken positionieren (nicht neben dem Balken)
 - [x] Datum des Posts unter jedem Post anzeigen
 - [x] Layout exakt wie im alten Dashboard
+
+
+## Sortieroptionen für Posts
+
+- [x] Engagement-Rate Sortierung implementieren (Interaktionen ÷ Reichweite × 100)
+- [x] Dropdown für Sortierauswahl in Posts-Tabellen hinzufügen
+- [x] Top 5 Posts Charts mit Sortierauswahl erweitern
+- [x] Engagement-Rate Spalte in Posts-Tabelle anzeigen

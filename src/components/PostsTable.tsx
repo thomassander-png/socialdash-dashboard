@@ -24,7 +24,7 @@ interface PostsTableProps {
   platform: 'facebook' | 'instagram';
 }
 
-type SortKey = 'reactions' | 'comments' | 'reach' | 'interactions';
+type SortKey = 'reactions' | 'comments' | 'reach' | 'interactions' | 'engagement';
 type SortDir = 'asc' | 'desc';
 
 function formatNumber(num: number): string {
@@ -36,6 +36,10 @@ function formatNumber(num: number): string {
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatPercent(num: number): string {
+  return num.toFixed(2) + '%';
 }
 
 export default function PostsTable({ posts, platform }: PostsTableProps) {
@@ -54,10 +58,17 @@ export default function PostsTable({ posts, platform }: PostsTableProps) {
   };
   
   const sortedPosts = [...posts]
-    .map(p => ({
-      ...p,
-      interactions: (p.reactions_total || p.likes || 0) + (p.comments_total || 0)
-    }))
+    .map(p => {
+      const interactions = (p.reactions_total || p.likes || 0) + (p.comments_total || 0);
+      const reach = p.reach || 0;
+      // Engagement Rate = (Interaktionen / Reichweite) * 100
+      const engagementRate = reach > 0 ? (interactions / reach) * 100 : 0;
+      return {
+        ...p,
+        interactions,
+        engagementRate
+      };
+    })
     .sort((a, b) => {
       let aVal = 0, bVal = 0;
       switch (sortKey) {
@@ -76,6 +87,10 @@ export default function PostsTable({ posts, platform }: PostsTableProps) {
         case 'interactions':
           aVal = a.interactions;
           bVal = b.interactions;
+          break;
+        case 'engagement':
+          aVal = a.engagementRate;
+          bVal = b.engagementRate;
           break;
       }
       return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
@@ -123,6 +138,7 @@ export default function PostsTable({ posts, platform }: PostsTableProps) {
                 )}
                 <th className="text-right py-3 px-2"><SortButton label="Reichweite" keyName="reach" /></th>
                 <th className="text-right py-3 px-2"><SortButton label="Interaktionen" keyName="interactions" /></th>
+                <th className="text-right py-3 px-2"><SortButton label="Eng.-Rate" keyName="engagement" /></th>
                 <th className="text-center py-3 px-2 text-gray-500 text-xs uppercase tracking-wider">Link</th>
               </tr>
             </thead>
@@ -178,6 +194,11 @@ export default function PostsTable({ posts, platform }: PostsTableProps) {
                   </td>
                   <td className={`py-3 px-2 text-right font-bold ${accentColor}`}>
                     {formatNumber(post.interactions)}
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <span className={`font-medium ${post.engagementRate >= 5 ? 'text-green-400' : post.engagementRate >= 2 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                      {post.reach ? formatPercent(post.engagementRate) : '-'}
+                    </span>
                   </td>
                   <td className="py-3 px-2 text-center">
                     {post.permalink && (
