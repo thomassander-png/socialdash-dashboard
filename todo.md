@@ -45,3 +45,15 @@
 - [x] Dropdown für Sortierauswahl in Posts-Tabellen hinzufügen
 - [x] Top 5 Posts Charts mit Sortierauswahl erweitern
 - [x] Engagement-Rate Spalte in Posts-Tabelle anzeigen
+
+
+## Farbliche Elemente wie im alten Dashboard
+
+- [x] KPI-Karten mit farbigen linken Rahmen (grau, gelb, grün, rot)
+- [x] Prozent-Änderungen in Farbe (grün für positiv, rot für negativ mit rotem Hintergrund)
+- [x] Interaktionen-Karten mit gelben/grünen Akzentlinien links
+- [x] Monatslabels in Farbe (01/2026 gelb/grün, 12/2025 grau)
+- [x] Engagement Rate mit rotem "Niedrig" Badge und roter Zahl wenn niedrig
+- [x] Roter Punkt auf der Engagement Gauge
+- [x] Platform Details: Blaue Zahlen für Facebook, Pinke für Instagram
+- [x] Farbige Fortschrittsbalken (grün)

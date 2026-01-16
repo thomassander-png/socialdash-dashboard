@@ -69,18 +69,27 @@ function getMonthOptions() {
   return options;
 }
 
-// KPI Card - exakt wie im alten Dashboard
-function KPICard({ title, value, emoji, change }: { 
+// KPI Card - mit farbigem linken Rahmen wie im alten Dashboard
+function KPICard({ title, value, emoji, change, accentColor = 'gray' }: { 
   title: string; 
   value: number; 
   emoji: string;
   change?: number;
+  accentColor?: 'gray' | 'yellow' | 'green' | 'red' | 'pink';
 }) {
   const hasChange = change !== undefined && change !== null;
   const isPositive = hasChange && change >= 0;
   
+  const borderColors = {
+    gray: 'border-l-gray-500',
+    yellow: 'border-l-yellow-500',
+    green: 'border-l-green-500',
+    red: 'border-l-red-500',
+    pink: 'border-l-pink-500'
+  };
+  
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-xl p-4">
+    <div className={`bg-[#141414] border border-[#262626] ${borderColors[accentColor]} border-l-4 rounded-xl p-4`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-gray-400 text-xs uppercase tracking-wider font-medium">{title}</span>
         <div className="flex items-center gap-2">
@@ -98,7 +107,7 @@ function KPICard({ title, value, emoji, change }: {
   );
 }
 
-// Interaction Compare Card - exakt wie im alten Dashboard
+// Interaction Compare Card - mit farbiger Akzentlinie links wie im alten Dashboard
 function InteractionCompareCard({ title, current, previous, currentLabel, prevLabel }: {
   title: string;
   current: number;
@@ -107,11 +116,11 @@ function InteractionCompareCard({ title, current, previous, currentLabel, prevLa
   prevLabel: string;
 }) {
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+    <div className="bg-[#141414] border border-[#262626] border-l-green-500 border-l-4 rounded-xl p-5">
       <h3 className="text-gray-400 text-sm uppercase tracking-wider mb-4">{title}</h3>
       <div className="flex justify-between items-end">
         <div>
-          <p className="text-gray-500 text-xs mb-1">{currentLabel}</p>
+          <p className="text-green-500 text-xs mb-1">{currentLabel}</p>
           <p className="text-3xl font-bold text-pink-400">{formatNumberRaw(current)}</p>
         </div>
         <div className="text-right">
@@ -123,12 +132,14 @@ function InteractionCompareCard({ title, current, previous, currentLabel, prevLa
   );
 }
 
-// Engagement Rate Card - exakt wie im alten Dashboard
+// Engagement Rate Card - mit rotem Status wenn niedrig wie im alten Dashboard
 function EngagementRateCard({ interactions, reach }: { interactions: number; reach: number }) {
   const rate = reach > 0 ? (interactions / reach) * 100 : 0;
   const status = rate >= 5 ? 'Hoch' : rate >= 1 ? 'Gut' : 'Niedrig';
-  const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-green-400 bg-green-500/20' : 'text-red-400 bg-red-500/20';
+  const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-yellow-400 bg-yellow-500/20' : 'text-red-400 bg-red-500/20';
+  const rateColor = rate >= 5 ? 'text-green-400' : rate >= 1 ? 'text-[#84cc16]' : 'text-red-400';
   const rateChange = 22.1; // Placeholder
+  const gaugePosition = Math.min(rate * 10, 100);
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
@@ -145,17 +156,17 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
         </div>
       </div>
       
-      <div className="text-5xl font-bold text-[#84cc16] mb-4">{rate.toFixed(2)}%</div>
+      <div className={`text-5xl font-bold ${rateColor} mb-4`}>{rate.toFixed(2)}%</div>
       
-      {/* Gauge */}
+      {/* Gauge mit farbigem Punkt */}
       <div className="relative h-2 bg-[#262626] rounded-full mb-2">
         <div 
           className="absolute h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full"
-          style={{ width: `${Math.min(rate * 10, 100)}%` }}
+          style={{ width: '100%' }}
         ></div>
         <div 
-          className="absolute w-1 h-4 bg-white rounded -top-1"
-          style={{ left: `${Math.min(rate * 10, 100)}%` }}
+          className={`absolute w-3 h-3 rounded-full -top-0.5 ${rate < 1 ? 'bg-red-500' : rate < 5 ? 'bg-yellow-500' : 'bg-green-500'}`}
+          style={{ left: `calc(${gaugePosition}% - 6px)` }}
         ></div>
       </div>
       <div className="flex justify-between text-xs text-gray-500 mb-4">
@@ -281,37 +292,42 @@ export default function InstagramPage() {
         </div>
       ) : stats ? (
         <>
-          {/* KPI Cards - 5 in einer Reihe */}
+          {/* KPI Cards - 5 in einer Reihe mit farbigen Rahmen */}
           <div className="grid grid-cols-5 gap-4 mb-6">
             <KPICard 
               title="Follower" 
               value={stats.igFollowers} 
               emoji="👥"
               change={stats.prevIgFollowers ? getPercentChange(stats.igFollowers, stats.prevIgFollowers) : undefined}
+              accentColor="pink"
             />
             <KPICard 
               title="Posts" 
               value={stats.igPosts} 
               emoji="📝"
               change={stats.prevIgPosts ? getPercentChange(stats.igPosts, stats.prevIgPosts) : undefined}
+              accentColor="yellow"
             />
             <KPICard 
               title="Likes" 
               value={stats.igLikes} 
               emoji="❤️"
               change={stats.prevIgLikes ? getPercentChange(stats.igLikes, stats.prevIgLikes) : undefined}
+              accentColor="red"
             />
             <KPICard 
               title="Comments" 
               value={stats.igComments} 
               emoji="💬"
               change={stats.prevIgComments ? getPercentChange(stats.igComments, stats.prevIgComments) : undefined}
+              accentColor="green"
             />
             <KPICard 
               title="Saves" 
               value={stats.igSaves} 
               emoji="🔖"
               change={stats.prevIgSaves ? getPercentChange(stats.igSaves, stats.prevIgSaves) : undefined}
+              accentColor="yellow"
             />
           </div>
 

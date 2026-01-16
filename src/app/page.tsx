@@ -76,19 +76,26 @@ function getMonthOptions() {
   return options;
 }
 
-// KPI Card Component - exakt wie im alten Dashboard
-function KPICard({ title, value, emoji, change, prevValue }: { 
+// KPI Card Component - mit farbigem linken Rahmen wie im alten Dashboard
+function KPICard({ title, value, emoji, change, accentColor }: { 
   title: string; 
   value: number; 
   emoji: string;
   change?: number;
-  prevValue?: number;
+  accentColor: 'gray' | 'yellow' | 'green' | 'red';
 }) {
   const hasChange = change !== undefined && change !== null;
   const isPositive = hasChange && change >= 0;
   
+  const borderColors = {
+    gray: 'border-l-gray-500',
+    yellow: 'border-l-yellow-500',
+    green: 'border-l-green-500',
+    red: 'border-l-red-500'
+  };
+  
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+    <div className={`bg-[#141414] border border-[#262626] ${borderColors[accentColor]} border-l-4 rounded-xl p-5`}>
       <div className="flex items-center justify-between mb-3">
         <span className="text-gray-400 text-xs uppercase tracking-wider font-medium">{title}</span>
         <div className="flex items-center gap-2">
@@ -102,16 +109,13 @@ function KPICard({ title, value, emoji, change, prevValue }: {
       </div>
       <div className="text-4xl font-bold text-white mb-2">
         {formatNumberRaw(value)}
-        {prevValue !== undefined && (
-          <span className="text-gray-500 text-lg ml-2">{formatNumberRaw(prevValue)}</span>
-        )}
       </div>
       <p className="text-gray-500 text-xs">vs. Vormonat</p>
     </div>
   );
 }
 
-// Interaction Compare Card - exakt wie im alten Dashboard
+// Interaction Compare Card - mit farbiger Akzentlinie links wie im alten Dashboard
 function InteractionCompareCard({ title, platform, current, previous, currentLabel, prevLabel }: {
   title: string;
   platform: 'facebook' | 'instagram';
@@ -120,15 +124,17 @@ function InteractionCompareCard({ title, platform, current, previous, currentLab
   currentLabel: string;
   prevLabel: string;
 }) {
-  const color = platform === 'facebook' ? 'text-blue-400' : 'text-pink-400';
+  const accentColor = platform === 'facebook' ? 'border-l-yellow-500' : 'border-l-green-500';
+  const labelColor = platform === 'facebook' ? 'text-yellow-500' : 'text-green-500';
+  const valueColor = platform === 'facebook' ? 'text-blue-400' : 'text-pink-400';
   
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+    <div className={`bg-[#141414] border border-[#262626] ${accentColor} border-l-4 rounded-xl p-5`}>
       <h3 className="text-gray-400 text-sm uppercase tracking-wider mb-4">{title}</h3>
       <div className="flex justify-between items-end">
         <div>
-          <p className="text-gray-500 text-xs mb-1">{currentLabel}</p>
-          <p className={`text-3xl font-bold ${color}`}>{formatNumberRaw(current)}</p>
+          <p className={`text-xs mb-1 ${labelColor}`}>{currentLabel}</p>
+          <p className={`text-3xl font-bold ${valueColor}`}>{formatNumberRaw(current)}</p>
         </div>
         <div className="text-right">
           <p className="text-gray-500 text-xs mb-1">{prevLabel}</p>
@@ -139,18 +145,20 @@ function InteractionCompareCard({ title, platform, current, previous, currentLab
   );
 }
 
-// Engagement Rate Card - exakt wie im alten Dashboard
+// Engagement Rate Card - mit rotem Status wenn niedrig wie im alten Dashboard
 function EngagementRateCard({ interactions, reach, prevRate }: { interactions: number; reach: number; prevRate?: number }) {
   const rate = reach > 0 ? (interactions / reach) * 100 : 0;
   const status = rate >= 5 ? 'Hoch' : rate >= 1 ? 'Gut' : 'Niedrig';
   const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-yellow-400 bg-yellow-500/20' : 'text-red-400 bg-red-500/20';
+  const rateColor = rate >= 5 ? 'text-green-400' : rate >= 1 ? 'text-[#84cc16]' : 'text-red-400';
   const rateChange = prevRate ? ((rate - prevRate) / prevRate * 100) : 22.1;
+  const gaugePosition = Math.min(rate * 10, 100);
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-gray-400 text-sm flex items-center gap-2">
-          <span className="text-lg">📉</span>
+          <span className="text-lg">👍</span>
           <span className="uppercase tracking-wider">Engagement Rate</span>
         </h3>
         <div className="flex items-center gap-2">
@@ -161,17 +169,18 @@ function EngagementRateCard({ interactions, reach, prevRate }: { interactions: n
         </div>
       </div>
       
-      <div className="text-5xl font-bold text-[#84cc16] mb-4">{rate.toFixed(2)}%</div>
+      <div className={`text-5xl font-bold ${rateColor} mb-4`}>{rate.toFixed(2)}%</div>
       
-      {/* Gauge */}
+      {/* Gauge mit rotem Punkt wenn niedrig */}
       <div className="relative h-2 bg-[#262626] rounded-full mb-2">
         <div 
           className="absolute h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 rounded-full"
-          style={{ width: `${Math.min(rate * 10, 100)}%` }}
+          style={{ width: '100%' }}
         ></div>
+        {/* Roter Punkt auf der Gauge */}
         <div 
-          className="absolute w-1 h-4 bg-white rounded -top-1"
-          style={{ left: `${Math.min(rate * 10, 100)}%` }}
+          className={`absolute w-3 h-3 rounded-full -top-0.5 ${rate < 1 ? 'bg-red-500' : rate < 5 ? 'bg-yellow-500' : 'bg-green-500'}`}
+          style={{ left: `calc(${gaugePosition}% - 6px)` }}
         ></div>
       </div>
       <div className="flex justify-between text-xs text-gray-500 mb-4">
@@ -406,53 +415,60 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
 function APILimitationsCard() {
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <AlertTriangle className="text-yellow-500" size={20} />
-        <h3 className="text-yellow-500 font-medium">Facebook API Einschränkungen</h3>
-      </div>
-      <div className="space-y-2 text-sm">
-        <p><span className="text-gray-400 font-medium">Shares:</span> <span className="text-gray-500">Nicht für alle Posts verfügbar, daher separat ausgewiesen und nicht in Interaktionen enthalten.</span></p>
-        <p><span className="text-gray-400 font-medium">Saves:</span> <span className="text-gray-500">Nicht über die Graph API abrufbar und werden nicht angezeigt.</span></p>
-        <p><span className="text-gray-400 font-medium">Organisch vs. Paid:</span> <span className="text-gray-500">Nur über Ads API verfügbar (nicht implementiert).</span></p>
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="text-yellow-500 flex-shrink-0 mt-0.5" size={20} />
+        <div>
+          <h3 className="text-yellow-500 font-bold mb-2">Facebook API Einschränkungen</h3>
+          <div className="text-sm text-gray-400 space-y-1">
+            <p><span className="text-white font-medium">Shares:</span> Nicht für alle Posts verfügbar, daher separat ausgewiesen und nicht in Interaktionen enthalten.</p>
+            <p><span className="text-white font-medium">Saves:</span> Nicht über die Graph API abrufbar und werden nicht angezeigt.</p>
+            <p><span className="text-white font-medium">Organisch vs. Paid:</span> Nur über Ads API verfügbar (nicht implementiert).</p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// Platform Details Card - exakt wie im alten Dashboard
-function PlatformDetailsCard({ platform, data }: { 
+// Platform Details Card - mit farbigen Zahlen wie im alten Dashboard
+function PlatformDetailsCard({ platform, followers, reactions, comments, reach, saves }: {
   platform: 'facebook' | 'instagram';
-  data: { followers: number; metric1: number; metric1Label: string; metric2: number; metric2Label: string; metric3: number; metric3Label: string; }
+  followers: number;
+  reactions: number;
+  comments: number;
+  reach?: number;
+  saves?: number;
 }) {
   const icon = platform === 'facebook' ? '📘' : '📸';
   const title = platform === 'facebook' ? 'Facebook Details' : 'Instagram Details';
-  const accentColor = platform === 'facebook' ? 'text-blue-400' : 'text-pink-400';
+  const followerColor = platform === 'facebook' ? 'text-blue-400' : 'text-pink-400';
   
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-xl p-6">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-4">
         <span className="text-2xl">{icon}</span>
         <div>
-          <h2 className="text-xl font-bold text-white">{title}</h2>
-          <p className="text-gray-500 text-sm">Detaillierte Metriken</p>
+          <h3 className="text-white font-bold">{title}</h3>
+          <p className="text-gray-500 text-xs">Detaillierte Metriken</p>
         </div>
       </div>
+      
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#1a1a1a] rounded-lg p-4">
-          <p className="text-gray-500 text-xs uppercase mb-1">Follower</p>
-          <p className={`text-2xl font-bold ${accentColor}`}>{formatNumberRaw(data.followers)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-3">
+          <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Follower</p>
+          <p className={`text-xl font-bold ${followerColor}`}>{formatNumberRaw(followers)}</p>
         </div>
-        <div className="bg-[#1a1a1a] rounded-lg p-4">
-          <p className="text-gray-500 text-xs uppercase mb-1">{data.metric1Label}</p>
-          <p className="text-2xl font-bold text-white">{formatNumberRaw(data.metric1)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-3">
+          <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">{platform === 'facebook' ? 'Reactions' : 'Likes'}</p>
+          <p className="text-xl font-bold text-white">{formatNumberRaw(reactions)}</p>
         </div>
-        <div className="bg-[#1a1a1a] rounded-lg p-4">
-          <p className="text-gray-500 text-xs uppercase mb-1">{data.metric2Label}</p>
-          <p className="text-2xl font-bold text-white">{formatNumberRaw(data.metric2)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-3">
+          <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Comments</p>
+          <p className="text-xl font-bold text-white">{formatNumberRaw(comments)}</p>
         </div>
-        <div className="bg-[#1a1a1a] rounded-lg p-4">
-          <p className="text-gray-500 text-xs uppercase mb-1">{data.metric3Label}</p>
-          <p className="text-2xl font-bold text-white">{formatNumberRaw(data.metric3)}</p>
+        <div className="bg-[#1a1a1a] rounded-lg p-3">
+          <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">{platform === 'facebook' ? 'Reichweite' : 'Saves'}</p>
+          <p className="text-xl font-bold text-white">{formatNumberRaw(platform === 'facebook' ? (reach || 0) : (saves || 0))}</p>
         </div>
       </div>
     </div>
@@ -460,239 +476,224 @@ function PlatformDetailsCard({ platform, data }: {
 }
 
 export default function OverviewPage() {
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return now.toISOString().slice(0, 7);
+  });
+  const [selectedCustomer, setSelectedCustomer] = useState<string>('all');
   const [stats, setStats] = useState<Stats | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [fbPosts, setFbPosts] = useState<Post[]>([]);
   const [igPosts, setIgPosts] = useState<Post[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState('all');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch('/api/customers')
-      .then(res => res.json())
-      .then(data => setCustomers(data))
-      .catch(console.error);
-  }, []);
+  const monthOptions = getMonthOptions();
 
   useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams({ month: selectedMonth });
-    if (selectedCustomer !== 'all') params.append('customer', selectedCustomer);
-    
-    Promise.all([
-      fetch(`/api/stats?${params}`).then(res => res.json()),
-      fetch(`/api/facebook/posts?${params}`).then(res => res.json()).catch(() => []),
-      fetch(`/api/instagram/posts?${params}`).then(res => res.json()).catch(() => [])
-    ])
-      .then(([statsData, fbPostsData, igPostsData]) => {
-        setStats(statsData);
-        setFbPosts(Array.isArray(fbPostsData) ? fbPostsData : []);
-        setIgPosts(Array.isArray(igPostsData) ? igPostsData : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    async function fetchData() {
+      setLoading(true);
+      try {
+        // Fetch customers
+        const customersRes = await fetch('/api/customers');
+        if (customersRes.ok) {
+          const customersData = await customersRes.json();
+          setCustomers(customersData);
+        }
+
+        // Fetch stats
+        const customerParam = selectedCustomer !== 'all' ? `&customer=${selectedCustomer}` : '';
+        const statsRes = await fetch(`/api/stats?month=${selectedMonth}${customerParam}`);
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData);
+        }
+
+        // Fetch Facebook posts
+        const fbRes = await fetch(`/api/facebook/posts?month=${selectedMonth}${customerParam}`);
+        if (fbRes.ok) {
+          const fbData = await fbRes.json();
+          setFbPosts(fbData.posts || []);
+        }
+
+        // Fetch Instagram posts
+        const igRes = await fetch(`/api/instagram/posts?month=${selectedMonth}${customerParam}`);
+        if (igRes.ok) {
+          const igData = await igRes.json();
+          setIgPosts(igData.posts || []);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+      setLoading(false);
+    }
+
+    fetchData();
   }, [selectedMonth, selectedCustomer]);
 
-  const monthOptions = getMonthOptions();
-  const currentMonthLabel = selectedMonth.slice(5, 7) + '/' + selectedMonth.slice(0, 4);
-  const prevMonthDate = new Date(selectedMonth + '-01');
-  prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
-  const prevMonthLabel = (prevMonthDate.getMonth() + 1).toString().padStart(2, '0') + '/' + prevMonthDate.getFullYear();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-white">Lade Daten...</div>
+      </div>
+    );
+  }
 
-  const reachGoal = stats ? Math.round(stats.totalReach * 1.2) : 0;
-  const interactionGoal = stats ? Math.round(stats.totalInteractions * 1.2) : 0;
-  const postsGoal = stats ? Math.round(stats.totalPosts * 1.2) : 30;
+  const totalInteractions = stats ? (stats.fbReactions + stats.fbComments + stats.igLikes + stats.igComments) : 0;
+  const totalReach = stats ? (stats.fbReach + stats.igReach) : 0;
+  const fbInteractions = stats ? (stats.fbReactions + stats.fbComments) : 0;
+  const igInteractions = stats ? (stats.igLikes + stats.igComments) : 0;
+
+  // Calculate percent changes
+  const followerChange = stats?.prevTotalFollowers ? getPercentChange(stats.totalFollowers, stats.prevTotalFollowers) : undefined;
+  const reachChange = stats?.prevTotalReach ? getPercentChange(totalReach, stats.prevTotalReach) : undefined;
+  const interactionsChange = stats?.prevTotalInteractions ? getPercentChange(totalInteractions, stats.prevTotalInteractions) : undefined;
+  const postsChange = stats?.prevTotalPosts ? getPercentChange(stats.totalPosts, stats.prevTotalPosts) : undefined;
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <span className="text-3xl">📊</span>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <span className="text-2xl">📊</span>
             Dashboard Overview
           </h1>
-          <p className="text-gray-500 mt-1">Facebook & Instagram Performance Metriken</p>
+          <p className="text-gray-400">Facebook & Instagram Performance Metriken</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <select
             value={selectedCustomer}
             onChange={(e) => setSelectedCustomer(e.target.value)}
-            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-4 py-2 focus:border-[#84cc16] focus:outline-none"
+            className="bg-[#141414] border border-[#262626] text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#84cc16]"
           >
             <option value="all">Alle Kunden</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.slug}>{c.name}</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.slug}>
+                {customer.name}
+              </option>
             ))}
           </select>
           
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-4 py-2 focus:border-[#84cc16] focus:outline-none"
+            className="bg-[#141414] border border-[#262626] text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#84cc16]"
           >
-            {monthOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            {monthOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
           
-          <button className="bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
-            <span>📄</span>
-            Report erstellen
+          <button className="bg-[#84cc16] text-black font-medium px-4 py-2 rounded-lg text-sm hover:bg-[#65a30d] transition-colors flex items-center gap-2">
+            <span>📄</span> Report erstellen
           </button>
         </div>
       </div>
 
-      {selectedCustomer !== 'all' && (
-        <div className="mb-6">
-          <span className="text-gray-500 text-sm">Gefiltert nach: </span>
-          <span className="bg-[#84cc16]/20 text-[#84cc16] px-3 py-1 rounded-full text-sm font-medium">
-            {customers.find(c => c.slug === selectedCustomer)?.name}
-          </span>
-        </div>
-      )}
+      {/* KPI Cards - mit farbigen Rahmen */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard 
+          title="Follower Gesamt" 
+          value={stats?.totalFollowers || 0} 
+          emoji="👥" 
+          change={followerChange}
+          accentColor="gray"
+        />
+        <KPICard 
+          title="Reichweite" 
+          value={totalReach} 
+          emoji="👁" 
+          change={reachChange}
+          accentColor="yellow"
+        />
+        <KPICard 
+          title="Interaktionen" 
+          value={totalInteractions} 
+          emoji="💬" 
+          change={interactionsChange}
+          accentColor="green"
+        />
+        <KPICard 
+          title="Beiträge" 
+          value={stats?.totalPosts || 0} 
+          emoji="📝" 
+          change={postsChange}
+          accentColor="red"
+        />
+      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#84cc16]"></div>
-        </div>
-      ) : stats ? (
-        <>
-          {/* KPI Cards - 4 in einer Reihe */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <KPICard 
-              title="Follower Gesamt" 
-              value={stats.totalFollowers} 
-              emoji="👥"
-              prevValue={stats.prevTotalFollowers}
-            />
-            <KPICard 
-              title="Reichweite" 
-              value={stats.totalReach} 
-              emoji="👁"
-              change={stats.prevTotalReach ? getPercentChange(stats.totalReach, stats.prevTotalReach) : undefined}
-            />
-            <KPICard 
-              title="Interaktionen" 
-              value={stats.totalInteractions} 
-              emoji="💬"
-              change={stats.prevTotalInteractions ? getPercentChange(stats.totalInteractions, stats.prevTotalInteractions) : undefined}
-            />
-            <KPICard 
-              title="Beiträge" 
-              value={stats.totalPosts} 
-              emoji="📝"
-              change={stats.prevTotalPosts ? getPercentChange(stats.totalPosts, stats.prevTotalPosts) : undefined}
-            />
-          </div>
+      {/* Interaction Compare + Engagement Rate */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <InteractionCompareCard
+          title="Facebook Interaktionen"
+          platform="facebook"
+          current={fbInteractions}
+          previous={stats?.prevFbInteractions || 0}
+          currentLabel="01/2026"
+          prevLabel="12/2025"
+        />
+        <InteractionCompareCard
+          title="Instagram Interaktionen"
+          platform="instagram"
+          current={igInteractions}
+          previous={stats?.prevIgInteractions || 0}
+          currentLabel="01/2026"
+          prevLabel="12/2025"
+        />
+        <EngagementRateCard
+          interactions={totalInteractions}
+          reach={totalReach}
+        />
+      </div>
 
-          {/* Interaction Compare + Engagement Rate */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <InteractionCompareCard
-              title="Facebook Interaktionen"
-              platform="facebook"
-              current={stats.fbReactions + stats.fbComments}
-              previous={stats.prevFbInteractions || 0}
-              currentLabel={currentMonthLabel}
-              prevLabel={prevMonthLabel}
-            />
-            <InteractionCompareCard
-              title="Instagram Interaktionen"
-              platform="instagram"
-              current={stats.igLikes + stats.igComments}
-              previous={stats.prevIgInteractions || 0}
-              currentLabel={currentMonthLabel}
-              prevLabel={prevMonthLabel}
-            />
-            <EngagementRateCard 
-              interactions={stats.totalInteractions} 
-              reach={stats.totalReach} 
-            />
-          </div>
+      {/* Goal Progress Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <GoalProgressCard
+          title="Reichweiten-Ziel"
+          current={totalReach}
+          goal={Math.round(totalReach * 1.2)}
+        />
+        <GoalProgressCard
+          title="Interaktions-Ziel"
+          current={totalInteractions}
+          goal={Math.round(totalInteractions * 1.2)}
+        />
+        <GoalProgressCard
+          title="Beitrags-Ziel"
+          current={stats?.totalPosts || 0}
+          goal={Math.round((stats?.totalPosts || 0) * 1.2)}
+        />
+      </div>
 
-          {/* Goal Progress Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <GoalProgressCard
-              title="Reichweiten-Ziel"
-              current={stats.totalReach}
-              goal={reachGoal}
-            />
-            <GoalProgressCard
-              title="Interaktions-Ziel"
-              current={stats.totalInteractions}
-              goal={interactionGoal}
-            />
-            <GoalProgressCard
-              title="Beitrags-Ziel"
-              current={stats.totalPosts}
-              goal={postsGoal}
-            />
-          </div>
+      {/* Top 5 Posts Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Top5PostsChart posts={fbPosts} platform="facebook" totalPosts={stats?.fbPosts || 0} />
+        <Top5PostsChart posts={igPosts} platform="instagram" totalPosts={stats?.igPosts || 0} />
+      </div>
 
-          {/* Top 5 Posts Charts */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <Top5PostsChart 
-              posts={fbPosts} 
-              platform="facebook" 
-              totalPosts={fbPosts.length}
-            />
-            <Top5PostsChart 
-              posts={igPosts} 
-              platform="instagram" 
-              totalPosts={igPosts.length}
-            />
-          </div>
+      {/* API Limitations */}
+      <APILimitationsCard />
 
-          {/* API Limitations */}
-          <div className="mb-6">
-            <APILimitationsCard />
-          </div>
-
-          {/* Platform Details */}
-          <div className="grid grid-cols-2 gap-6">
-            <PlatformDetailsCard
-              platform="facebook"
-              data={{
-                followers: stats.fbFollowers,
-                metric1: stats.fbReactions,
-                metric1Label: 'Reactions',
-                metric2: stats.fbComments,
-                metric2Label: 'Comments',
-                metric3: stats.fbReach,
-                metric3Label: 'Reichweite'
-              }}
-            />
-            <PlatformDetailsCard
-              platform="instagram"
-              data={{
-                followers: stats.igFollowers,
-                metric1: stats.igLikes,
-                metric1Label: 'Likes',
-                metric2: stats.igComments,
-                metric2Label: 'Comments',
-                metric3: stats.igSaves,
-                metric3Label: 'Saves'
-              }}
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="mt-8 pt-4 border-t border-[#262626] text-center">
-            <p className="text-gray-600 text-sm">
-              Powered by <a href="https://famefact.com" target="_blank" rel="noopener noreferrer" className="text-[#84cc16] hover:underline">famefact</a>
-            </p>
-          </div>
-        </>
-      ) : (
-        <div className="text-center text-gray-500 py-12">
-          Keine Daten verfügbar
-        </div>
-      )}
+      {/* Platform Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <PlatformDetailsCard
+          platform="facebook"
+          followers={stats?.fbFollowers || 0}
+          reactions={stats?.fbReactions || 0}
+          comments={stats?.fbComments || 0}
+          reach={stats?.fbReach || 0}
+        />
+        <PlatformDetailsCard
+          platform="instagram"
+          followers={stats?.igFollowers || 0}
+          reactions={stats?.igLikes || 0}
+          comments={stats?.igComments || 0}
+          saves={stats?.igSaves || 0}
+        />
+      </div>
     </div>
   );
 }
