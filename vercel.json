@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://socialdash-dashboard-damqttkva-thomassander-pngs-projects.vercel.app/$1",
+      "permanent": false
+    }
+  ]
+}
