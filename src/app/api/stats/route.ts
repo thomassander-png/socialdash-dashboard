@@ -22,20 +22,24 @@ export async function GET(request: NextRequest) {
       igAccountIds = accounts.filter(a => a.platform === 'instagram').map(a => a.account_id);
     }
 
-    // Facebook Stats
+    // Facebook Stats - using view_fb_post_latest_metrics if available, otherwise subquery
     const fbStatsQuery = `
+      WITH latest_metrics AS (
+        SELECT DISTINCT ON (fpm.post_id) 
+          fpm.post_id,
+          fpm.reactions_total,
+          fpm.comments_total,
+          fpm.reach
+        FROM fb_post_metrics fpm
+        ORDER BY fpm.post_id, fpm.snapshot_time DESC
+      )
       SELECT 
-        COALESCE(SUM(m.reactions_total), 0) as reactions,
-        COALESCE(SUM(m.comments_total), 0) as comments,
-        COALESCE(SUM(m.reach), 0) as reach,
+        COALESCE(SUM(lm.reactions_total), 0) as reactions,
+        COALESCE(SUM(lm.comments_total), 0) as comments,
+        COALESCE(SUM(lm.reach), 0) as reach,
         COUNT(DISTINCT p.post_id) as posts
       FROM fb_posts p
-      JOIN LATERAL (
-        SELECT * FROM fb_post_metrics 
-        WHERE post_id = p.post_id 
-        ORDER BY snapshot_time DESC 
-        LIMIT 1
-      ) m ON true
+      LEFT JOIN latest_metrics lm ON lm.post_id = p.post_id
       WHERE TO_CHAR(p.created_time, 'YYYY-MM') = $1
       ${fbPageIds.length > 0 ? `AND p.page_id = ANY($2)` : ''}
     `;
@@ -44,21 +48,26 @@ export async function GET(request: NextRequest) {
       fbStatsQuery, fbParams
     );
 
-    // Instagram Stats
+    // Instagram Stats - using similar approach
     const igStatsQuery = `
+      WITH latest_metrics AS (
+        SELECT DISTINCT ON (ipm.post_id) 
+          ipm.post_id,
+          ipm.likes_count,
+          ipm.comments_count,
+          ipm.saved,
+          ipm.reach
+        FROM ig_post_metrics ipm
+        ORDER BY ipm.post_id, ipm.snapshot_time DESC
+      )
       SELECT 
-        COALESCE(SUM(m.likes_count), 0) as likes,
-        COALESCE(SUM(m.comments_count), 0) as comments,
-        COALESCE(SUM(m.saved), 0) as saves,
-        COALESCE(SUM(m.reach), 0) as reach,
+        COALESCE(SUM(lm.likes_count), 0) as likes,
+        COALESCE(SUM(lm.comments_count), 0) as comments,
+        COALESCE(SUM(lm.saved), 0) as saves,
+        COALESCE(SUM(lm.reach), 0) as reach,
         COUNT(DISTINCT p.post_id) as posts
       FROM ig_posts p
-      JOIN LATERAL (
-        SELECT * FROM ig_post_metrics 
-        WHERE post_id = p.post_id 
-        ORDER BY snapshot_time DESC 
-        LIMIT 1
-      ) m ON true
+      LEFT JOIN latest_metrics lm ON lm.post_id = p.post_id
       WHERE TO_CHAR(p.created_time, 'YYYY-MM') = $1
       ${igAccountIds.length > 0 ? `AND p.account_id = ANY($2)` : ''}
     `;
