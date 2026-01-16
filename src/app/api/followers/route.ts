@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       SELECT 
         TO_CHAR(month, 'YYYY-MM') as month,
         'facebook' as platform,
-        page_id as account_id,
-        COALESCE(p.name, page_id) as account_name,
+        md.page_id as account_id,
+        COALESCE(p.name, md.page_id) as account_name,
         COALESCE(start_followers, end_followers) as start_followers,
         end_followers,
         end_followers - COALESCE(start_followers, end_followers) as net_change,
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
       SELECT 
         TO_CHAR(month, 'YYYY-MM') as month,
         'instagram' as platform,
-        account_id,
-        COALESCE(a.username, a.name, account_id) as account_name,
+        md.account_id,
+        COALESCE(a.username, a.name, md.account_id) as account_name,
         COALESCE(start_followers, end_followers) as start_followers,
         end_followers,
         end_followers - COALESCE(start_followers, end_followers) as net_change,
