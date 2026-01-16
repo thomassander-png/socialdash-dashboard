@@ -7,9 +7,13 @@ const pool = new Pool({
 });
 
 export async function GET(request: NextRequest) {
+  const customerId = request.headers.get('x-customer-id');
+  if (!customerId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
   const searchParams = request.nextUrl.searchParams;
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
-  const customer = searchParams.get('customer');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -43,21 +47,11 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) m ON true
       WHERE p.timestamp::date >= $1::date AND p.timestamp::date < $2::date
+      AND p.account_id IN (SELECT a.account_id FROM accounts a WHERE a.customer_id = $3)
+      ORDER BY (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) DESC LIMIT 100
     `;
     
-    const params: any[] = [startDate, endDate];
-    
-    if (customer && customer !== 'all') {
-      query += ` AND p.account_id IN (
-        SELECT a.account_id FROM accounts a
-        JOIN customers c ON a.customer_id = c.id
-        WHERE c.slug = $3
-      )`;
-      params.push(customer);
-    }
-    
-    query += ` ORDER BY (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) DESC LIMIT 100`;
-    
+    const params = [startDate, endDate, customerId];
     const result = await pool.query(query, params);
     
     return NextResponse.json({ posts: result.rows }, { headers });

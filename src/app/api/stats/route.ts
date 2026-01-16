@@ -7,11 +7,16 @@ const pool = new Pool({
 });
 
 export async function GET(request: NextRequest) {
+  // Check authorization
+  const customerId = request.headers.get('x-customer-id');
+  if (!customerId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
   const searchParams = request.nextUrl.searchParams;
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
   const customer = searchParams.get('customer');
   
-  // Set cache headers for 5 minutes
   const headers = {
     'Content-Type': 'application/json',
     'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
@@ -35,6 +40,7 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) m ON true
       WHERE p.created_time::date >= $1::date AND p.created_time::date < $2::date
+      AND p.page_id IN (SELECT a.account_id FROM accounts a WHERE a.customer_id = $3)
     `;
     
     let igQuery = `
@@ -52,15 +58,10 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) m ON true
       WHERE p.timestamp::date >= $1::date AND p.timestamp::date < $2::date
+      AND p.account_id IN (SELECT a.account_id FROM accounts a WHERE a.customer_id = $3)
     `;
     
-    const params = [startDate, endDate];
-    
-    if (customer && customer !== 'all') {
-      fbQuery += ` AND p.page_id IN (SELECT a.account_id FROM accounts a JOIN customers c ON a.customer_id = c.id WHERE c.slug = $3)`;
-      igQuery += ` AND p.account_id IN (SELECT a.account_id FROM accounts a JOIN customers c ON a.customer_id = c.id WHERE c.slug = $3)`;
-      params.push(customer);
-    }
+    const params = [startDate, endDate, customerId];
     
     // Execute queries in parallel
     const [fbResult, igResult] = await Promise.all([

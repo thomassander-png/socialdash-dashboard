@@ -70,11 +70,24 @@
 
 ## Performance-Optimierungen
 
-- [ ] Implementiere Response-Caching für API-Routen (Cache-Control Header)
-- [ ] Optimiere Datenbankabfragen (Indexes, LIMIT, Pagination)
+- [x] Implementiere Response-Caching für API-Routen (Cache-Control Header)
+- [x] Optimiere Datenbankabfragen (Indexes, LIMIT, Pagination)
+- [x] Reduziere Anzahl der API-Calls beim initialen Laden
+- [x] Implementiere Parallel-Abfragen statt sequenzieller Abfragen
 - [ ] Implementiere Lazy Loading für Bilder in Top 5 Posts Charts
-- [ ] Reduziere Anzahl der API-Calls beim initialen Laden
-- [ ] Implementiere Parallel-Abfragen statt sequenzieller Abfragen
 - [ ] Optimiere Next.js Build (Tree Shaking, Code Splitting)
 - [ ] Implementiere Image Optimization für Thumbnails
-- [ ] Reduziere Payload-Größe der API-Responses
+
+
+## Sicherheitsmaßnahmen
+
+- [ ] Implementiere Authentifizierung (Login/Logout)
+- [ ] Implementiere Autorisierung (Rollen-basierter Zugriff)
+- [ ] Implementiere HTTPS und sichere Cookies
+- [ ] Implementiere Rate Limiting auf API-Routen
+- [ ] Implementiere CORS-Schutz
+- [ ] Implementiere SQL Injection-Schutz (Prepared Statements)
+- [ ] Implementiere XSS-Schutz (Content Security Policy)
+- [ ] Implementiere CSRF-Schutz
+- [ ] Implementiere Audit Logging
+- [ ] Implementiere Datenverschlüsselung für sensitive Daten
