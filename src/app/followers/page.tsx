@@ -170,7 +170,7 @@ export default function FollowersPage() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #262626', borderRadius: '8px' }}
                     labelStyle={{ color: '#ededed' }}
-                    formatter={(value: number) => [formatNumber(value), '']}
+                    formatter={(value) => [formatNumber(value as number), '']}
                   />
                   <Legend />
                   <Bar dataKey="Facebook" fill="#3b82f6" radius={[4, 4, 0, 0]} />
