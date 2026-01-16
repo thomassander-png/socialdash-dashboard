@@ -34,7 +34,8 @@ import {
   Link2,
   FileBarChart,
   Settings,
-  Palette
+  Palette,
+  Users
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -46,6 +47,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Facebook, label: "Facebook", path: "/facebook" },
   { icon: Instagram, label: "Instagram", path: "/instagram" },
+  { icon: Users, label: "Follower", path: "/followers" },
   { icon: FileText, label: "Posts", path: "/posts" },
   { icon: Download, label: "Exports", path: "/exports" },
 ];

@@ -23,6 +23,14 @@ import {
 import { generateReport } from "./report-generator";
 import { generateFamefactReport } from "./famefact-report-generator";
 import {
+  getAllAccountsFollowerGrowth,
+  getCustomerFollowerGrowth,
+  getDailyFollowerData,
+  getMonthlyFollowerHistory,
+  getFacebookMonthlyGrowth,
+  getInstagramMonthlyGrowth,
+} from "./follower-db";
+import {
   getCustomers,
   getCustomer,
   createCustomer,
@@ -242,6 +250,70 @@ export const appRouter = router({
             error: error.message || 'Report generation failed',
           };
         }
+      }),
+  }),
+
+  // Follower growth routes
+  followers: router({
+    // Get follower growth for all accounts
+    allAccounts: publicProcedure
+      .input(z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getAllAccountsFollowerGrowth(input.month);
+      }),
+
+    // Get follower growth for a specific customer
+    byCustomer: publicProcedure
+      .input(z.object({
+        customerId: z.string().uuid(),
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getCustomerFollowerGrowth(input.customerId, input.month);
+      }),
+
+    // Get daily follower data for charts
+    dailyData: publicProcedure
+      .input(z.object({
+        accountId: z.string(),
+        platform: z.enum(['facebook', 'instagram']),
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getDailyFollowerData(input.accountId, input.platform, input.month);
+      }),
+
+    // Get monthly follower history for trend charts
+    monthlyHistory: publicProcedure
+      .input(z.object({
+        accountId: z.string(),
+        platform: z.enum(['facebook', 'instagram']),
+        months: z.number().min(1).max(24).default(12)
+      }))
+      .query(async ({ input }) => {
+        return getMonthlyFollowerHistory(input.accountId, input.platform, input.months);
+      }),
+
+    // Get Facebook monthly growth
+    facebookMonthly: publicProcedure
+      .input(z.object({
+        pageId: z.string(),
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getFacebookMonthlyGrowth(input.pageId, input.month);
+      }),
+
+    // Get Instagram monthly growth
+    instagramMonthly: publicProcedure
+      .input(z.object({
+        accountId: z.string(),
+        month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM format")
+      }))
+      .query(async ({ input }) => {
+        return getInstagramMonthlyGrowth(input.accountId, input.month);
       }),
   }),
 

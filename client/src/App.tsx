@@ -14,6 +14,7 @@ import AdminCustomers from "./pages/admin/Customers";
 import AdminAccounts from "./pages/admin/Accounts";
 import AdminReports from "./pages/admin/Reports";
 import VisualizationDemo from "./pages/VisualizationDemo";
+import Followers from "./pages/Followers";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/instagram-insights" component={Instagram} />
       <Route path="/posts" component={Posts} />
       <Route path="/exports" component={Exports} />
+      <Route path="/followers" component={Followers} />
       {/* Admin routes */}
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/accounts" component={AdminAccounts} />
