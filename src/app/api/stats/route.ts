@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
 
     // Follower counts (latest)
     const fbFollowersQuery = `
-      SELECT COALESCE(SUM(follower_count), 0) as followers
+SELECT COALESCE(SUM(followers_count), 0) as followers
       FROM (
-        SELECT DISTINCT ON (page_id) follower_count
+        SELECT DISTINCT ON (page_id) followers_count
         FROM fb_follower_history
         ${fbPageIds.length > 0 ? `WHERE page_id = ANY($1)` : ''}
         ORDER BY page_id, snapshot_date DESC
@@ -91,9 +91,9 @@ export async function GET(request: NextRequest) {
     );
 
     const igFollowersQuery = `
-      SELECT COALESCE(SUM(follower_count), 0) as followers
+SELECT COALESCE(SUM(followers_count), 0) as followers
       FROM (
-        SELECT DISTINCT ON (account_id) follower_count
+        SELECT DISTINCT ON (account_id) followers_count
         FROM ig_follower_history
         ${igAccountIds.length > 0 ? `WHERE account_id = ANY($1)` : ''}
         ORDER BY account_id, snapshot_date DESC

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         SELECT 
           page_id,
           DATE_TRUNC('month', snapshot_date) as month,
-          follower_count,
+          followers_count,
           ROW_NUMBER() OVER (PARTITION BY page_id, DATE_TRUNC('month', snapshot_date) ORDER BY snapshot_date DESC) as rn
         FROM fb_follower_history
         WHERE snapshot_date >= NOW() - INTERVAL '${months} months'
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
         SELECT 
           page_id,
           month,
-          follower_count as end_followers,
-          LAG(follower_count) OVER (PARTITION BY page_id ORDER BY month) as start_followers
+          followers_count as end_followers,
+          LAG(followers_count) OVER (PARTITION BY page_id ORDER BY month) as start_followers
         FROM monthly_snapshots
         WHERE rn = 1
       )
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         SELECT 
           account_id,
           DATE_TRUNC('month', snapshot_date) as month,
-          follower_count,
+          followers_count,
           ROW_NUMBER() OVER (PARTITION BY account_id, DATE_TRUNC('month', snapshot_date) ORDER BY snapshot_date DESC) as rn
         FROM ig_follower_history
         WHERE snapshot_date >= NOW() - INTERVAL '${months} months'
@@ -88,8 +88,8 @@ export async function GET(request: NextRequest) {
         SELECT 
           account_id,
           month,
-          follower_count as end_followers,
-          LAG(follower_count) OVER (PARTITION BY account_id ORDER BY month) as start_followers
+          followers_count as end_followers,
+          LAG(followers_count) OVER (PARTITION BY account_id ORDER BY month) as start_followers
         FROM monthly_snapshots
         WHERE rn = 1
       )
