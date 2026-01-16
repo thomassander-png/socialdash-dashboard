@@ -1,8 +1,0 @@
-{
-  "query": "SELECT * FROM ig_accounts LIMIT 5;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user yFD1LgCQZpYvvRU.bf8f809b86e6 --database TNJ63V8zyGtgPp2otD5Au5 --execute SELECT * FROM ig_accounts LIMIT 5;",
-  "returncode": 1,
-  "logs": [
-    "ERROR 1146 (42S02) at line 1: Table 'tnj63v8zygtgpp2otd5au5.ig_accounts' doesn't exist"
-  ]
-}

@@ -1,9 +1,0 @@
-{
-  "query": "\n-- Füge neue Spalten für Logo und Primärfarbe hinzu\nALTER TABLE customers \nADD COLUMN IF NOT EXISTS logo_url TEXT,\nADD COLUMN IF NOT EXISTS primary_color VARCHAR(7) DEFAULT '#1E3A8A',\nADD COLUMN IF NOT EXISTS secondary_color VARCHAR(7) DEFAULT '#3B82F6';\n\n-- Aktualisiere bestehende Kunden mit Standardfarben\nUPDATE customers SET primary_color = '#1E3A8A', secondary_color = '#3B82F6' WHERE primary_color IS NULL;\n",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user yFD1LgCQZpYvvRU.bf8f809b86e6 --database TNJ63V8zyGtgPp2otD5Au5 --execute \n-- Füge neue Spalten für Logo und Primärfarbe hinzu\nALTER TABLE customers \nADD COLUMN IF NOT EXISTS logo_url TEXT,\nADD COLUMN IF NOT EXISTS primary_color VARCHAR(7) DEFAULT '#1E3A8A',\nADD COLUMN IF NOT EXISTS secondary_color VARCHAR(7) DEFAULT '#3B82F6';\n\n-- Aktualisiere bestehende Kunden mit Standardfarben\nUPDATE customers SET primary_color = '#1E3A8A', secondary_color = '#3B82F6' WHERE primary_color IS NULL;\n",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 2135
-}
