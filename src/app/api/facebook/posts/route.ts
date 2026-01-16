@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
 const pool = new Pool({
-  connectionString: process.env.FACEBOOK_DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || process.env.FACEBOOK_DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
   const customer = searchParams.get('customer');
   
   const startDate = `${month}-01`;
-  const endDate = new Date(new Date(startDate).setMonth(new Date(startDate).getMonth() + 1)).toISOString().slice(0, 10);
+  const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   
   try {
+    console.log('Fetching Facebook posts for:', { month, startDate, endDate, customer });
+    
     let query = `
       SELECT 
         p.post_id,
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
         ORDER BY snapshot_time DESC 
         LIMIT 1
       ) m ON true
-      WHERE p.created_time >= $1 AND p.created_time < $2
+      WHERE p.created_time::date >= $1::date AND p.created_time::date < $2::date
     `;
     
     const params: any[] = [startDate, endDate];
@@ -50,13 +52,14 @@ export async function GET(request: NextRequest) {
       params.push(customer);
     }
     
-    query += ` ORDER BY (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) DESC`;
+    query += ` ORDER BY (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) DESC LIMIT 100`;
     
     const result = await pool.query(query, params);
+    console.log('Facebook posts query result:', result.rows.length, 'rows');
     
-    return NextResponse.json(result.rows);
+    return NextResponse.json({ posts: result.rows });
   } catch (error) {
     console.error('Error fetching Facebook posts:', error);
-    return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
+    return NextResponse.json({ posts: [], error: String(error) }, { status: 500 });
   }
 }

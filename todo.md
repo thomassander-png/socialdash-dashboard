@@ -57,3 +57,12 @@
 - [x] Roter Punkt auf der Engagement Gauge
 - [x] Platform Details: Blaue Zahlen für Facebook, Pinke für Instagram
 - [x] Farbige Fortschrittsbalken (grün)
+
+
+## Top 5 Posts Charts - Behebung
+
+- [ ] Prüfe warum Top 5 Posts Charts im neuen Dashboard nicht sichtbar sind
+- [ ] Stelle sicher dass Daten aus der Datenbank geladen werden
+- [ ] Teste die Top 5 Facebook Posts Chart mit echten Daten
+- [ ] Teste die Top 5 Instagram Posts Chart mit echten Daten
+- [ ] Stelle sicher dass Bilder, Interaktionszahlen und Datum angezeigt werden
