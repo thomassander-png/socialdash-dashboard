@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     
     // Add customer filter if specified
     if (customer && customer !== 'all') {
-      query += ` AND p.account_id IN (SELECT a.account_id FROM accounts a WHERE a.customer_id = $3)`;
+      query += ` AND p.account_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'instagram')`;
     }
     
     query += ` ORDER BY (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) DESC LIMIT 100`;

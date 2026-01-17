@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
     
     // Add customer filter if specified
     if (customer && customer !== 'all') {
-      fbQuery += ` AND p.page_id IN (SELECT a.account_id FROM accounts a WHERE a.customer_id = $3)`;
-      igQuery += ` AND p.account_id IN (SELECT a.account_id FROM accounts a WHERE a.customer_id = $3)`;
+      fbQuery += ` AND p.page_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'facebook')`;
+      igQuery += ` AND p.account_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'instagram')`;
     }
     
     const params = customer && customer !== 'all' ? [startDate, endDate, customer] : [startDate, endDate];
