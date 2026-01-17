@@ -22,7 +22,52 @@ export async function GET(request: NextRequest) {
       igAccountIds = accounts.filter(a => a.platform === 'instagram').map(a => a.account_id);
     }
 
-    // Facebook monthly follower growth
+    // Get current follower counts (latest snapshot for each account)
+    const fbCurrentQuery = `
+      SELECT DISTINCT ON (page_id)
+        page_id as account_id,
+        'facebook' as platform,
+        COALESCE(p.name, fh.page_id) as account_name,
+        followers_count,
+        snapshot_date
+      FROM fb_follower_history fh
+      LEFT JOIN fb_pages p ON fh.page_id = p.page_id
+      ${fbPageIds.length > 0 ? `WHERE fh.page_id = ANY($1)` : ''}
+      ORDER BY page_id, snapshot_date DESC
+    `;
+    const fbCurrent = await query<{
+      account_id: string;
+      platform: string;
+      account_name: string;
+      followers_count: number;
+      snapshot_date: string;
+    }>(fbCurrentQuery, fbPageIds.length > 0 ? [fbPageIds] : []);
+
+    const igCurrentQuery = `
+      SELECT DISTINCT ON (account_id)
+        account_id,
+        'instagram' as platform,
+        COALESCE(a.username, a.name, ih.account_id) as account_name,
+        followers_count,
+        snapshot_date
+      FROM ig_follower_history ih
+      LEFT JOIN ig_accounts a ON ih.account_id = a.account_id
+      ${igAccountIds.length > 0 ? `WHERE ih.account_id = ANY($1)` : ''}
+      ORDER BY account_id, snapshot_date DESC
+    `;
+    const igCurrent = await query<{
+      account_id: string;
+      platform: string;
+      account_name: string;
+      followers_count: number;
+      snapshot_date: string;
+    }>(igCurrentQuery, igAccountIds.length > 0 ? [igAccountIds] : []);
+
+    // Calculate totals
+    const fbTotal = fbCurrent.reduce((sum, row) => sum + Number(row.followers_count), 0);
+    const igTotal = igCurrent.reduce((sum, row) => sum + Number(row.followers_count), 0);
+
+    // Facebook monthly follower growth (for historical comparison)
     const fbGrowthQuery = `
       WITH monthly_snapshots AS (
         SELECT 
@@ -58,7 +103,6 @@ export async function GET(request: NextRequest) {
         END as percent_change
       FROM monthly_data md
       LEFT JOIN fb_pages p ON md.page_id = p.page_id
-      WHERE start_followers IS NOT NULL
       ORDER BY month DESC, account_name
     `;
     const fbGrowth = await query<{
@@ -108,7 +152,6 @@ export async function GET(request: NextRequest) {
         END as percent_change
       FROM monthly_data md
       LEFT JOIN ig_accounts a ON md.account_id = a.account_id
-      WHERE start_followers IS NOT NULL
       ORDER BY month DESC, account_name
     `;
     const igGrowth = await query<{
@@ -145,7 +188,20 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.month.localeCompare(a.month));
 
     return NextResponse.json({
+      // Current follower totals
+      currentTotals: {
+        facebook: fbTotal,
+        instagram: igTotal,
+        total: fbTotal + igTotal
+      },
+      // Current follower details by account
+      currentDetails: [...fbCurrent, ...igCurrent].map(row => ({
+        ...row,
+        followers_count: Number(row.followers_count)
+      })),
+      // Monthly growth summary (for chart)
       summary,
+      // Monthly growth details
       details: allGrowth.map(row => ({
         ...row,
         start_followers: parseInt(row.start_followers),

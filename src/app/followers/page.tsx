@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Users, Facebook, Instagram } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { DashboardLayout } from '@/components/DashboardLayout';
 
 interface Customer {
@@ -29,6 +29,20 @@ interface FollowerDetail {
   percent_change: number;
 }
 
+interface CurrentDetail {
+  account_id: string;
+  platform: string;
+  account_name: string;
+  followers_count: number;
+  snapshot_date: string;
+}
+
+interface CurrentTotals {
+  facebook: number;
+  instagram: number;
+  total: number;
+}
+
 function formatNumber(num: number): string {
   if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
@@ -41,11 +55,18 @@ function formatMonth(monthStr: string): string {
   return date.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
 }
 
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function FollowersContent() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState('all');
   const [summary, setSummary] = useState<FollowerSummary[]>([]);
   const [details, setDetails] = useState<FollowerDetail[]>([]);
+  const [currentTotals, setCurrentTotals] = useState<CurrentTotals>({ facebook: 0, instagram: 0, total: 0 });
+  const [currentDetails, setCurrentDetails] = useState<CurrentDetail[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,6 +86,8 @@ function FollowersContent() {
       .then(data => {
         setSummary(data.summary || []);
         setDetails(data.details || []);
+        setCurrentTotals(data.currentTotals || { facebook: 0, instagram: 0, total: 0 });
+        setCurrentDetails(data.currentDetails || []);
         setLoading(false);
       })
       .catch(err => {
@@ -89,6 +112,9 @@ function FollowersContent() {
   // Get latest month details
   const latestMonth = summary[0]?.month;
   const latestDetails = details.filter(d => d.month === latestMonth);
+
+  // Check if we have historical data
+  const hasHistoricalData = summary.length > 0;
 
   return (
     <div>
@@ -120,44 +146,122 @@ function FollowersContent() {
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
+          {/* Current Follower Totals */}
           <div className="grid grid-cols-3 gap-4 mb-8">
             <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm uppercase tracking-wider">Netto Gesamt (12M)</span>
-                <Users className="text-gray-500" size={20} />
+                <span className="text-gray-500 text-sm uppercase tracking-wider">Follower Gesamt</span>
+                <Users className="text-[#84cc16]" size={20} />
               </div>
-              <div className={`text-3xl font-bold flex items-center gap-2 ${totalNetChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {totalNetChange >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                {totalNetChange >= 0 ? '+' : ''}{formatNumber(totalNetChange)}
+              <div className="text-3xl font-bold text-white">
+                {formatNumber(currentTotals.total)}
               </div>
-              <p className="text-gray-500 text-sm mt-1">Letzte 12 Monate</p>
+              <p className="text-gray-500 text-sm mt-1">Aktueller Stand</p>
             </div>
 
             <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm uppercase tracking-wider">Facebook Netto</span>
+                <span className="text-gray-500 text-sm uppercase tracking-wider">Facebook Follower</span>
                 <Facebook className="text-blue-500" size={20} />
               </div>
-              <div className={`text-3xl font-bold flex items-center gap-2 ${fbNetChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {fbNetChange >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                {fbNetChange >= 0 ? '+' : ''}{formatNumber(fbNetChange)}
+              <div className="text-3xl font-bold text-blue-400">
+                {formatNumber(currentTotals.facebook)}
               </div>
-              <p className="text-gray-500 text-sm mt-1">Letzte 12 Monate</p>
+              <p className="text-gray-500 text-sm mt-1">Aktueller Stand</p>
             </div>
 
             <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm uppercase tracking-wider">Instagram Netto</span>
+                <span className="text-gray-500 text-sm uppercase tracking-wider">Instagram Follower</span>
                 <Instagram className="text-pink-500" size={20} />
               </div>
-              <div className={`text-3xl font-bold flex items-center gap-2 ${igNetChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {igNetChange >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                {igNetChange >= 0 ? '+' : ''}{formatNumber(igNetChange)}
+              <div className="text-3xl font-bold text-pink-400">
+                {formatNumber(currentTotals.instagram)}
               </div>
-              <p className="text-gray-500 text-sm mt-1">Letzte 12 Monate</p>
+              <p className="text-gray-500 text-sm mt-1">Aktueller Stand</p>
             </div>
           </div>
+
+          {/* Current Follower Details by Account */}
+          {currentDetails.length > 0 && (
+            <div className="bg-[#141414] border border-[#262626] rounded-xl p-6 mb-8">
+              <h2 className="text-xl font-bold text-white mb-6">Aktuelle Follower nach Account</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#262626]">
+                      <th className="text-left py-3 px-4 text-gray-500 font-medium">Account</th>
+                      <th className="text-left py-3 px-4 text-gray-500 font-medium">Plattform</th>
+                      <th className="text-right py-3 px-4 text-gray-500 font-medium">Follower</th>
+                      <th className="text-right py-3 px-4 text-gray-500 font-medium">Stand vom</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentDetails
+                      .sort((a, b) => b.followers_count - a.followers_count)
+                      .map((row, idx) => (
+                      <tr key={idx} className="border-b border-[#262626] hover:bg-[#1f1f1f]">
+                        <td className="py-3 px-4 text-white">{row.account_name}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            row.platform === 'facebook' ? 'bg-blue-500/20 text-blue-400' : 'bg-pink-500/20 text-pink-400'
+                          }`}>
+                            {row.platform === 'facebook' ? 'Facebook' : 'Instagram'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right text-white font-bold">{formatNumber(row.followers_count)}</td>
+                        <td className="py-3 px-4 text-right text-gray-400">{formatDate(row.snapshot_date)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Growth Summary Cards - only show if we have historical data */}
+          {hasHistoricalData && (
+            <>
+              <h2 className="text-xl font-bold text-white mb-4 mt-8">Netto-Zuwachs (letzte 12 Monate)</h2>
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-500 text-sm uppercase tracking-wider">Netto Gesamt (12M)</span>
+                    <Users className="text-gray-500" size={20} />
+                  </div>
+                  <div className={`text-3xl font-bold flex items-center gap-2 ${totalNetChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {totalNetChange >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                    {totalNetChange >= 0 ? '+' : ''}{formatNumber(totalNetChange)}
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">Letzte 12 Monate</p>
+                </div>
+
+                <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-500 text-sm uppercase tracking-wider">Facebook Netto</span>
+                    <Facebook className="text-blue-500" size={20} />
+                  </div>
+                  <div className={`text-3xl font-bold flex items-center gap-2 ${fbNetChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {fbNetChange >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                    {fbNetChange >= 0 ? '+' : ''}{formatNumber(fbNetChange)}
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">Letzte 12 Monate</p>
+                </div>
+
+                <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-500 text-sm uppercase tracking-wider">Instagram Netto</span>
+                    <Instagram className="text-pink-500" size={20} />
+                  </div>
+                  <div className={`text-3xl font-bold flex items-center gap-2 ${igNetChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {igNetChange >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                    {igNetChange >= 0 ? '+' : ''}{formatNumber(igNetChange)}
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">Letzte 12 Monate</p>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Chart */}
           <div className="bg-[#141414] border border-[#262626] rounded-xl p-6 mb-8">
@@ -180,43 +284,46 @@ function FollowersContent() {
               </ResponsiveContainer>
             ) : (
               <div className="text-center text-gray-500 py-12">
-                Keine Follower-Daten verfügbar
+                <p className="mb-2">Noch keine historischen Daten für Netto-Zuwachs verfügbar.</p>
+                <p className="text-sm">Der Netto-Zuwachs wird berechnet, sobald Follower-Daten aus mindestens zwei verschiedenen Monaten vorliegen.</p>
               </div>
             )}
           </div>
 
           {/* Monthly Details Table */}
-          <div className="bg-[#141414] border border-[#262626] rounded-xl p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Monatliche Übersicht</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#262626]">
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Monat</th>
-                    <th className="text-right py-3 px-4 text-gray-500 font-medium">Facebook</th>
-                    <th className="text-right py-3 px-4 text-gray-500 font-medium">Instagram</th>
-                    <th className="text-right py-3 px-4 text-gray-500 font-medium">Gesamt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.map((row) => (
-                    <tr key={row.month} className="border-b border-[#262626] hover:bg-[#1f1f1f]">
-                      <td className="py-3 px-4 text-white">{formatMonth(row.month)}</td>
-                      <td className={`py-3 px-4 text-right font-medium ${row.fb >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {row.fb >= 0 ? '+' : ''}{formatNumber(row.fb)}
-                      </td>
-                      <td className={`py-3 px-4 text-right font-medium ${row.ig >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {row.ig >= 0 ? '+' : ''}{formatNumber(row.ig)}
-                      </td>
-                      <td className={`py-3 px-4 text-right font-bold ${row.total >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {row.total >= 0 ? '+' : ''}{formatNumber(row.total)}
-                      </td>
+          {hasHistoricalData && (
+            <div className="bg-[#141414] border border-[#262626] rounded-xl p-6">
+              <h2 className="text-xl font-bold text-white mb-6">Monatliche Übersicht</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#262626]">
+                      <th className="text-left py-3 px-4 text-gray-500 font-medium">Monat</th>
+                      <th className="text-right py-3 px-4 text-gray-500 font-medium">Facebook</th>
+                      <th className="text-right py-3 px-4 text-gray-500 font-medium">Instagram</th>
+                      <th className="text-right py-3 px-4 text-gray-500 font-medium">Gesamt</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {summary.map((row) => (
+                      <tr key={row.month} className="border-b border-[#262626] hover:bg-[#1f1f1f]">
+                        <td className="py-3 px-4 text-white">{formatMonth(row.month)}</td>
+                        <td className={`py-3 px-4 text-right font-medium ${row.fb >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {row.fb >= 0 ? '+' : ''}{formatNumber(row.fb)}
+                        </td>
+                        <td className={`py-3 px-4 text-right font-medium ${row.ig >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {row.ig >= 0 ? '+' : ''}{formatNumber(row.ig)}
+                        </td>
+                        <td className={`py-3 px-4 text-right font-bold ${row.total >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {row.total >= 0 ? '+' : ''}{formatNumber(row.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Account Details for Latest Month */}
           {latestDetails.length > 0 && (
