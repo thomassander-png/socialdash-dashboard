@@ -24,16 +24,16 @@ export async function GET(request: NextRequest) {
 
     // Get current follower counts (latest snapshot for each account)
     const fbCurrentQuery = `
-      SELECT DISTINCT ON (page_id)
-        page_id as account_id,
+      SELECT DISTINCT ON (fh.page_id)
+        fh.page_id as account_id,
         'facebook' as platform,
         COALESCE(p.name, fh.page_id) as account_name,
-        followers_count,
-        snapshot_date
+        fh.followers_count,
+        fh.snapshot_date
       FROM fb_follower_history fh
       LEFT JOIN fb_pages p ON fh.page_id = p.page_id
       ${fbPageIds.length > 0 ? `WHERE fh.page_id = ANY($1)` : ''}
-      ORDER BY page_id, snapshot_date DESC
+      ORDER BY fh.page_id, fh.snapshot_date DESC
     `;
     const fbCurrent = await query<{
       account_id: string;
@@ -44,16 +44,16 @@ export async function GET(request: NextRequest) {
     }>(fbCurrentQuery, fbPageIds.length > 0 ? [fbPageIds] : []);
 
     const igCurrentQuery = `
-      SELECT DISTINCT ON (account_id)
-        account_id,
+      SELECT DISTINCT ON (ih.account_id)
+        ih.account_id,
         'instagram' as platform,
         COALESCE(a.username, a.name, ih.account_id) as account_name,
-        followers_count,
-        snapshot_date
+        ih.followers_count,
+        ih.snapshot_date
       FROM ig_follower_history ih
       LEFT JOIN ig_accounts a ON ih.account_id = a.account_id
       ${igAccountIds.length > 0 ? `WHERE ih.account_id = ANY($1)` : ''}
-      ORDER BY account_id, snapshot_date DESC
+      ORDER BY ih.account_id, ih.snapshot_date DESC
     `;
     const igCurrent = await query<{
       account_id: string;
