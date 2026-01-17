@@ -1,105 +1,76 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
-const navItems = [
-  { emoji: '📊', label: 'Overview', path: '/' },
-  { emoji: '📘', label: 'Facebook', path: '/facebook' },
-  { emoji: '📸', label: 'Instagram', path: '/instagram' },
-  { emoji: '📈', label: 'Follower', path: '/followers' },
-  { emoji: '📝', label: 'Alle Posts', path: '/posts' },
-];
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
-const adminItems = [
-  { emoji: '👥', label: 'Kunden', path: '/admin/customers' },
-  { emoji: '🔗', label: 'Accounts', path: '/admin/accounts' },
-  { emoji: '📄', label: 'Reports', path: '/reports' },
-];
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const router = useRouter();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    document.cookie = 'sb-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+    router.push('/auth/signin');
+  };
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0a]">
+    <div className="flex h-screen bg-slate-900">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#141414] border-r border-[#262626] p-4 flex flex-col">
+      <div className="w-64 bg-slate-800 border-r border-slate-700 p-6 overflow-y-auto">
         <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#84cc16] to-[#65a30d] rounded-lg flex items-center justify-center text-black font-bold text-xl shadow-lg shadow-[#84cc16]/20">
-              S
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold">S</span>
             </div>
             <div>
-              <h1 className="font-bold text-white text-lg">SocialDash</h1>
-              <p className="text-xs text-gray-500">Reporting Dashboard</p>
+              <h1 className="text-white font-bold">SocialDash</h1>
+              <p className="text-slate-400 text-xs">Reporting Dashboard</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1">
-          <div className="mb-6">
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 px-3 font-medium">Navigation</p>
-            {navItems.map((item) => {
-              const isActive = pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-[#84cc16] to-[#65a30d] text-black font-medium shadow-lg shadow-[#84cc16]/20'
-                      : 'text-gray-400 hover:bg-[#1f1f1f] hover:text-white'
-                  }`}
-                >
-                  <span className="text-lg">{item.emoji}</span>
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 px-3 font-medium">Admin</p>
-            {adminItems.map((item) => {
-              const isActive = pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-[#84cc16] to-[#65a30d] text-black font-medium shadow-lg shadow-[#84cc16]/20'
-                      : 'text-gray-400 hover:bg-[#1f1f1f] hover:text-white'
-                  }`}
-                >
-                  <span className="text-lg">{item.emoji}</span>
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+        <nav className="space-y-2">
+          <a href="/" className="block px-4 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+            📊 Overview
+          </a>
+          <a href="/facebook" className="block px-4 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+            📘 Facebook
+          </a>
+          <a href="/instagram" className="block px-4 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+            📸 Instagram
+          </a>
+          <a href="/followers" className="block px-4 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+            📈 Follower
+          </a>
+          <a href="/posts" className="block px-4 py-2 text-slate-300 hover:bg-slate-700 rounded-lg">
+            📝 Alle Posts
+          </a>
         </nav>
 
-        {/* Footer */}
-        <div className="pt-4 border-t border-[#262626]">
-          <p className="text-gray-600 text-xs text-center">
-            Powered by{' '}
-            <a 
-              href="https://famefact.com" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-[#84cc16] hover:underline"
-            >
-              famefact
-            </a>
-          </p>
+        <div className="mt-8 pt-8 border-t border-slate-700">
+          <button
+            onClick={handleLogout}
+            className="w-full px-4 py-2 text-slate-300 hover:bg-red-600/20 rounded-lg text-left"
+          >
+            🚪 Abmelden
+          </button>
         </div>
-      </aside>
+      </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      <div className="flex-1 overflow-auto">
         {children}
-      </main>
+      </div>
     </div>
   );
 }
