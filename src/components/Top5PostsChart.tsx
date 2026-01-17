@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 
 interface Post {
   post_id: string;
@@ -41,42 +41,138 @@ function formatPercent(num: number): string {
   return num.toFixed(2) + '%';
 }
 
+// Memoized sort button
+const SortOptionButton = memo(function SortOptionButton({
+  option,
+  label,
+  isActive,
+  onClick
+}: {
+  option: SortOption;
+  label: string;
+  isActive: boolean;
+  onClick: (option: SortOption) => void;
+}) {
+  const handleClick = useCallback(() => {
+    requestAnimationFrame(() => {
+      onClick(option);
+    });
+  }, [option, onClick]);
+
+  return (
+    <button
+      onClick={handleClick}
+      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+        isActive 
+          ? 'bg-[#84cc16] text-black font-bold' 
+          : 'bg-[#262626] text-gray-400 hover:bg-[#363636]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+});
+
+// Memoized post bar component
+const PostBar = memo(function PostBar({
+  post,
+  index,
+  barHeight,
+  displayValue,
+  barColor,
+  platform
+}: {
+  post: { post_id: string; thumbnail_url?: string; created_time: string };
+  index: number;
+  barHeight: number;
+  displayValue: string;
+  barColor: string;
+  platform: 'facebook' | 'instagram';
+}) {
+  return (
+    <div className="flex-1 flex flex-col items-center h-full justify-end">
+      {/* Value above image */}
+      <span className="text-white text-sm font-bold mb-2">
+        {displayValue}
+      </span>
+      
+      {/* Post image - positioned above the bar */}
+      <div className="w-14 h-14 mb-1 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
+        {post.thumbnail_url ? (
+          <img 
+            src={post.thumbnail_url} 
+            alt={`Post ${index + 1}`}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-500 text-xl">
+            {platform === 'facebook' ? '📘' : '📸'}
+          </div>
+        )}
+      </div>
+      
+      {/* Bar */}
+      <div 
+        className={`w-full ${barColor} rounded-t transition-all duration-300`}
+        style={{ height: `${barHeight}%` }}
+      ></div>
+      
+      {/* Post label and date */}
+      <div className="mt-2 text-center">
+        <span className="text-gray-400 text-xs block">Post {index + 1}</span>
+        <span className="text-gray-500 text-xs block">{formatDate(post.created_time)}</span>
+      </div>
+    </div>
+  );
+});
+
+const sortLabels: Record<SortOption, string> = {
+  interactions: 'Interaktionen',
+  engagement: 'Engagement-Rate',
+  reach: 'Reichweite'
+};
+
 export default function Top5PostsChart({ posts, platform, totalPosts }: Top5PostsChartProps) {
   const [sortBy, setSortBy] = useState<SortOption>('interactions');
   
   const barColor = platform === 'facebook' ? 'bg-blue-500' : 'bg-pink-500';
   const title = platform === 'facebook' ? 'Top 5 Facebook Posts' : 'Top 5 Instagram Posts';
   
-  // Calculate metrics for all posts
-  const postsWithMetrics = posts.map(p => {
-    const interactions = (p.reactions_total || p.likes || 0) + (p.comments_total || 0);
-    const reach = p.reach || 0;
-    const engagementRate = reach > 0 ? (interactions / reach) * 100 : 0;
-    return {
-      ...p,
-      interactions,
-      engagementRate
-    };
-  });
+  // Memoize posts with metrics calculation
+  const postsWithMetrics = useMemo(() => {
+    return posts.map(p => {
+      const interactions = (p.reactions_total || p.likes || 0) + (p.comments_total || 0);
+      const reach = p.reach || 0;
+      const engagementRate = reach > 0 ? (interactions / reach) * 100 : 0;
+      return {
+        ...p,
+        interactions,
+        engagementRate
+      };
+    });
+  }, [posts]);
   
-  // Sort based on selected option
-  const topPosts = [...postsWithMetrics]
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'interactions':
-          return b.interactions - a.interactions;
-        case 'engagement':
-          return b.engagementRate - a.engagementRate;
-        case 'reach':
-          return (b.reach || 0) - (a.reach || 0);
-        default:
-          return b.interactions - a.interactions;
-      }
-    })
-    .slice(0, 5);
+  // Memoize sorted top posts
+  const topPosts = useMemo(() => {
+    return [...postsWithMetrics]
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'interactions':
+            return b.interactions - a.interactions;
+          case 'engagement':
+            return b.engagementRate - a.engagementRate;
+          case 'reach':
+            return (b.reach || 0) - (a.reach || 0);
+          default:
+            return b.interactions - a.interactions;
+        }
+      })
+      .slice(0, 5);
+  }, [postsWithMetrics, sortBy]);
   
-  // Get max value for bar scaling
-  const getMaxValue = () => {
+  // Memoize max value calculation
+  const maxValue = useMemo(() => {
     if (topPosts.length === 0) return 1;
     switch (sortBy) {
       case 'interactions':
@@ -88,12 +184,15 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
       default:
         return topPosts[0].interactions;
     }
-  };
+  }, [topPosts, sortBy]);
   
-  const maxValue = getMaxValue();
+  // Memoized callback for sort option change
+  const handleSortChange = useCallback((option: SortOption) => {
+    setSortBy(option);
+  }, []);
   
   // Get display value for a post
-  const getDisplayValue = (post: typeof topPosts[0]) => {
+  const getDisplayValue = useCallback((post: typeof topPosts[0]) => {
     switch (sortBy) {
       case 'interactions':
         return formatNumber(post.interactions);
@@ -104,10 +203,10 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
       default:
         return formatNumber(post.interactions);
     }
-  };
+  }, [sortBy]);
   
   // Get bar height percentage
-  const getBarHeight = (post: typeof topPosts[0]) => {
+  const getBarHeight = useCallback((post: typeof topPosts[0]) => {
     let value = 0;
     switch (sortBy) {
       case 'interactions':
@@ -121,13 +220,7 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
         break;
     }
     return Math.max((value / maxValue) * 100 * 0.6, 15);
-  };
-  
-  const sortLabels: Record<SortOption, string> = {
-    interactions: 'Interaktionen',
-    engagement: 'Engagement-Rate',
-    reach: 'Reichweite'
-  };
+  }, [sortBy, maxValue]);
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
@@ -141,17 +234,13 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
       {/* Sort Options */}
       <div className="flex gap-2 mb-6">
         {(['interactions', 'engagement', 'reach'] as SortOption[]).map((option) => (
-          <button
+          <SortOptionButton
             key={option}
-            onClick={() => setSortBy(option)}
-            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-              sortBy === option 
-                ? 'bg-[#84cc16] text-black font-bold' 
-                : 'bg-[#262626] text-gray-400 hover:bg-[#363636]'
-            }`}
-          >
-            {sortLabels[option]}
-          </button>
+            option={option}
+            label={sortLabels[option]}
+            isActive={sortBy === option}
+            onClick={handleSortChange}
+          />
         ))}
       </div>
       
@@ -161,45 +250,17 @@ export default function Top5PostsChart({ posts, platform, totalPosts }: Top5Post
         </div>
       ) : (
         <div className="flex items-end justify-between gap-4 h-80">
-          {topPosts.map((post, index) => {
-            const barHeight = getBarHeight(post);
-            
-            return (
-              <div key={post.post_id} className="flex-1 flex flex-col items-center h-full justify-end">
-                {/* Value above image */}
-                <span className="text-white text-sm font-bold mb-2">
-                  {getDisplayValue(post)}
-                </span>
-                
-                {/* Post image - positioned above the bar */}
-                <div className="w-14 h-14 mb-1 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
-                  {post.thumbnail_url ? (
-                    <img 
-                      src={post.thumbnail_url} 
-                      alt={`Post ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xl">
-                      {platform === 'facebook' ? '📘' : '📸'}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Bar */}
-                <div 
-                  className={`w-full ${barColor} rounded-t transition-all duration-500`}
-                  style={{ height: `${barHeight}%` }}
-                ></div>
-                
-                {/* Post label and date */}
-                <div className="mt-2 text-center">
-                  <span className="text-gray-400 text-xs block">Post {index + 1}</span>
-                  <span className="text-gray-500 text-xs block">{formatDate(post.created_time)}</span>
-                </div>
-              </div>
-            );
-          })}
+          {topPosts.map((post, index) => (
+            <PostBar
+              key={post.post_id}
+              post={post}
+              index={index}
+              barHeight={getBarHeight(post)}
+              displayValue={getDisplayValue(post)}
+              barColor={barColor}
+              platform={platform}
+            />
+          ))}
         </div>
       )}
     </div>
