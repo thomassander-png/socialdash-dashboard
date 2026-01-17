@@ -262,4 +262,16 @@ function FollowersContent() {
               </div>
             </div>
           )}
-        </>\n      )}\n    </div>\n  );\n}\n\nexport default function FollowersPage() {\n  return (\n    <DashboardLayout>\n      <FollowersContent />\n    </DashboardLayout>\n  );\n}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function FollowersPage() {
+  return (
+    <DashboardLayout>
+      <FollowersContent />
+    </DashboardLayout>
+  );
+}

@@ -388,4 +388,15 @@ function FacebookContent() {
         <div className="text-center text-gray-500 py-12">
           Keine Daten verfügbar
         </div>
-      )}\n    </div>\n  );\n}\n\nexport default function FacebookPage() {\n  return (\n    <DashboardLayout>\n      <FacebookContent />\n    </DashboardLayout>\n  );\n}
+      )}
+    </div>
+  );
+}
+
+export default function FacebookPage() {
+  return (
+    <DashboardLayout>
+      <FacebookContent />
+    </DashboardLayout>
+  );
+}
