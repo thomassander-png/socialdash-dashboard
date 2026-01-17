@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         p.timestamp as created_time,
         p.permalink,
         p.thumbnail_url,
+        p.media_url,
         COALESCE(m.likes, 0) as reactions_total,
         COALESCE(m.likes, 0) as likes,
         COALESCE(m.comments, 0) as comments_total,
@@ -55,7 +56,13 @@ export async function GET(request: NextRequest) {
     const params = customer && customer !== 'all' ? [startDate, endDate, customer] : [startDate, endDate];
     const result = await pool.query(query, params);
     
-    return NextResponse.json({ posts: result.rows }, { headers });
+    // Process posts to use media_url as fallback for thumbnail_url
+    const posts = result.rows.map(post => ({
+      ...post,
+      thumbnail_url: post.thumbnail_url || post.media_url || null
+    }));
+    
+    return NextResponse.json({ posts }, { headers });
   } catch (error) {
     console.error('Error fetching Instagram posts:', error);
     return NextResponse.json({ posts: [], error: String(error) }, { status: 500, headers });
