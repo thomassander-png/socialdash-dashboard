@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Users, Facebook, Instagram } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { DashboardLayout } from '@/components/DashboardLayout';
 
 interface Customer {
   id: number;
@@ -40,7 +41,7 @@ function formatMonth(monthStr: string): string {
   return date.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
 }
 
-export default function FollowersPage() {
+function FollowersContent() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState('all');
   const [summary, setSummary] = useState<FollowerSummary[]>([]);
@@ -261,8 +262,4 @@ export default function FollowersPage() {
               </div>
             </div>
           )}
-        </>
-      )}
-    </div>
-  );
-}
+        </>\n      )}\n    </div>\n  );\n}\n\nexport default function FollowersPage() {\n  return (\n    <DashboardLayout>\n      <FollowersContent />\n    </DashboardLayout>\n  );\n}

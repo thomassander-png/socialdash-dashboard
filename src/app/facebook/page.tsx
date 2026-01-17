@@ -5,6 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import Top5PostsChart from '@/components/Top5PostsChart';
 import TopPostsList from '@/components/TopPostsList';
 import PostsTable from '@/components/PostsTable';
+import { DashboardLayout } from '@/components/DashboardLayout';
 
 interface Customer {
   id: number;
@@ -187,7 +188,7 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
   );
 }
 
-export default function FacebookPage() {
+function FacebookContent() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -387,7 +388,4 @@ export default function FacebookPage() {
         <div className="text-center text-gray-500 py-12">
           Keine Daten verfügbar
         </div>
-      )}
-    </div>
-  );
-}
+      )}\n    </div>\n  );\n}\n\nexport default function FacebookPage() {\n  return (\n    <DashboardLayout>\n      <FacebookContent />\n    </DashboardLayout>\n  );\n}

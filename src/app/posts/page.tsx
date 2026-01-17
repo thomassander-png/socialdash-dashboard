@@ -1,6 +1,8 @@
 'use client';
 
-export default function PostsPage() {
+import { DashboardLayout } from '@/components/DashboardLayout';
+
+function PostsContent() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-4">
@@ -8,5 +10,13 @@ export default function PostsPage() {
       </h1>
       <p className="text-gray-500">Diese Seite wird noch entwickelt.</p>
     </div>
+  );
+}
+
+export default function PostsPage() {
+  return (
+    <DashboardLayout>
+      <PostsContent />
+    </DashboardLayout>
   );
 }

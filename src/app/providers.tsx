@@ -1,60 +1,99 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Einfaches Passwort-basiertes Auth-System
+// Credentials: thomas.sander@famefact.com / SocialDAsh26ff.!!
+const VALID_CREDENTIALS = {
+  email: 'thomas.sander@famefact.com',
+  password: 'SocialDAsh26ff.!!'
+};
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+interface AuthContextType {
+  isAuthenticated: boolean;
+  user: { email: string } | null;
+  login: (email: string, password: string) => boolean;
+  logout: () => void;
+  isLoading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ email: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
+  // Check auth status on mount
   useEffect(() => {
-    // Check if user is logged in
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Store token in cookie for middleware
-        document.cookie = `sb-token=${session.access_token}; path=/; secure; samesite=lax`;
+    const checkAuth = () => {
+      try {
+        const authData = localStorage.getItem('socialdash_auth');
+        if (authData) {
+          const { email, timestamp } = JSON.parse(authData);
+          // Session expires after 24 hours
+          const isExpired = Date.now() - timestamp > 24 * 60 * 60 * 1000;
+          if (!isExpired && email === VALID_CREDENTIALS.email) {
+            setIsAuthenticated(true);
+            setUser({ email });
+          } else {
+            localStorage.removeItem('socialdash_auth');
+          }
+        }
+      } catch (e) {
+        localStorage.removeItem('socialdash_auth');
       }
-      
       setIsLoading(false);
     };
 
     checkAuth();
+  }, []);
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          // Store token in cookie
-          document.cookie = `sb-token=${session.access_token}; path=/; secure; samesite=lax`;
-          router.push('/');
-        } else if (event === 'SIGNED_OUT') {
-          // Remove token from cookie
-          document.cookie = 'sb-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
-          router.push('/auth/signin');
-        }
-      }
-    );
+  // Redirect based on auth status
+  useEffect(() => {
+    if (isLoading) return;
 
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [router]);
+    const isLoginPage = pathname === '/login';
+    
+    if (!isAuthenticated && !isLoginPage) {
+      router.push('/login');
+    } else if (isAuthenticated && isLoginPage) {
+      router.push('/');
+    }
+  }, [isAuthenticated, isLoading, pathname, router]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white">Wird geladen...</div>
-      </div>
-    );
-  }
+  const login = (email: string, password: string): boolean => {
+    if (email === VALID_CREDENTIALS.email && password === VALID_CREDENTIALS.password) {
+      const authData = { email, timestamp: Date.now() };
+      localStorage.setItem('socialdash_auth', JSON.stringify(authData));
+      setIsAuthenticated(true);
+      setUser({ email });
+      return true;
+    }
+    return false;
+  };
 
-  return <>{children}</>;
+  const logout = () => {
+    localStorage.removeItem('socialdash_auth');
+    setIsAuthenticated(false);
+    setUser(null);
+    router.push('/login');
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
