@@ -214,7 +214,7 @@ function FacebookContent() {
     ])
       .then(([statsData, postsData]) => {
         setStats(statsData);
-        setPosts(Array.isArray(postsData) ? postsData : []);
+        setPosts(Array.isArray(postsData?.posts) ? postsData.posts : (Array.isArray(postsData) ? postsData : []));
         setLoading(false);
       })
       .catch(err => {
