@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Download, Search, Filter, Users, Building2, CheckCircle, XCircle } from 'lucide-react';
+import { Download, Search, Filter, Users, Building2, CheckCircle, XCircle, Info } from 'lucide-react';
 
 interface Customer {
   customer_id: string;
@@ -13,16 +13,30 @@ interface Customer {
 
 interface CustomerStats {
   customer_id: string;
+  // Facebook
   fb_posts: number;
   fb_reactions: number;
   fb_comments: number;
+  fb_shares: number;
   fb_reach: number;
   fb_impressions: number;
+  fb_video_views: number;
+  fb_interactions: number;
+  // Instagram
   ig_posts: number;
   ig_likes: number;
   ig_comments: number;
-  ig_reach: number;
   ig_saves: number;
+  ig_reach: number;
+  ig_impressions: number;
+  ig_plays: number;
+  ig_shares: number;
+  ig_profile_visits: number;
+  ig_interactions: number;
+  // Instagram Account Insights (Klicks)
+  ig_profile_clicks: number;
+  ig_email_clicks: number;
+  ig_call_clicks: number;
 }
 
 // Relevante Kunden aus der Excel-Datei
@@ -107,16 +121,30 @@ function CustomersContent() {
           const data = await res.json();
           stats[customer.customer_id] = {
             customer_id: customer.customer_id,
+            // Facebook
             fb_posts: data.fbPosts || 0,
             fb_reactions: data.fbReactions || 0,
             fb_comments: data.fbComments || 0,
+            fb_shares: data.fbShares || 0,
             fb_reach: data.fbReach || 0,
             fb_impressions: data.fbImpressions || 0,
+            fb_video_views: data.fbVideoViews || 0,
+            fb_interactions: data.fbInteractions || 0,
+            // Instagram
             ig_posts: data.igPosts || 0,
             ig_likes: data.igLikes || 0,
             ig_comments: data.igComments || 0,
-            ig_reach: data.igReach || 0,
             ig_saves: data.igSaves || 0,
+            ig_reach: data.igReach || 0,
+            ig_impressions: data.igImpressions || 0,
+            ig_plays: data.igPlays || 0,
+            ig_shares: data.igShares || 0,
+            ig_profile_visits: data.igProfileVisits || 0,
+            ig_interactions: data.igInteractions || 0,
+            // Instagram Account Insights
+            ig_profile_clicks: data.igProfileClicks || 0,
+            ig_email_clicks: data.igEmailClicks || 0,
+            ig_call_clicks: data.igCallClicks || 0,
           };
         } catch (err) {
           console.error(`Error loading stats for ${customer.name}:`, err);
@@ -154,7 +182,7 @@ function CustomersContent() {
     return result;
   }, [customers, showOnlyRelevant, searchTerm]);
 
-  // Export als CSV (wie Excel-Struktur)
+  // Export als CSV (Standard)
   const exportToCSV = useCallback(() => {
     setExporting(true);
 
@@ -162,43 +190,49 @@ function CustomersContent() {
       'Kunde',
       'Slug',
       'Status',
+      // Facebook
       'FB Posts',
       'FB Impressions',
       'FB Reichweite',
-      'FB Teilen',
-      'FB Liken',
+      'FB Shares',
+      'FB Reactions',
       'FB Kommentare',
       'FB Interaktionen',
+      'FB Video Views',
+      // Instagram
       'IG Posts',
       'IG Reichweite',
       'IG Likes',
       'IG Kommentare',
       'IG Saves',
+      'IG Klicks',
       'IG Interaktionen',
     ];
 
     const rows = filteredCustomers.map(customer => {
-      const stats = customerStats[customer.customer_id] || {};
-      const fbInteractions = (stats.fb_reactions || 0) + (stats.fb_comments || 0);
-      const igInteractions = (stats.ig_likes || 0) + (stats.ig_comments || 0);
+      const stats = customerStats[customer.customer_id] || {} as CustomerStats;
 
       return [
         customer.name,
         customer.slug,
         customer.is_active ? 'Aktiv' : 'Inaktiv',
+        // Facebook
         stats.fb_posts || 0,
         stats.fb_impressions || 0,
         stats.fb_reach || 0,
-        0, // Shares nicht verfügbar
+        stats.fb_shares || 0,
         stats.fb_reactions || 0,
         stats.fb_comments || 0,
-        fbInteractions,
+        stats.fb_interactions || 0,
+        stats.fb_video_views || 0,
+        // Instagram
         stats.ig_posts || 0,
         stats.ig_reach || 0,
         stats.ig_likes || 0,
         stats.ig_comments || 0,
         stats.ig_saves || 0,
-        igInteractions,
+        stats.ig_profile_clicks || 0,
+        stats.ig_interactions || 0,
       ];
     });
 
@@ -218,11 +252,11 @@ function CustomersContent() {
     setExporting(false);
   }, [filteredCustomers, customerStats, selectedMonth]);
 
-  // Export als Excel-ähnliches Format (detailliert)
+  // Export als Excel-ähnliches Format (exakt wie in der Excel-Vorlage)
   const exportDetailedCSV = useCallback(() => {
     setExporting(true);
 
-    // Facebook-Daten
+    // Facebook-Daten (exakt wie Excel)
     const fbHeaders = [
       'Kunde',
       'Monat',
@@ -237,7 +271,7 @@ function CustomersContent() {
       'Saving',
     ];
 
-    // Instagram-Daten
+    // Instagram-Daten (exakt wie Excel)
     const igHeaders = [
       'Kunde',
       'Monat',
@@ -251,8 +285,7 @@ function CustomersContent() {
     ];
 
     const fbRows = filteredCustomers.map(customer => {
-      const stats = customerStats[customer.customer_id] || {};
-      const fbInteractions = (stats.fb_reactions || 0) + (stats.fb_comments || 0);
+      const stats = customerStats[customer.customer_id] || {} as CustomerStats;
 
       return [
         customer.name,
@@ -260,18 +293,17 @@ function CustomersContent() {
         'Facebook',
         stats.fb_impressions || 0,
         stats.fb_reach || 0,
-        0, // Shares
+        stats.fb_shares || 0,
         stats.fb_reactions || 0,
         stats.fb_comments || 0,
-        fbInteractions,
-        0, // Video plays
-        0, // Saving
+        stats.fb_interactions || 0,
+        stats.fb_video_views || 0,
+        0, // Saving nicht verfügbar für Facebook
       ];
     });
 
     const igRows = filteredCustomers.map(customer => {
-      const stats = customerStats[customer.customer_id] || {};
-      const igInteractions = (stats.ig_likes || 0) + (stats.ig_comments || 0);
+      const stats = customerStats[customer.customer_id] || {} as CustomerStats;
 
       return [
         customer.name,
@@ -281,8 +313,8 @@ function CustomersContent() {
         stats.ig_likes || 0,
         stats.ig_comments || 0,
         stats.ig_saves || 0,
-        0, // Klicks
-        igInteractions,
+        stats.ig_profile_clicks || 0,
+        stats.ig_interactions || 0,
       ];
     });
 
@@ -439,27 +471,29 @@ function CustomersContent() {
             <table className="w-full">
               <thead>
                 <tr className="bg-[#1a1a1a]">
-                  <th className="text-left py-3 px-4 text-gray-400 text-xs uppercase tracking-wider">Kunde</th>
+                  <th className="text-left py-3 px-4 text-gray-400 text-xs uppercase tracking-wider sticky left-0 bg-[#1a1a1a]">Kunde</th>
                   <th className="text-center py-3 px-4 text-gray-400 text-xs uppercase tracking-wider">Status</th>
                   <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB Posts</th>
-                  <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB Reactions</th>
-                  <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB Reichweite</th>
+                  <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB Impr.</th>
+                  <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB Reach</th>
+                  <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB React.</th>
+                  <th className="text-right py-3 px-4 text-blue-400 text-xs uppercase tracking-wider">FB Video</th>
                   <th className="text-right py-3 px-4 text-pink-400 text-xs uppercase tracking-wider">IG Posts</th>
+                  <th className="text-right py-3 px-4 text-pink-400 text-xs uppercase tracking-wider">IG Reach</th>
                   <th className="text-right py-3 px-4 text-pink-400 text-xs uppercase tracking-wider">IG Likes</th>
-                  <th className="text-right py-3 px-4 text-pink-400 text-xs uppercase tracking-wider">IG Reichweite</th>
-                  <th className="text-right py-3 px-4 text-[#84cc16] text-xs uppercase tracking-wider">Gesamt Inter.</th>
+                  <th className="text-right py-3 px-4 text-pink-400 text-xs uppercase tracking-wider">IG Saves</th>
+                  <th className="text-right py-3 px-4 text-pink-400 text-xs uppercase tracking-wider">IG Klicks</th>
+                  <th className="text-right py-3 px-4 text-[#84cc16] text-xs uppercase tracking-wider">Gesamt</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCustomers.map((customer) => {
-                  const stats = customerStats[customer.customer_id] || {};
-                  const fbInteractions = (stats.fb_reactions || 0) + (stats.fb_comments || 0);
-                  const igInteractions = (stats.ig_likes || 0) + (stats.ig_comments || 0);
-                  const totalInteractions = fbInteractions + igInteractions;
+                  const stats = customerStats[customer.customer_id] || {} as CustomerStats;
+                  const totalInteractions = (stats.fb_interactions || 0) + (stats.ig_interactions || 0);
 
                   return (
                     <tr key={customer.customer_id} className="border-b border-[#262626]/50 hover:bg-[#1a1a1a] transition-colors">
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 sticky left-0 bg-[#141414]">
                         <div>
                           <p className="text-white font-medium">{customer.name}</p>
                           <p className="text-gray-500 text-xs">{customer.slug}</p>
@@ -475,11 +509,15 @@ function CustomersContent() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right text-white">{formatNumber(stats.fb_posts || 0)}</td>
-                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.fb_reactions || 0)}</td>
+                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.fb_impressions || 0)}</td>
                       <td className="py-3 px-4 text-right text-white">{formatNumber(stats.fb_reach || 0)}</td>
+                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.fb_reactions || 0)}</td>
+                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.fb_video_views || 0)}</td>
                       <td className="py-3 px-4 text-right text-white">{formatNumber(stats.ig_posts || 0)}</td>
-                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.ig_likes || 0)}</td>
                       <td className="py-3 px-4 text-right text-white">{formatNumber(stats.ig_reach || 0)}</td>
+                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.ig_likes || 0)}</td>
+                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.ig_saves || 0)}</td>
+                      <td className="py-3 px-4 text-right text-white">{formatNumber(stats.ig_profile_clicks || 0)}</td>
                       <td className="py-3 px-4 text-right font-bold text-[#84cc16]">{formatNumber(totalInteractions)}</td>
                     </tr>
                   );
@@ -490,34 +528,61 @@ function CustomersContent() {
         )}
       </div>
 
-      {/* Excel-Struktur Info */}
-      <div className="mt-6 bg-[#141414] border border-[#262626] rounded-xl p-5">
-        <h3 className="text-white font-bold mb-3">📊 Export-Struktur (wie Excel)</h3>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-blue-400 font-medium mb-2">Facebook Spalten:</h4>
-            <ul className="text-gray-400 text-sm space-y-1">
-              <li>• Impression</li>
-              <li>• Reichweite</li>
-              <li>• Teilen (Shares)</li>
-              <li>• Liken (Reactions)</li>
-              <li>• Kommentare</li>
-              <li>• Interaktionen</li>
-              <li>• Video plays</li>
-              <li>• Saving</li>
-            </ul>
+      {/* Excel-Struktur Info & API-Hinweise */}
+      <div className="mt-6 grid grid-cols-2 gap-6">
+        <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+          <h3 className="text-white font-bold mb-3">📊 Export-Struktur (wie Excel)</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-blue-400 font-medium mb-2">Facebook Spalten:</h4>
+              <ul className="text-gray-400 text-sm space-y-1">
+                <li>✅ Impression</li>
+                <li>✅ Reichweite</li>
+                <li>⚠️ Teilen (limited)</li>
+                <li>✅ Liken (Reactions)</li>
+                <li>✅ Kommentare</li>
+                <li>✅ Interaktionen</li>
+                <li>✅ Video plays</li>
+                <li>❌ Saving (nicht verfügbar)</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-pink-400 font-medium mb-2">Instagram Spalten:</h4>
+              <ul className="text-gray-400 text-sm space-y-1">
+                <li>✅ Reichweite</li>
+                <li>✅ Likes</li>
+                <li>✅ Kommentare</li>
+                <li>✅ Saves</li>
+                <li>✅ Klicks (Profile Links)</li>
+                <li>✅ Interaktionen</li>
+              </ul>
+            </div>
           </div>
-          <div>
-            <h4 className="text-pink-400 font-medium mb-2">Instagram Spalten:</h4>
-            <ul className="text-gray-400 text-sm space-y-1">
-              <li>• Reichweite</li>
-              <li>• Likes</li>
-              <li>• Kommentare</li>
-              <li>• Saves</li>
-              <li>• Klicks</li>
-              <li>• Interaktionen</li>
-            </ul>
-          </div>
+        </div>
+
+        <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Info size={18} className="text-yellow-500" />
+            API-Einschränkungen
+          </h3>
+          <ul className="text-gray-400 text-sm space-y-2">
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-500">⚠️</span>
+              <span><strong>FB Shares:</strong> Nicht für alle Posts verfügbar (API-Einschränkung)</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-red-500">❌</span>
+              <span><strong>FB Saves:</strong> Nicht über Graph API verfügbar</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-red-500">❌</span>
+              <span><strong>IG Profilaufrufe:</strong> Nur in nativer App sichtbar, nicht über API</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-500">✅</span>
+              <span><strong>IG Klicks:</strong> Profile Link Taps (Email, Call, Direction) verfügbar</span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
