@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   
   try {
-    // Get Facebook posts with metrics - using same query structure as working API
+    // Get Facebook posts with metrics
     let fbQuery = `
       SELECT 
         p.post_id,
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       FROM fb_posts p
       LEFT JOIN LATERAL (
         SELECT * FROM fb_post_metrics 
-        WHERE post_id = p.post_id 
+        WHERE fb_post_metrics.post_id = p.post_id 
         ORDER BY snapshot_time DESC 
         LIMIT 1
       ) m ON true
@@ -51,10 +51,10 @@ export async function GET(request: NextRequest) {
     
     const fbResult = await pool.query(fbQuery, fbParams);
     
-    // Get Instagram posts with metrics
+    // Get Instagram posts with metrics - using media_id instead of post_id
     let igQuery = `
       SELECT 
-        p.post_id,
+        p.media_id,
         p.account_id,
         p.caption as message,
         p.media_type as type,
@@ -63,14 +63,14 @@ export async function GET(request: NextRequest) {
         COALESCE(m.likes, 0) as likes,
         COALESCE(m.comments, 0) as comments,
         COALESCE(m.shares, 0) as shares,
-        COALESCE(m.saved, 0) as saved,
+        COALESCE(m.saves, 0) as saved,
         COALESCE(m.reach, 0) as reach,
         COALESCE(m.impressions, 0) as impressions,
         COALESCE(m.plays, 0) as plays
       FROM ig_posts p
       LEFT JOIN LATERAL (
         SELECT * FROM ig_post_metrics 
-        WHERE post_id = p.post_id 
+        WHERE ig_post_metrics.media_id = p.media_id 
         ORDER BY snapshot_time DESC 
         LIMIT 1
       ) m ON true
