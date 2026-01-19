@@ -11,64 +11,39 @@ export async function GET(request: NextRequest) {
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
   const customer = searchParams.get('customer');
   
-  const [year, monthNum] = month.split('-').map(Number);
-  const startDate = new Date(year, monthNum - 1, 1);
-  const endDate = new Date(year, monthNum, 0, 23, 59, 59);
+  const startDate = `${month}-01`;
+  const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   
   try {
-    // Get Facebook posts with latest metrics using subquery
+    // Get Facebook posts with metrics - using same query structure as working API
     let fbQuery = `
       SELECT 
         p.post_id,
+        p.page_id,
         p.message,
         p.type,
         p.created_time,
         p.permalink,
-        p.page_id,
-        COALESCE((
-          SELECT m.reach FROM fb_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as reach,
-        COALESCE((
-          SELECT m.impressions FROM fb_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as impressions,
-        COALESCE((
-          SELECT m.reactions_total FROM fb_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as reactions_total,
-        COALESCE((
-          SELECT m.comments_total FROM fb_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as comments_total,
-        COALESCE((
-          SELECT m.shares_total FROM fb_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as shares_total,
-        COALESCE((
-          SELECT m.video_3s_views FROM fb_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as video_3s_views
+        COALESCE(m.reactions_total, 0) as reactions_total,
+        COALESCE(m.comments_total, 0) as comments_total,
+        COALESCE(m.shares_total, 0) as shares_total,
+        COALESCE(m.reach, 0) as reach,
+        COALESCE(m.impressions, 0) as impressions,
+        COALESCE(m.video_3s_views, 0) as video_3s_views
       FROM fb_posts p
-      WHERE p.created_time >= $1 AND p.created_time <= $2
+      LEFT JOIN LATERAL (
+        SELECT * FROM fb_post_metrics 
+        WHERE post_id = p.post_id 
+        ORDER BY snapshot_time DESC 
+        LIMIT 1
+      ) m ON true
+      WHERE p.created_time::date >= $1::date AND p.created_time::date < $2::date
     `;
     
-    const fbParams: any[] = [startDate.toISOString(), endDate.toISOString()];
+    const fbParams: any[] = [startDate, endDate];
     
     if (customer && customer !== 'all') {
-      fbQuery += ` AND EXISTS (
-        SELECT 1 FROM customer_accounts ca 
-        JOIN customers c ON ca.customer_id = c.id 
-        WHERE ca.platform = 'facebook' 
-        AND ca.account_id = p.page_id 
-        AND c.slug = $3
-      )`;
+      fbQuery += ` AND p.page_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'facebook')`;
       fbParams.push(customer);
     }
     
@@ -76,64 +51,36 @@ export async function GET(request: NextRequest) {
     
     const fbResult = await pool.query(fbQuery, fbParams);
     
-    // Get Instagram posts with latest metrics using subquery
+    // Get Instagram posts with metrics
     let igQuery = `
       SELECT 
         p.post_id,
+        p.account_id,
         p.caption as message,
         p.media_type as type,
         p.timestamp as created_time,
         p.permalink,
-        p.account_id,
-        COALESCE((
-          SELECT m.reach FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as reach,
-        COALESCE((
-          SELECT m.impressions FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as impressions,
-        COALESCE((
-          SELECT m.likes FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as likes,
-        COALESCE((
-          SELECT m.comments FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as comments,
-        COALESCE((
-          SELECT m.shares FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as shares,
-        COALESCE((
-          SELECT m.saved FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as saved,
-        COALESCE((
-          SELECT m.plays FROM ig_post_metrics m 
-          WHERE m.post_id = p.post_id 
-          ORDER BY m.snapshot_time DESC LIMIT 1
-        ), 0) as plays
+        COALESCE(m.likes, 0) as likes,
+        COALESCE(m.comments, 0) as comments,
+        COALESCE(m.shares, 0) as shares,
+        COALESCE(m.saved, 0) as saved,
+        COALESCE(m.reach, 0) as reach,
+        COALESCE(m.impressions, 0) as impressions,
+        COALESCE(m.plays, 0) as plays
       FROM ig_posts p
-      WHERE p.timestamp >= $1 AND p.timestamp <= $2
+      LEFT JOIN LATERAL (
+        SELECT * FROM ig_post_metrics 
+        WHERE post_id = p.post_id 
+        ORDER BY snapshot_time DESC 
+        LIMIT 1
+      ) m ON true
+      WHERE p.timestamp::date >= $1::date AND p.timestamp::date < $2::date
     `;
     
-    const igParams: any[] = [startDate.toISOString(), endDate.toISOString()];
+    const igParams: any[] = [startDate, endDate];
     
     if (customer && customer !== 'all') {
-      igQuery += ` AND EXISTS (
-        SELECT 1 FROM customer_accounts ca 
-        JOIN customers c ON ca.customer_id = c.id 
-        WHERE ca.platform = 'instagram' 
-        AND ca.account_id = p.account_id 
-        AND c.slug = $3
-      )`;
+      igQuery += ` AND p.account_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'instagram')`;
       igParams.push(customer);
     }
     
