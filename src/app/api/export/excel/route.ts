@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const endDate = new Date(year, monthNum, 0, 23, 59, 59);
   
   try {
-    // Get Facebook posts with metrics
+    // Get Facebook posts with latest metrics using subquery
     let fbQuery = `
       SELECT 
         p.post_id,
@@ -24,21 +24,38 @@ export async function GET(request: NextRequest) {
         p.type,
         p.created_time,
         p.permalink,
-        COALESCE(m.reach, 0) as reach,
-        COALESCE(m.impressions, 0) as impressions,
-        COALESCE(m.reactions_total, 0) as reactions_total,
-        COALESCE(m.comments_total, 0) as comments_total,
-        COALESCE(m.shares_total, 0) as shares_total,
-        COALESCE(m.video_3s_views, 0) as video_3s_views,
-        pg.name as page_name
+        p.page_id,
+        COALESCE((
+          SELECT m.reach FROM fb_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as reach,
+        COALESCE((
+          SELECT m.impressions FROM fb_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as impressions,
+        COALESCE((
+          SELECT m.reactions_total FROM fb_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as reactions_total,
+        COALESCE((
+          SELECT m.comments_total FROM fb_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as comments_total,
+        COALESCE((
+          SELECT m.shares_total FROM fb_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as shares_total,
+        COALESCE((
+          SELECT m.video_3s_views FROM fb_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as video_3s_views
       FROM fb_posts p
-      LEFT JOIN LATERAL (
-        SELECT * FROM fb_post_metrics 
-        WHERE post_id = p.post_id 
-        ORDER BY snapshot_time DESC 
-        LIMIT 1
-      ) m ON true
-      LEFT JOIN fb_pages pg ON p.page_id = pg.page_id
       WHERE p.created_time >= $1 AND p.created_time <= $2
     `;
     
@@ -59,7 +76,7 @@ export async function GET(request: NextRequest) {
     
     const fbResult = await pool.query(fbQuery, fbParams);
     
-    // Get Instagram posts with metrics
+    // Get Instagram posts with latest metrics using subquery
     let igQuery = `
       SELECT 
         p.post_id,
@@ -67,22 +84,43 @@ export async function GET(request: NextRequest) {
         p.media_type as type,
         p.timestamp as created_time,
         p.permalink,
-        COALESCE(m.reach, 0) as reach,
-        COALESCE(m.impressions, 0) as impressions,
-        COALESCE(m.likes, 0) as likes,
-        COALESCE(m.comments, 0) as comments,
-        COALESCE(m.shares, 0) as shares,
-        COALESCE(m.saved, 0) as saved,
-        COALESCE(m.plays, 0) as plays,
-        a.username as account_name
+        p.account_id,
+        COALESCE((
+          SELECT m.reach FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as reach,
+        COALESCE((
+          SELECT m.impressions FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as impressions,
+        COALESCE((
+          SELECT m.likes FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as likes,
+        COALESCE((
+          SELECT m.comments FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as comments,
+        COALESCE((
+          SELECT m.shares FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as shares,
+        COALESCE((
+          SELECT m.saved FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as saved,
+        COALESCE((
+          SELECT m.plays FROM ig_post_metrics m 
+          WHERE m.post_id = p.post_id 
+          ORDER BY m.snapshot_time DESC LIMIT 1
+        ), 0) as plays
       FROM ig_posts p
-      LEFT JOIN LATERAL (
-        SELECT * FROM ig_post_metrics 
-        WHERE post_id = p.post_id 
-        ORDER BY snapshot_time DESC 
-        LIMIT 1
-      ) m ON true
-      LEFT JOIN ig_accounts a ON p.account_id = a.account_id
       WHERE p.timestamp >= $1 AND p.timestamp <= $2
     `;
     
@@ -106,14 +144,14 @@ export async function GET(request: NextRequest) {
     // Format data for Excel export
     const fbPosts = fbResult.rows.map(row => ({
       platform: 'Facebook',
-      reach: row.reach || 0,
-      likes: row.reactions_total || 0,
-      comments: row.comments_total || 0,
-      shares: row.shares_total || 0,
+      reach: Number(row.reach) || 0,
+      likes: Number(row.reactions_total) || 0,
+      comments: Number(row.comments_total) || 0,
+      shares: Number(row.shares_total) || 0,
       saved: 0, // Not available for Facebook
       link_clicks: 0, // Not available without Ads API
-      video_3s: row.video_3s_views || 0,
-      interactions: (row.reactions_total || 0) + (row.comments_total || 0),
+      video_3s: Number(row.video_3s_views) || 0,
+      interactions: (Number(row.reactions_total) || 0) + (Number(row.comments_total) || 0),
       date: row.created_time,
       format: row.type || 'post',
       message: row.message || '',
@@ -122,15 +160,15 @@ export async function GET(request: NextRequest) {
     
     const igPosts = igResult.rows.map(row => ({
       platform: 'Instagram',
-      reach: row.reach || 0,
-      likes: row.likes || 0,
-      comments: row.comments || 0,
-      shares: row.shares || 0,
-      saved: row.saved || 0,
+      reach: Number(row.reach) || 0,
+      likes: Number(row.likes) || 0,
+      comments: Number(row.comments) || 0,
+      shares: Number(row.shares) || 0,
+      saved: Number(row.saved) || 0,
       link_clicks: 0, // From account insights
       profile_views: 0, // From account insights
-      video_3s: row.plays || 0,
-      interactions: (row.likes || 0) + (row.comments || 0),
+      video_3s: Number(row.plays) || 0,
+      interactions: (Number(row.likes) || 0) + (Number(row.comments) || 0),
       date: row.created_time,
       format: row.type || 'IMAGE',
       message: row.message || '',
@@ -178,8 +216,8 @@ export async function GET(request: NextRequest) {
       }
     });
     
-  } catch (error) {
-    console.error('Export error:', error);
-    return NextResponse.json({ error: 'Export failed' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Export error:', error?.message || error);
+    return NextResponse.json({ error: 'Export failed', details: error?.message }, { status: 500 });
   }
 }
