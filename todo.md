@@ -91,3 +91,9 @@
 - [ ] Implementiere CSRF-Schutz
 - [ ] Implementiere Audit Logging
 - [ ] Implementiere Datenverschlüsselung für sensitive Daten
+
+
+## Export-Funktionen
+
+- [ ] Excel-KPI-Export pro Monat auf Overview-Seite hinzufügen
+- [ ] Detaillierte Tagesansicht im Excel-Export (wie asphericon Excel)

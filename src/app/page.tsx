@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Download } from 'lucide-react';
 import { AlertTriangle } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 
@@ -419,6 +420,72 @@ function OverviewContent() {
 
   const monthOptions = getMonthOptions();
 
+  // Excel Export Function
+  const exportToExcel = useCallback(async () => {
+    try {
+      const customerParam = selectedCustomer !== 'all' ? `&customer=${selectedCustomer}` : '';
+      const res = await fetch(`/api/export/excel?month=${selectedMonth}${customerParam}`);
+      if (!res.ok) throw new Error('Export failed');
+      const data = await res.json();
+      
+      // Create CSV content with Excel-compatible format
+      const formatDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('de-DE');
+      };
+      
+      let csv = '\uFEFF'; // BOM for Excel UTF-8
+      
+      // Facebook Header
+      csv += 'Facebook;;;;;;;;;;;;Instagram;;;;;;;;;;\n';
+      csv += 'Reichweite;Likes;Kommentare;Shares;gespeichert;Link Klicks;3 sek;Interaktionen;Datum;Format;;Reichweite;Likes;Kommentare;Shares;Link Klicks;gespeichert;Profilaufrufe;Interaktionen;3 sek;Datum\n';
+      
+      // Combine FB and IG posts by index
+      const maxRows = Math.max(data.facebook.posts.length, data.instagram.posts.length);
+      
+      for (let i = 0; i < maxRows; i++) {
+        const fb = data.facebook.posts[i];
+        const ig = data.instagram.posts[i];
+        
+        if (fb) {
+          csv += `${fb.reach};${fb.likes};${fb.comments};${fb.shares};${fb.saved};${fb.link_clicks};${fb.video_3s};${fb.interactions};${formatDate(fb.date)};${fb.format}`;
+        } else {
+          csv += ';;;;;;;;;;';
+        }
+        
+        csv += ';;';
+        
+        if (ig) {
+          csv += `${ig.reach};${ig.likes};${ig.comments};${ig.shares};${ig.link_clicks};${ig.saved};${ig.profile_views};${ig.interactions};${ig.video_3s};${formatDate(ig.date)}`;
+        } else {
+          csv += ';;;;;;;;;;';
+        }
+        
+        csv += '\n';
+      }
+      
+      // Totals row
+      const fbT = data.facebook.totals;
+      const igT = data.instagram.totals;
+      csv += `${fbT.reach};${fbT.likes};${fbT.comments};${fbT.shares};${fbT.saved};${fbT.link_clicks};${fbT.video_3s};${fbT.interactions};;;;${igT.reach};${igT.likes};${igT.comments};${igT.shares};${igT.link_clicks};${igT.saved};${igT.profile_views};${igT.interactions};${igT.video_3s};\n`;
+      
+      // Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const customerName = selectedCustomer !== 'all' ? selectedCustomer : 'alle-kunden';
+      a.download = `socialdash-${customerName}-${selectedMonth}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Export fehlgeschlagen. Bitte versuchen Sie es erneut.');
+    }
+  }, [selectedMonth, selectedCustomer]);
+
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
@@ -495,6 +562,14 @@ function OverviewContent() {
           >
             {monthOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+          
+          <button
+            onClick={exportToExcel}
+            className="flex items-center gap-2 bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium rounded-lg px-4 py-2 text-sm transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Excel Export
+          </button>
         </div>
       </div>
 
