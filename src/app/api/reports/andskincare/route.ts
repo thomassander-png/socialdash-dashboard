@@ -787,7 +787,8 @@ export async function GET(request: NextRequest) {
       })
       .map(p => ({ 
         ...p, 
-        videoMetric: (p.video_3s_views && p.video_3s_views > 0) ? p.video_3s_views : (p.reach || 0)
+        videoMetric: (p.video_3s_views && p.video_3s_views > 0) ? p.video_3s_views : (p.reach || 0),
+        interactions: p.reactions_total + p.comments_total
       }))
       .sort((a, b) => b.videoMetric - a.videoMetric)
       .slice(0, 6);
