@@ -2,24 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import PptxGenJS from 'pptxgenjs';
 
-// ANDskincare specific configuration
-const ANDSKINCARE_CONFIG = {
+// ANDskincare specific configuration - EXACT famefact design
+const CONFIG = {
   customerName: 'ANDskincare',
   customerSlug: 'andskincare',
   facebookUrl: 'facebook.com/ANDskincare',
-  instagramUrl: 'instagram.com/and_skincare',
+  instagramHandle: 'and.skincare',
   colors: {
-    primary: '#A8D65C', // Green for posts
-    secondary: '#9B59B6', // Purple for videos
-    background: '#1a1a2e',
-    darkBg: '#2D2D44',
-    altBg: '#363652',
-    text: '#FFFFFF',
-    textMuted: '#AAAAAA',
-    tableHeader: '#2ECC71',
-    border: '#444466',
-    facebook: '#4267B2',
-    instagram: '#E1306C',
+    // famefact brand colors
+    green: 'A8D65C',      // Posts bars
+    purple: 'B8A9C9',     // Videos/Reels bars
+    white: 'FFFFFF',
+    black: '000000',
+    gray: '666666',
+    lightGray: 'F5F5F5',
+    tableHeader: 'A8D65C', // Green header for tables
+    // Demographics colors
+    lightBlue: '7DD3E1',   // Women
+    darkBlue: '2B7A8C',    // Men
+  },
+  // Contact info for outro slide
+  contact: {
+    name: 'Sophie Rettig',
+    title: 'Social Media Managerin',
+    company: 'track by track GmbH',
+    address: 'Schliemannstraße 23',
+    city: 'D-10437 Berlin',
+    email: 'sophie.rettig@famefact.com',
+    phone: '+49 157 51639979',
   }
 };
 
@@ -36,6 +46,7 @@ interface PostData {
   impressions: number | null;
   video_3s_views: number | null;
   thumbnail_url?: string;
+  saves?: number | null;
 }
 
 interface MonthlyKPI {
@@ -43,102 +54,78 @@ interface MonthlyKPI {
   posts_count: number;
   total_reactions: number;
   total_comments: number;
+  total_shares: number;
   total_reach: number;
   total_impressions: number;
   total_video_views: number;
+  total_saves: number;
   avg_reach: number;
   engagement_rate: number;
-  followers?: number;
-}
-
-interface FollowerData {
-  month: string;
   followers: number;
+  new_followers: number;
 }
 
-// Get the page IDs for ANDskincare from the database
-async function getPageIds(platform: 'facebook' | 'instagram' = 'facebook'): Promise<string[]> {
+// Get page IDs for ANDskincare
+async function getPageIds(platform: 'facebook' | 'instagram'): Promise<string[]> {
   const result = await query<{ account_id: string }>(`
     SELECT ca.account_id 
     FROM customer_accounts ca 
     JOIN customers c ON ca.customer_id = c.customer_id 
     WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1) 
       AND ca.platform = $2
-  `, [ANDSKINCARE_CONFIG.customerSlug, platform]);
-  
+  `, [CONFIG.customerSlug, platform]);
   return result.map(r => r.account_id);
 }
 
+// Get Facebook posts for a month
 async function getFacebookPosts(month: string, pageIds: string[]): Promise<PostData[]> {
   if (pageIds.length === 0) return [];
-  
   const startDate = `${month}-01`;
   const placeholders = pageIds.map((_, i) => `$${i + 3}`).join(', ');
   
   const posts = await query<PostData>(`
     SELECT 
-      p.post_id,
-      p.message,
-      p.created_time,
-      p.type,
-      p.permalink,
+      p.post_id, p.message, p.created_time, p.type, p.permalink,
       COALESCE(m.reactions_total, 0) as reactions_total,
       COALESCE(m.comments_total, 0) as comments_total,
-      m.shares_total,
-      m.reach,
-      m.impressions,
-      m.video_3s_views,
+      m.shares_total, m.reach, m.impressions, m.video_3s_views,
       p.thumbnail_url
     FROM fb_posts p
     LEFT JOIN LATERAL (
-      SELECT * FROM fb_post_metrics 
-      WHERE post_id = p.post_id 
-      ORDER BY snapshot_time DESC 
-      LIMIT 1
+      SELECT * FROM fb_post_metrics WHERE post_id = p.post_id ORDER BY snapshot_time DESC LIMIT 1
     ) m ON true
     WHERE p.page_id IN (${placeholders})
-      AND p.created_time >= $1
-      AND p.created_time < $2::date + interval '1 month'
+      AND p.created_time >= $1 AND p.created_time < $2::date + interval '1 month'
     ORDER BY p.created_time DESC
   `, [startDate, startDate, ...pageIds]);
-  
   return posts;
 }
 
+// Get Instagram posts for a month
 async function getInstagramPosts(month: string, pageIds: string[]): Promise<PostData[]> {
   if (pageIds.length === 0) return [];
-  
   const startDate = `${month}-01`;
   const placeholders = pageIds.map((_, i) => `$${i + 3}`).join(', ');
   
   try {
     const posts = await query<PostData>(`
       SELECT 
-        p.media_id as post_id,
-        p.caption as message,
-        p.timestamp as created_time,
-        p.media_type as type,
-        p.permalink,
+        p.media_id as post_id, p.caption as message, p.timestamp as created_time,
+        p.media_type as type, p.permalink,
         COALESCE(m.like_count, 0) as reactions_total,
         COALESCE(m.comments_count, 0) as comments_total,
-        NULL as shares_total,
-        m.reach,
-        m.impressions,
+        NULL as shares_total, m.reach, m.impressions,
         m.video_views as video_3s_views,
-        p.media_url as thumbnail_url
+        p.media_url as thumbnail_url,
+        m.saved as saves
       FROM ig_posts p
       LEFT JOIN LATERAL (
-        SELECT * FROM ig_post_metrics 
-        WHERE media_id = p.media_id 
-        ORDER BY snapshot_time DESC 
-        LIMIT 1
+        SELECT * FROM ig_post_metrics WHERE media_id = p.media_id ORDER BY snapshot_time DESC LIMIT 1
       ) m ON true
       WHERE p.account_id IN (${placeholders})
-        AND p.timestamp >= $1
-        AND p.timestamp < $2::date + interval '1 month'
+        AND p.timestamp >= $1 AND p.timestamp < $2::date + interval '1 month'
       ORDER BY p.timestamp DESC
     `, [startDate, startDate, ...pageIds]);
-    
     return posts;
   } catch (error) {
     console.error('Error fetching Instagram posts:', error);
@@ -146,189 +133,146 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
   }
 }
 
-async function getFollowerData(months: string[], pageIds: string[], platform: 'facebook' | 'instagram'): Promise<FollowerData[]> {
-  if (pageIds.length === 0) {
-    return months.map(month => ({ month, followers: 0 }));
-  }
+// Get follower data for multiple months
+async function getFollowerData(months: string[], pageIds: string[], platform: 'facebook' | 'instagram'): Promise<{month: string, followers: number}[]> {
+  if (pageIds.length === 0) return months.map(m => ({ month: m, followers: 0 }));
   
-  const followers: FollowerData[] = [];
-  const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
   const table = platform === 'facebook' ? 'fb_follower_snapshots' : 'ig_follower_snapshots';
-  const idColumn = platform === 'facebook' ? 'page_id' : 'account_id';
+  const idCol = platform === 'facebook' ? 'page_id' : 'account_id';
+  const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
+  const results: {month: string, followers: number}[] = [];
   
   for (const month of months) {
-    const endDate = new Date(month + '-01');
-    endDate.setMonth(endDate.getMonth() + 1);
-    endDate.setDate(0); // Last day of month
-    
     try {
       const result = await query<{ followers: string }>(`
         SELECT COALESCE(MAX(followers_count), 0) as followers
         FROM ${table}
-        WHERE ${idColumn} IN (${placeholders})
+        WHERE ${idCol} IN (${placeholders})
           AND snapshot_time <= $1::date + interval '1 month'
-        ORDER BY snapshot_time DESC
-        LIMIT 1
       `, [month + '-01', ...pageIds]);
-      
-      followers.push({
-        month,
-        followers: parseInt(result[0]?.followers || '0') || 0
-      });
-    } catch (error) {
-      console.error(`Error fetching ${platform} followers for ${month}:`, error);
-      followers.push({ month, followers: 0 });
+      results.push({ month, followers: parseInt(result[0]?.followers || '0') || 0 });
+    } catch {
+      results.push({ month, followers: 0 });
     }
   }
-  
-  return followers;
+  return results;
 }
 
-async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'facebook' | 'instagram' = 'facebook'): Promise<MonthlyKPI[]> {
+// Get monthly KPIs
+async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'facebook' | 'instagram'): Promise<MonthlyKPI[]> {
   if (pageIds.length === 0) {
-    return months.map(month => ({
-      month,
-      posts_count: 0,
-      total_reactions: 0,
-      total_comments: 0,
-      total_reach: 0,
-      total_impressions: 0,
-      total_video_views: 0,
-      avg_reach: 0,
-      engagement_rate: 0,
-      followers: 0,
+    return months.map(m => ({
+      month: m, posts_count: 0, total_reactions: 0, total_comments: 0, total_shares: 0,
+      total_reach: 0, total_impressions: 0, total_video_views: 0, total_saves: 0,
+      avg_reach: 0, engagement_rate: 0, followers: 0, new_followers: 0
     }));
   }
   
+  const followerData = await getFollowerData(months, pageIds, platform);
   const kpis: MonthlyKPI[] = [];
   const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
-  
-  // Get follower data
-  const followerData = await getFollowerData(months, pageIds, platform);
   
   for (let idx = 0; idx < months.length; idx++) {
     const month = months[idx];
     const startDate = `${month}-01`;
     
-    if (platform === 'facebook') {
-      const result = await query<{
-        posts_count: string;
-        total_reactions: string;
-        total_comments: string;
-        total_reach: string;
-        total_impressions: string;
-        total_video_views: string;
-      }>(`
-        SELECT 
-          COUNT(DISTINCT p.post_id) as posts_count,
-          COALESCE(SUM(m.reactions_total), 0) as total_reactions,
-          COALESCE(SUM(m.comments_total), 0) as total_comments,
-          COALESCE(SUM(m.reach), 0) as total_reach,
-          COALESCE(SUM(m.impressions), 0) as total_impressions,
-          COALESCE(SUM(m.video_3s_views), 0) as total_video_views
-        FROM fb_posts p
-        LEFT JOIN LATERAL (
-          SELECT * FROM fb_post_metrics 
-          WHERE post_id = p.post_id 
-          ORDER BY snapshot_time DESC 
-          LIMIT 1
-        ) m ON true
-        WHERE p.page_id IN (${placeholders})
-          AND p.created_time >= $1::date
-          AND p.created_time < $1::date + interval '1 month'
-      `, [startDate, ...pageIds]);
-      
-      const data = result[0];
-      const postsCount = parseInt(data.posts_count) || 0;
-      const totalReach = parseInt(data.total_reach) || 0;
-      const totalReactions = parseInt(data.total_reactions) || 0;
-      const totalComments = parseInt(data.total_comments) || 0;
-      
-      kpis.push({
-        month,
-        posts_count: postsCount,
-        total_reactions: totalReactions,
-        total_comments: totalComments,
-        total_reach: totalReach,
-        total_impressions: parseInt(data.total_impressions) || 0,
-        total_video_views: parseInt(data.total_video_views) || 0,
-        avg_reach: postsCount > 0 ? Math.round(totalReach / postsCount) : 0,
-        engagement_rate: totalReach > 0 ? ((totalReactions + totalComments) / totalReach) * 100 : 0,
-        followers: followerData[idx]?.followers || 0,
-      });
-    } else {
-      // Instagram
-      try {
-        const result = await query<{
-          posts_count: string;
-          total_reactions: string;
-          total_comments: string;
-          total_reach: string;
-          total_impressions: string;
-          total_video_views: string;
-        }>(`
+    try {
+      if (platform === 'facebook') {
+        const result = await query<any>(`
+          SELECT 
+            COUNT(DISTINCT p.post_id) as posts_count,
+            COALESCE(SUM(m.reactions_total), 0) as total_reactions,
+            COALESCE(SUM(m.comments_total), 0) as total_comments,
+            COALESCE(SUM(m.shares_total), 0) as total_shares,
+            COALESCE(SUM(m.reach), 0) as total_reach,
+            COALESCE(SUM(m.impressions), 0) as total_impressions,
+            COALESCE(SUM(m.video_3s_views), 0) as total_video_views
+          FROM fb_posts p
+          LEFT JOIN LATERAL (
+            SELECT * FROM fb_post_metrics WHERE post_id = p.post_id ORDER BY snapshot_time DESC LIMIT 1
+          ) m ON true
+          WHERE p.page_id IN (${placeholders})
+            AND p.created_time >= $1::date AND p.created_time < $1::date + interval '1 month'
+        `, [startDate, ...pageIds]);
+        
+        const d = result[0];
+        const postsCount = parseInt(d.posts_count) || 0;
+        const totalReach = parseInt(d.total_reach) || 0;
+        const totalReactions = parseInt(d.total_reactions) || 0;
+        const totalComments = parseInt(d.total_comments) || 0;
+        const totalShares = parseInt(d.total_shares) || 0;
+        const followers = followerData[idx]?.followers || 0;
+        const prevFollowers = idx > 0 ? followerData[idx - 1]?.followers || 0 : followers;
+        
+        kpis.push({
+          month, posts_count: postsCount,
+          total_reactions: totalReactions, total_comments: totalComments, total_shares: totalShares,
+          total_reach: totalReach, total_impressions: parseInt(d.total_impressions) || 0,
+          total_video_views: parseInt(d.total_video_views) || 0, total_saves: 0,
+          avg_reach: postsCount > 0 ? Math.round(totalReach / postsCount) : 0,
+          engagement_rate: totalReach > 0 ? ((totalReactions + totalComments + totalShares) / totalReach) * 100 : 0,
+          followers, new_followers: followers - prevFollowers
+        });
+      } else {
+        // Instagram
+        const result = await query<any>(`
           SELECT 
             COUNT(DISTINCT p.media_id) as posts_count,
             COALESCE(SUM(m.like_count), 0) as total_reactions,
             COALESCE(SUM(m.comments_count), 0) as total_comments,
             COALESCE(SUM(m.reach), 0) as total_reach,
             COALESCE(SUM(m.impressions), 0) as total_impressions,
-            COALESCE(SUM(m.video_views), 0) as total_video_views
+            COALESCE(SUM(m.video_views), 0) as total_video_views,
+            COALESCE(SUM(m.saved), 0) as total_saves
           FROM ig_posts p
           LEFT JOIN LATERAL (
-            SELECT * FROM ig_post_metrics 
-            WHERE media_id = p.media_id 
-            ORDER BY snapshot_time DESC 
-            LIMIT 1
+            SELECT * FROM ig_post_metrics WHERE media_id = p.media_id ORDER BY snapshot_time DESC LIMIT 1
           ) m ON true
           WHERE p.account_id IN (${placeholders})
-            AND p.timestamp >= $1::date
-            AND p.timestamp < $1::date + interval '1 month'
+            AND p.timestamp >= $1::date AND p.timestamp < $1::date + interval '1 month'
         `, [startDate, ...pageIds]);
         
-        const data = result[0];
-        const postsCount = parseInt(data.posts_count) || 0;
-        const totalReach = parseInt(data.total_reach) || 0;
-        const totalReactions = parseInt(data.total_reactions) || 0;
-        const totalComments = parseInt(data.total_comments) || 0;
+        const d = result[0];
+        const postsCount = parseInt(d.posts_count) || 0;
+        const totalReach = parseInt(d.total_reach) || 0;
+        const totalReactions = parseInt(d.total_reactions) || 0;
+        const totalComments = parseInt(d.total_comments) || 0;
+        const totalSaves = parseInt(d.total_saves) || 0;
+        const followers = followerData[idx]?.followers || 0;
+        const prevFollowers = idx > 0 ? followerData[idx - 1]?.followers || 0 : followers;
         
         kpis.push({
-          month,
-          posts_count: postsCount,
-          total_reactions: totalReactions,
-          total_comments: totalComments,
-          total_reach: totalReach,
-          total_impressions: parseInt(data.total_impressions) || 0,
-          total_video_views: parseInt(data.total_video_views) || 0,
+          month, posts_count: postsCount,
+          total_reactions: totalReactions, total_comments: totalComments, total_shares: 0,
+          total_reach: totalReach, total_impressions: parseInt(d.total_impressions) || 0,
+          total_video_views: parseInt(d.total_video_views) || 0, total_saves: totalSaves,
           avg_reach: postsCount > 0 ? Math.round(totalReach / postsCount) : 0,
-          engagement_rate: totalReach > 0 ? ((totalReactions + totalComments) / totalReach) * 100 : 0,
-          followers: followerData[idx]?.followers || 0,
-        });
-      } catch (error) {
-        console.error(`Error fetching Instagram KPIs for ${month}:`, error);
-        kpis.push({
-          month,
-          posts_count: 0,
-          total_reactions: 0,
-          total_comments: 0,
-          total_reach: 0,
-          total_impressions: 0,
-          total_video_views: 0,
-          avg_reach: 0,
-          engagement_rate: 0,
-          followers: followerData[idx]?.followers || 0,
+          engagement_rate: totalReach > 0 ? ((totalReactions + totalComments + totalSaves) / totalReach) * 100 : 0,
+          followers, new_followers: followers - prevFollowers
         });
       }
+    } catch (error) {
+      console.error(`Error fetching ${platform} KPIs for ${month}:`, error);
+      kpis.push({
+        month, posts_count: 0, total_reactions: 0, total_comments: 0, total_shares: 0,
+        total_reach: 0, total_impressions: 0, total_video_views: 0, total_saves: 0,
+        avg_reach: 0, engagement_rate: 0, followers: followerData[idx]?.followers || 0, new_followers: 0
+      });
     }
   }
-  
   return kpis;
 }
 
+// Helper functions
 function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.', ',') + ' Mio.';
+  if (num >= 1000) return num.toLocaleString('de-DE');
   return num.toString();
+}
+
+function formatDate(date: Date): string {
+  const d = new Date(date);
+  return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
 }
 
 function getMonthName(month: string): string {
@@ -339,154 +283,188 @@ function getMonthName(month: string): string {
 }
 
 function getShortMonthName(month: string): string {
-  const [year, monthNum] = month.split('-');
-  const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 
-                  'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-  return `${months[parseInt(monthNum) - 1]} ${year.slice(2)}`;
+  const [, monthNum] = month.split('-');
+  const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 
+                  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  return months[parseInt(monthNum) - 1];
 }
 
-// Helper to add famefact branding to a slide
-function addFamefactBranding(slide: PptxGenJS.Slide) {
-  slide.addText('famefact', {
-    x: 0.3,
-    y: 5.1,
-    w: 1.5,
-    h: 0.3,
-    fontSize: 12,
-    color: 'A8D65C',
-    fontFace: 'Arial',
+// Add famefact icon to slide (bottom left)
+function addFamefactIcon(slide: PptxGenJS.Slide, pageNum: number) {
+  // famefact icon placeholder (simplified)
+  slide.addText('⬡', {
+    x: 0.3, y: 4.9, w: 0.4, h: 0.4,
+    fontSize: 24, color: CONFIG.colors.black, fontFace: 'Arial'
+  });
+  // Page number (bottom right)
+  slide.addText(pageNum.toString(), {
+    x: 9.2, y: 5.1, w: 0.5, h: 0.3,
+    fontSize: 11, color: CONFIG.colors.gray, align: 'right'
   });
 }
 
-// Helper to create KPI table
-function createKPITable(kpis: MonthlyKPI[], months: string[], platform: 'facebook' | 'instagram'): PptxGenJS.TableRow[] {
-  const headerColor = platform === 'facebook' ? '2ECC71' : 'E1306C';
+// Create KPI table for Facebook (exact famefact style)
+function createFacebookKPITable(kpis: MonthlyKPI[]): PptxGenJS.TableRow[] {
+  const rows: PptxGenJS.TableRow[] = [];
+  const headerOpts = { bold: true, fill: { color: CONFIG.colors.green }, color: CONFIG.colors.white, fontSize: 11, align: 'center' as const };
+  const cellOpts = (alt: boolean) => ({ fill: { color: alt ? CONFIG.colors.lightGray : CONFIG.colors.white }, color: CONFIG.colors.black, fontSize: 10, align: 'center' as const });
   
-  const tableData: PptxGenJS.TableRow[] = [
-    [
-      { text: 'Kennzahl', options: { bold: true, fill: { color: headerColor }, color: 'FFFFFF', align: 'center', fontSize: 11 } },
-      { text: getShortMonthName(months[0]), options: { bold: true, fill: { color: headerColor }, color: 'FFFFFF', align: 'center', fontSize: 11 } },
-      { text: getShortMonthName(months[1]), options: { bold: true, fill: { color: headerColor }, color: 'FFFFFF', align: 'center', fontSize: 11 } },
-      { text: getShortMonthName(months[2]), options: { bold: true, fill: { color: headerColor }, color: 'FFFFFF', align: 'center', fontSize: 11 } },
-    ],
+  // Header row
+  rows.push([
+    { text: 'KPI', options: headerOpts },
+    { text: getShortMonthName(kpis[2].month), options: headerOpts },
+    { text: getShortMonthName(kpis[1].month), options: headerOpts },
+    { text: getShortMonthName(kpis[0].month), options: headerOpts },
+  ]);
+  
+  // Data rows - exact famefact order
+  const dataRows = [
+    { label: 'Neue Fans', values: kpis.map(k => k.new_followers > 0 ? `+${k.new_followers}` : k.new_followers.toString()) },
+    { label: 'Fans total', values: kpis.map(k => formatNumber(k.followers)) },
+    { label: 'Post-Reichweite', values: kpis.map(k => formatNumber(k.total_reach)) },
+    { label: 'Ø Reichweite pro Post', values: kpis.map(k => formatNumber(k.avg_reach)) },
+    { label: 'Interaktionen\n(Teilen, Liken, Kommentieren)', values: kpis.map(k => formatNumber(k.total_reactions + k.total_comments + k.total_shares)) },
+    { label: '3-sekündige Video Plays', values: kpis.map(k => formatNumber(k.total_video_views)) },
+    { label: 'Interaktionsrate*', values: kpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + '%') },
+    { label: 'Anzahl der Postings', values: kpis.map(k => k.posts_count.toString()) },
+    { label: 'Budget pro Posting', values: ['0,00 €', '0,00 €', '0,00 €'] },
+    { label: 'Ausgaben', values: ['0,00 €', '0,00 €', '0,00 €'] },
   ];
   
-  // Add Follower row if data exists
-  if (kpis.some(k => k.followers && k.followers > 0)) {
-    tableData.push([
-      { text: 'Follower', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center', fontSize: 10 } },
-      { text: formatNumber(kpis[0]?.followers || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center', fontSize: 10 } },
-      { text: formatNumber(kpis[1]?.followers || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center', fontSize: 10 } },
-      { text: formatNumber(kpis[2]?.followers || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center', fontSize: 10 } },
+  dataRows.forEach((row, idx) => {
+    rows.push([
+      { text: row.label, options: { ...cellOpts(idx % 2 === 0), align: 'left' as const } },
+      { text: row.values[2], options: cellOpts(idx % 2 === 0) },
+      { text: row.values[1], options: cellOpts(idx % 2 === 0) },
+      { text: row.values[0], options: cellOpts(idx % 2 === 0) },
     ]);
+  });
+  
+  return rows;
+}
+
+// Create KPI table for Instagram (exact famefact style)
+function createInstagramKPITable(kpis: MonthlyKPI[]): PptxGenJS.TableRow[] {
+  const rows: PptxGenJS.TableRow[] = [];
+  const headerOpts = { bold: true, fill: { color: CONFIG.colors.green }, color: CONFIG.colors.white, fontSize: 11, align: 'center' as const };
+  const cellOpts = (alt: boolean) => ({ fill: { color: alt ? CONFIG.colors.lightGray : CONFIG.colors.white }, color: CONFIG.colors.black, fontSize: 10, align: 'center' as const });
+  
+  rows.push([
+    { text: 'KPI', options: headerOpts },
+    { text: getShortMonthName(kpis[2].month), options: headerOpts },
+    { text: getShortMonthName(kpis[1].month), options: headerOpts },
+    { text: getShortMonthName(kpis[0].month), options: headerOpts },
+  ]);
+  
+  const dataRows = [
+    { label: 'Neue Follower', values: kpis.map(k => k.new_followers > 0 ? `+ ${k.new_followers}` : k.new_followers.toString()) },
+    { label: 'Follower total', values: kpis.map(k => formatNumber(k.followers)) },
+    { label: 'Post-Reichweite', values: kpis.map(k => formatNumber(k.total_reach)) },
+    { label: 'Ø Reichweite pro Post', values: kpis.map(k => formatNumber(k.avg_reach)) },
+    { label: 'Interaktionen\n(Likes, Kommentare, Saves, Klicks)', values: kpis.map(k => formatNumber(k.total_reactions + k.total_comments + k.total_saves)) },
+    { label: 'Videoviews', values: kpis.map(k => formatNumber(k.total_video_views)) },
+    { label: 'Savings', values: kpis.map(k => k.total_saves.toString()) },
+    { label: 'Interaktionsrate', values: kpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + ' %') },
+    { label: 'Anzahl an Postings', values: kpis.map(k => k.posts_count.toString()) },
+    { label: 'Ausgaben', values: ['0,00 €', '0,00 €', '0,00 €'] },
+  ];
+  
+  dataRows.forEach((row, idx) => {
+    rows.push([
+      { text: row.label, options: { ...cellOpts(idx % 2 === 0), align: 'left' as const } },
+      { text: row.values[2], options: cellOpts(idx % 2 === 0) },
+      { text: row.values[1], options: cellOpts(idx % 2 === 0) },
+      { text: row.values[0], options: cellOpts(idx % 2 === 0) },
+    ]);
+  });
+  
+  return rows;
+}
+
+// Create bar chart with images above bars
+function createBarChartWithImages(
+  slide: PptxGenJS.Slide,
+  posts: (PostData & { value: number })[],
+  barColor: string,
+  yAxisLabel: string,
+  startY: number
+) {
+  if (posts.length === 0) {
+    slide.addText('Keine Daten für diesen Zeitraum', {
+      x: 1, y: 2.5, w: 8, h: 0.5,
+      fontSize: 14, color: CONFIG.colors.gray, align: 'center'
+    });
+    return;
   }
   
-  // Standard KPI rows
-  const rows = [
-    { label: 'Beiträge', key: 'posts_count', bgColor: '363652' },
-    { label: platform === 'facebook' ? 'Reaktionen' : 'Likes', key: 'total_reactions', bgColor: '2D2D44' },
-    { label: 'Kommentare', key: 'total_comments', bgColor: '363652' },
-    { label: 'Reichweite', key: 'total_reach', bgColor: '2D2D44' },
-    { label: 'Ø Reichweite/Post', key: 'avg_reach', bgColor: '363652' },
-    { label: 'Engagement Rate', key: 'engagement_rate', bgColor: '2D2D44', isPercent: true },
-  ];
+  const maxValue = Math.max(...posts.map(p => p.value));
+  const chartHeight = 3.2;
+  const chartWidth = 8.5;
+  const barWidth = Math.min(0.8, chartWidth / posts.length - 0.2);
+  const startX = 1.2;
+  const chartBottom = startY + chartHeight;
   
-  rows.forEach(row => {
-    tableData.push([
-      { text: row.label, options: { fill: { color: row.bgColor }, color: 'FFFFFF', align: 'center', fontSize: 10 } },
-      { 
-        text: row.isPercent 
-          ? ((kpis[0] as any)?.[row.key] || 0).toFixed(2) + '%'
-          : formatNumber((kpis[0] as any)?.[row.key] || 0), 
-        options: { fill: { color: row.bgColor }, color: 'FFFFFF', align: 'center', fontSize: 10 } 
-      },
-      { 
-        text: row.isPercent 
-          ? ((kpis[1] as any)?.[row.key] || 0).toFixed(2) + '%'
-          : formatNumber((kpis[1] as any)?.[row.key] || 0), 
-        options: { fill: { color: row.bgColor }, color: 'FFFFFF', align: 'center', fontSize: 10 } 
-      },
-      { 
-        text: row.isPercent 
-          ? ((kpis[2] as any)?.[row.key] || 0).toFixed(2) + '%'
-          : formatNumber((kpis[2] as any)?.[row.key] || 0), 
-        options: { fill: { color: row.bgColor }, color: 'FFFFFF', align: 'center', fontSize: 10 } 
-      },
-    ]);
+  // Y-axis
+  slide.addShape('line', {
+    x: startX - 0.1, y: startY, w: 0, h: chartHeight,
+    line: { color: CONFIG.colors.gray, width: 0.5 }
   });
   
-  return tableData;
-}
-
-// Helper to add post images above bar chart
-async function addPostImagesAboveBars(
-  slide: PptxGenJS.Slide, 
-  posts: (PostData & { interactions: number })[], 
-  startX: number,
-  barWidth: number,
-  imageY: number
-) {
-  const imageSize = 0.7;
+  // Y-axis labels
+  const ySteps = 5;
+  for (let i = 0; i <= ySteps; i++) {
+    const yVal = Math.round((maxValue / ySteps) * (ySteps - i));
+    const yPos = startY + (chartHeight / ySteps) * i;
+    slide.addText(yVal.toString(), {
+      x: 0.2, y: yPos - 0.1, w: 0.8, h: 0.2,
+      fontSize: 9, color: CONFIG.colors.gray, align: 'right'
+    });
+    // Grid line
+    slide.addShape('line', {
+      x: startX, y: yPos, w: chartWidth, h: 0,
+      line: { color: 'E0E0E0', width: 0.3 }
+    });
+  }
   
-  for (let i = 0; i < posts.length && i < 5; i++) {
-    const post = posts[i];
-    const xPos = startX + (i * barWidth) + (barWidth - imageSize) / 2;
+  // Bars and images
+  posts.forEach((post, idx) => {
+    const barHeight = maxValue > 0 ? (post.value / maxValue) * chartHeight : 0;
+    const xPos = startX + idx * (chartWidth / posts.length) + 0.1;
+    const barY = chartBottom - barHeight;
     
+    // Bar
+    slide.addShape('rect', {
+      x: xPos, y: barY, w: barWidth, h: barHeight,
+      fill: { color: barColor },
+    });
+    
+    // Image above bar
+    const imgSize = 0.65;
+    const imgY = barY - imgSize - 0.05;
     if (post.thumbnail_url) {
       try {
-        // Add image placeholder with border
-        slide.addShape('rect', {
-          x: xPos,
-          y: imageY,
-          w: imageSize,
-          h: imageSize,
-          fill: { color: '2D2D44' },
-          line: { color: '444466', width: 1 },
-        });
-        
-        // Try to add the actual image
         slide.addImage({
           path: post.thumbnail_url,
-          x: xPos,
-          y: imageY,
-          w: imageSize,
-          h: imageSize,
+          x: xPos + (barWidth - imgSize) / 2,
+          y: imgY,
+          w: imgSize, h: imgSize,
         });
-      } catch (error) {
-        // If image fails, show placeholder
-        slide.addText('📷', {
-          x: xPos,
-          y: imageY,
-          w: imageSize,
-          h: imageSize,
-          fontSize: 20,
-          align: 'center',
-          valign: 'middle',
-          color: '888888',
+      } catch {
+        slide.addShape('rect', {
+          x: xPos + (barWidth - imgSize) / 2, y: imgY, w: imgSize, h: imgSize,
+          fill: { color: 'EEEEEE' }, line: { color: 'CCCCCC', width: 0.5 }
         });
       }
-    } else {
-      // No thumbnail - show placeholder
-      slide.addShape('rect', {
-        x: xPos,
-        y: imageY,
-        w: imageSize,
-        h: imageSize,
-        fill: { color: '2D2D44' },
-        line: { color: '444466', width: 1 },
-      });
-      slide.addText('📷', {
-        x: xPos,
-        y: imageY,
-        w: imageSize,
-        h: imageSize,
-        fontSize: 20,
-        align: 'center',
-        valign: 'middle',
-        color: '888888',
-      });
     }
-  }
+    
+    // Date label
+    const isCarousel = post.type === 'carousel' || post.type === 'CAROUSEL_ALBUM';
+    const dateStr = formatDate(post.created_time) + (isCarousel ? '*' : '');
+    slide.addText(dateStr, {
+      x: xPos - 0.1, y: chartBottom + 0.05, w: barWidth + 0.2, h: 0.3,
+      fontSize: 8, color: CONFIG.colors.black, align: 'center'
+    });
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -494,1001 +472,647 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
     
-    // Get page IDs for ANDskincare from database
+    // Get page IDs
     const fbPageIds = await getPageIds('facebook');
     const igPageIds = await getPageIds('instagram');
-    console.log('ANDskincare FB Page IDs:', fbPageIds);
-    console.log('ANDskincare IG Page IDs:', igPageIds);
+    console.log('FB Page IDs:', fbPageIds, 'IG Page IDs:', igPageIds);
     
-    // Calculate months for KPI comparison
+    // Calculate months for comparison (current + 2 previous)
     const currentDate = new Date(month + '-01');
-    const prevMonth1 = new Date(currentDate);
-    prevMonth1.setMonth(prevMonth1.getMonth() - 1);
-    const prevMonth2 = new Date(currentDate);
-    prevMonth2.setMonth(prevMonth2.getMonth() - 2);
-    
     const months = [
-      prevMonth2.toISOString().slice(0, 7),
-      prevMonth1.toISOString().slice(0, 7),
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 2, 1).toISOString().slice(0, 7),
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1).toISOString().slice(0, 7),
       month
     ];
     
-    // Get Facebook data
-    const fbPosts = await getFacebookPosts(month, fbPageIds);
-    const fbKpis = await getMonthlyKPIs(months, fbPageIds, 'facebook');
-    console.log('FB Posts found:', fbPosts.length);
+    // Fetch all data
+    const [fbPosts, fbKpis, igPosts, igKpis] = await Promise.all([
+      getFacebookPosts(month, fbPageIds),
+      getMonthlyKPIs(months, fbPageIds, 'facebook'),
+      getInstagramPosts(month, igPageIds),
+      getMonthlyKPIs(months, igPageIds, 'instagram'),
+    ]);
     
-    // Get Instagram data
-    const igPosts = await getInstagramPosts(month, igPageIds);
-    const igKpis = await getMonthlyKPIs(months, igPageIds, 'instagram');
-    console.log('IG Posts found:', igPosts.length);
+    console.log('FB Posts:', fbPosts.length, 'IG Posts:', igPosts.length);
     
-    // Create PowerPoint
+    // Create PowerPoint with WHITE background (famefact style)
     const pptx = new PptxGenJS();
     pptx.author = 'famefact GmbH';
-    pptx.title = `${ANDSKINCARE_CONFIG.customerName} Social Media Report - ${getMonthName(month)}`;
-    pptx.subject = 'Monthly Social Media Performance Report';
+    pptx.title = `${CONFIG.customerName} Social Media Report - ${getMonthName(month)}`;
     pptx.company = 'famefact GmbH';
+    pptx.layout = 'LAYOUT_16x9';
     
-    // ==========================================
-    // SLIDE 1: Cover
-    // ==========================================
+    // ========================================
+    // SLIDE 1: Cover (white background)
+    // ========================================
     const slide1 = pptx.addSlide();
-    slide1.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide1.background = { color: CONFIG.colors.white };
     
-    // ANDskincare Logo (3 circles with A-N-D)
-    const circleY = 1.3;
-    const circleSize = 0.9;
-    const circleSpacing = 1.1;
-    const startX = 3.35;
+    // famefact logo (top left) - placeholder
+    slide1.addText('famefact.', {
+      x: 0.4, y: 0.3, w: 2, h: 0.4,
+      fontSize: 18, bold: true, color: CONFIG.colors.black, fontFace: 'Arial'
+    });
     
+    // famefact graphic (top right) - green/purple diamond shapes
+    slide1.addShape('rect', {
+      x: 7.5, y: 0.2, w: 1.5, h: 1.5,
+      fill: { color: CONFIG.colors.green },
+      rotate: 45
+    });
+    slide1.addShape('rect', {
+      x: 8.2, y: 0.8, w: 1.2, h: 1.2,
+      fill: { color: CONFIG.colors.purple },
+      rotate: 45
+    });
+    
+    // ANDskincare Logo (center)
+    const logoY = 1.8;
     ['A', 'N', 'D'].forEach((letter, i) => {
       slide1.addShape('ellipse', {
-        x: startX + (i * circleSpacing),
-        y: circleY,
-        w: circleSize,
-        h: circleSize,
-        fill: { color: '808080' },
+        x: 3.5 + i * 1.1, y: logoY, w: 0.9, h: 0.9,
+        fill: { color: '808080' }
       });
       slide1.addText(letter, {
-        x: startX + (i * circleSpacing),
-        y: circleY,
-        w: circleSize,
-        h: circleSize,
-        fontSize: 28,
-        bold: true,
-        color: 'FFFFFF',
-        align: 'center',
-        valign: 'middle',
+        x: 3.5 + i * 1.1, y: logoY, w: 0.9, h: 0.9,
+        fontSize: 28, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle'
       });
     });
-    
     slide1.addText('SKINCARE', {
-      x: 0,
-      y: 2.4,
-      w: '100%',
-      h: 0.5,
-      fontSize: 24,
-      color: '808080',
-      align: 'center',
-      fontFace: 'Arial',
-      charSpacing: 8,
+      x: 0, y: logoY + 1.1, w: '100%', h: 0.4,
+      fontSize: 18, color: '808080', align: 'center', charSpacing: 6
     });
     
+    // Title
     slide1.addText('Social Media Reporting', {
-      x: 0,
-      y: 3.3,
-      w: '100%',
-      h: 0.6,
-      fontSize: 36,
-      bold: true,
-      color: 'FFFFFF',
-      align: 'center',
+      x: 0, y: 3.5, w: '100%', h: 0.6,
+      fontSize: 32, bold: true, color: CONFIG.colors.black, align: 'center'
     });
-    
     slide1.addText(getMonthName(month), {
-      x: 0,
-      y: 4.0,
-      w: '100%',
-      h: 0.5,
-      fontSize: 22,
-      color: 'CCCCCC',
-      align: 'center',
+      x: 0, y: 4.1, w: '100%', h: 0.4,
+      fontSize: 20, color: CONFIG.colors.green, align: 'center'
     });
     
-    addFamefactBranding(slide1);
-    
-    // ==========================================
-    // SLIDE 2: Facebook Analysis Placeholder
-    // ==========================================
+    // ========================================
+    // SLIDE 2: Facebook Analyse (Screenshot placeholder)
+    // ========================================
     const slide2 = pptx.addSlide();
-    slide2.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide2.background = { color: CONFIG.colors.white };
+    
+    // Facebook icon
+    slide2.addShape('ellipse', {
+      x: 4.5, y: 0.3, w: 0.8, h: 0.8,
+      fill: { color: CONFIG.colors.black }
+    });
+    slide2.addText('f', {
+      x: 4.5, y: 0.3, w: 0.8, h: 0.8,
+      fontSize: 28, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle'
+    });
     
     slide2.addText('Facebook Analyse', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.6,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+      x: 0, y: 1.2, w: '100%', h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black, align: 'center'
     });
     
-    slide2.addText(ANDSKINCARE_CONFIG.facebookUrl, {
-      x: 0.5,
-      y: 0.85,
-      w: 9,
-      h: 0.35,
-      fontSize: 14,
-      color: ANDSKINCARE_CONFIG.colors.facebook,
-    });
-    
+    // Screenshot placeholder
     slide2.addShape('rect', {
-      x: 0.5,
-      y: 1.4,
-      w: 9,
-      h: 3.6,
-      fill: { color: ANDSKINCARE_CONFIG.colors.darkBg },
-      line: { color: ANDSKINCARE_CONFIG.colors.border, width: 1 },
+      x: 1, y: 1.9, w: 8, h: 3,
+      fill: { color: CONFIG.colors.lightGray },
+      line: { color: 'CCCCCC', width: 1 }
     });
-    
     slide2.addText('Screenshot der Facebook-Seite hier einfügen', {
-      x: 0.5,
-      y: 2.9,
-      w: 9,
-      h: 0.5,
-      fontSize: 14,
-      color: '888888',
-      align: 'center',
+      x: 1, y: 3.2, w: 8, h: 0.4,
+      fontSize: 12, color: CONFIG.colors.gray, align: 'center'
     });
     
-    addFamefactBranding(slide2);
+    addFamefactIcon(slide2, 2);
     
-    // ==========================================
-    // SLIDE 3: Facebook KPI Table
-    // ==========================================
+    // ========================================
+    // SLIDE 3: Facebook Kennzahlen
+    // ========================================
     const slide3 = pptx.addSlide();
-    slide3.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide3.background = { color: CONFIG.colors.white };
     
-    slide3.addText('Facebook Kennzahlen', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.6,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide3.addText('Facebook', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide3.addText('Kennzahlen', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const fbTableData = createKPITable(fbKpis, months, 'facebook');
-    
-    slide3.addTable(fbTableData, {
-      x: 0.5,
-      y: 1.1,
-      w: 9,
-      colW: [2.5, 2.17, 2.17, 2.16],
-      fontSize: 10,
-      border: { type: 'solid', color: ANDSKINCARE_CONFIG.colors.border, pt: 0.5 },
+    const fbTable = createFacebookKPITable(fbKpis);
+    slide3.addTable(fbTable, {
+      x: 0.5, y: 1.2, w: 9,
+      colW: [3, 2, 2, 2],
+      border: { type: 'solid', color: 'CCCCCC', pt: 0.5 },
     });
     
-    addFamefactBranding(slide3);
+    // Footnote
+    slide3.addText('*Die Interaktionsrate berechnet sich aus allen Interaktionen durch die Gesamtreichweite mal 100', {
+      x: 0.5, y: 4.7, w: 9, h: 0.3,
+      fontSize: 8, color: CONFIG.colors.gray, italic: true
+    });
     
-    // ==========================================
-    // SLIDE 4: Facebook Posts by Interactions
-    // ==========================================
+    addFamefactIcon(slide3, 3);
+    
+    // ========================================
+    // SLIDE 4: Facebook Posts nach Interaktionen
+    // ========================================
     const slide4 = pptx.addSlide();
-    slide4.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide4.background = { color: CONFIG.colors.white };
     
-    slide4.addText('Posts nach Interaktionen', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide4.addText('Facebook', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide4.addText('Postings (Feed) nach Interaktionen', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const topFbPostsByInteractions = [...fbPosts]
-      .map(p => ({
-        ...p,
-        interactions: (p.reactions_total || 0) + (p.comments_total || 0)
-      }))
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 5);
+    const fbPostsByInteractions = [...fbPosts]
+      .filter(p => p.type !== 'video' && p.type !== 'VIDEO')
+      .map(p => ({ ...p, value: (p.reactions_total || 0) + (p.comments_total || 0) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
     
-    if (topFbPostsByInteractions.length > 0) {
-      // Add post images above the chart
-      const barStartX = 1.0;
-      const barWidth = 1.7;
-      await addPostImagesAboveBars(slide4, topFbPostsByInteractions, barStartX, barWidth, 0.9);
-      
-      // Create bar chart
-      const chartData = [{
-        name: 'Interaktionen',
-        labels: topFbPostsByInteractions.map((_, i) => `Post ${i + 1}`),
-        values: topFbPostsByInteractions.map(p => p.interactions),
-      }];
-      
-      slide4.addChart('bar', chartData, {
-        x: 0.5,
-        y: 1.7,
-        w: 9,
-        h: 3.0,
-        barDir: 'col',
-        chartColors: [ANDSKINCARE_CONFIG.colors.primary.replace('#', '')],
-        showValue: true,
-        dataLabelPosition: 'outEnd',
-        dataLabelFontSize: 11,
-        dataLabelColor: 'FFFFFF',
-        dataLabelFontBold: true,
-        catAxisLabelColor: 'FFFFFF',
-        valAxisLabelColor: 'FFFFFF',
-        catGridLine: { style: 'none' },
-        valGridLine: { color: ANDSKINCARE_CONFIG.colors.border },
-        valAxisHidden: true,
-      });
-      
-      // Add date labels
-      topFbPostsByInteractions.forEach((post, i) => {
-        const date = new Date(post.created_time);
-        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
-        slide4.addText(dateStr, {
-          x: barStartX + (i * barWidth),
-          y: 4.75,
-          w: barWidth,
-          h: 0.25,
-          fontSize: 9,
-          color: ANDSKINCARE_CONFIG.colors.textMuted,
-          align: 'center',
-        });
-      });
-    } else {
-      slide4.addText('Keine Post-Daten für diesen Monat verfügbar', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 0.5,
-        fontSize: 14,
-        color: '888888',
-        align: 'center',
+    createBarChartWithImages(slide4, fbPostsByInteractions, CONFIG.colors.green, 'Interaktionen', 1.3);
+    
+    // Carousel footnote
+    if (fbPostsByInteractions.some(p => p.type === 'carousel' || p.type === 'CAROUSEL_ALBUM')) {
+      slide4.addText('*Carousel Posting', {
+        x: 0.5, y: 4.8, w: 3, h: 0.25,
+        fontSize: 9, color: CONFIG.colors.black
       });
     }
     
-    addFamefactBranding(slide4);
+    addFamefactIcon(slide4, 4);
     
-    // ==========================================
-    // SLIDE 5: Facebook Videos by 3-Sec Views
-    // ==========================================
+    // ========================================
+    // SLIDE 5: Facebook Videos nach 3-Sek-Views
+    // ========================================
     const slide5 = pptx.addSlide();
-    slide5.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide5.background = { color: CONFIG.colors.white };
     
-    // Check if we have real video views data
-    const hasVideoViewsData = fbPosts.some(p => {
-      const type = (p.type || '').toLowerCase();
-      return (type === 'video' || type === 'reel') && p.video_3s_views && p.video_3s_views > 0;
+    slide5.addText('Facebook', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide5.addText('Postings (Feed) nach 3-sekündigen Videoplays', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    slide5.addText(hasVideoViewsData ? 'Videos nach 3-Sek-Aufrufen' : 'Videos nach Reichweite', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
-    });
-    
-    // Filter videos (check multiple types) - use reach as fallback if video_3s_views is 0
-    const fbVideoPosts = fbPosts
-      .filter(p => {
-        const type = (p.type || '').toLowerCase();
-        return type === 'video' || type === 'reel' || type.includes('video');
-      })
+    // Get videos - use reach as fallback if video_3s_views is 0
+    const fbVideos = [...fbPosts]
+      .filter(p => p.type === 'video' || p.type === 'VIDEO' || p.type === 'reel' || p.type === 'REEL')
       .map(p => ({ 
         ...p, 
-        videoMetric: (p.video_3s_views && p.video_3s_views > 0) ? p.video_3s_views : (p.reach || 0),
-        interactions: p.reactions_total + p.comments_total
+        value: (p.video_3s_views && p.video_3s_views > 0) ? p.video_3s_views : (p.reach || 0)
       }))
-      .sort((a, b) => b.videoMetric - a.videoMetric)
+      .filter(p => p.value > 0)
+      .sort((a, b) => b.value - a.value)
       .slice(0, 6);
     
-    if (fbVideoPosts.length > 0) {
-      const barStartX = 1.0;
-      const barWidth = 1.7;
-      await addPostImagesAboveBars(slide5, fbVideoPosts, barStartX, barWidth, 0.9);
-      
-      // Use videoMetric (video_3s_views or reach as fallback)
-      const hasRealVideoViews = fbVideoPosts.some(p => p.video_3s_views && p.video_3s_views > 0);
-      const videoChartData = [{
-        name: hasRealVideoViews ? '3-Sek-Aufrufe' : 'Reichweite',
-        labels: fbVideoPosts.map((_, i) => `Video ${i + 1}`),
-        values: fbVideoPosts.map(p => p.videoMetric),
-      }];
-      
-      slide5.addChart('bar', videoChartData, {
-        x: 0.5,
-        y: 1.7,
-        w: 9,
-        h: 3.0,
-        barDir: 'col',
-        chartColors: [ANDSKINCARE_CONFIG.colors.secondary.replace('#', '')],
-        showValue: true,
-        dataLabelPosition: 'outEnd',
-        dataLabelFontSize: 11,
-        dataLabelColor: 'FFFFFF',
-        dataLabelFontBold: true,
-        catAxisLabelColor: 'FFFFFF',
-        valAxisLabelColor: 'FFFFFF',
-        catGridLine: { style: 'none' },
-        valGridLine: { color: ANDSKINCARE_CONFIG.colors.border },
-        valAxisHidden: true,
-      });
-      
-      fbVideoPosts.forEach((post, i) => {
-        const date = new Date(post.created_time);
-        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
-        slide5.addText(dateStr, {
-          x: barStartX + (i * barWidth),
-          y: 4.75,
-          w: barWidth,
-          h: 0.25,
-          fontSize: 9,
-          color: ANDSKINCARE_CONFIG.colors.textMuted,
-          align: 'center',
-        });
-      });
-    } else {
-      slide5.addText('Keine Video-Daten für diesen Monat verfügbar', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 0.5,
-        fontSize: 14,
-        color: '888888',
-        align: 'center',
-      });
-    }
+    createBarChartWithImages(slide5, fbVideos, CONFIG.colors.purple, 'Video Views', 1.3);
     
-    addFamefactBranding(slide5);
+    addFamefactIcon(slide5, 5);
     
-    // ==========================================
-    // SLIDE 6: Facebook Top 3 Postings
-    // ==========================================
+    // ========================================
+    // SLIDE 6: Facebook Top Postings (2 large images)
+    // ========================================
     const slide6 = pptx.addSlide();
-    slide6.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide6.background = { color: CONFIG.colors.white };
     
-    slide6.addText('Top Postings Facebook', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide6.addText('Facebook', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide6.addText('Top Postings', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const top3FbPosts = topFbPostsByInteractions.slice(0, 3);
+    const topFbPosts = [...fbPosts]
+      .map(p => ({ ...p, interactions: (p.reactions_total || 0) + (p.comments_total || 0) }))
+      .sort((a, b) => b.interactions - a.interactions)
+      .slice(0, 2);
     
-    if (top3FbPosts.length > 0) {
-      top3FbPosts.forEach((post, i) => {
-        const yPos = 1.0 + (i * 1.5);
-        
-        // Post card background
-        slide6.addShape('rect', {
-          x: 0.5,
-          y: yPos,
-          w: 9,
-          h: 1.35,
-          fill: { color: ANDSKINCARE_CONFIG.colors.darkBg },
-          line: { color: ANDSKINCARE_CONFIG.colors.border, width: 1 },
-        });
-        
-        // Thumbnail placeholder
-        if (post.thumbnail_url) {
-          try {
-            slide6.addImage({
-              path: post.thumbnail_url,
-              x: 0.6,
-              y: yPos + 0.1,
-              w: 1.15,
-              h: 1.15,
-            });
-          } catch {
-            slide6.addShape('rect', {
-              x: 0.6,
-              y: yPos + 0.1,
-              w: 1.15,
-              h: 1.15,
-              fill: { color: '363652' },
-            });
-          }
-        } else {
-          slide6.addShape('rect', {
-            x: 0.6,
-            y: yPos + 0.1,
-            w: 1.15,
-            h: 1.15,
-            fill: { color: '363652' },
+    // 2 large images side by side
+    topFbPosts.forEach((post, idx) => {
+      const xPos = idx === 0 ? 0.8 : 5.2;
+      if (post.thumbnail_url) {
+        try {
+          slide6.addImage({
+            path: post.thumbnail_url,
+            x: xPos, y: 1.2, w: 4, h: 3.5,
           });
-          slide6.addText('📷', {
-            x: 0.6,
-            y: yPos + 0.1,
-            w: 1.15,
-            h: 1.15,
-            fontSize: 28,
-            align: 'center',
-            valign: 'middle',
-            color: '666666',
+        } catch {
+          slide6.addShape('rect', {
+            x: xPos, y: 1.2, w: 4, h: 3.5,
+            fill: { color: CONFIG.colors.lightGray },
+            line: { color: 'CCCCCC', width: 1 }
           });
         }
-        
-        // Rank badge
-        slide6.addShape('ellipse', {
-          x: 1.9,
-          y: yPos + 0.15,
-          w: 0.45,
-          h: 0.45,
-          fill: { color: ANDSKINCARE_CONFIG.colors.primary.replace('#', '') },
+      } else {
+        slide6.addShape('rect', {
+          x: xPos, y: 1.2, w: 4, h: 3.5,
+          fill: { color: CONFIG.colors.lightGray },
+          line: { color: 'CCCCCC', width: 1 }
         });
-        slide6.addText(`#${i + 1}`, {
-          x: 1.9,
-          y: yPos + 0.15,
-          w: 0.45,
-          h: 0.45,
-          fontSize: 13,
-          bold: true,
-          color: '1a1a2e',
-          align: 'center',
-          valign: 'middle',
-        });
-        
-        // Post message
-        const message = post.message 
-          ? post.message.substring(0, 120) + (post.message.length > 120 ? '...' : '') 
-          : 'Kein Text';
-        slide6.addText(message, {
-          x: 2.45,
-          y: yPos + 0.1,
-          w: 5.5,
-          h: 0.75,
-          fontSize: 9,
-          color: 'FFFFFF',
-        });
-        
-        // Metrics row
-        const date = new Date(post.created_time);
-        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
-        slide6.addText(`📅 ${dateStr}   👍 ${formatNumber(post.reactions_total)}   💬 ${formatNumber(post.comments_total)}   👁 ${formatNumber(post.reach || 0)}`, {
-          x: 2.45,
-          y: yPos + 0.9,
-          w: 5.5,
-          h: 0.35,
-          fontSize: 9,
-          color: ANDSKINCARE_CONFIG.colors.textMuted,
-        });
-        
-        // Interaction count
-        slide6.addText(formatNumber(post.interactions), {
-          x: 8.0,
-          y: yPos + 0.35,
-          w: 1.3,
-          h: 0.65,
-          fontSize: 22,
-          bold: true,
-          color: ANDSKINCARE_CONFIG.colors.primary.replace('#', ''),
-          align: 'center',
-        });
-      });
-    } else {
-      slide6.addText('Keine Post-Daten für diesen Monat verfügbar', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 0.5,
-        fontSize: 14,
-        color: '888888',
-        align: 'center',
-      });
-    }
+      }
+    });
     
-    addFamefactBranding(slide6);
+    addFamefactIcon(slide6, 6);
     
-    // ==========================================
-    // SLIDE 7: Facebook Demographics Placeholder
-    // ==========================================
+    // ========================================
+    // SLIDE 7: Facebook Demographie (Screenshot placeholder)
+    // ========================================
     const slide7 = pptx.addSlide();
-    slide7.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide7.background = { color: CONFIG.colors.white };
     
-    slide7.addText('Facebook Demographie', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide7.addText('Facebook', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide7.addText('Fans (Demographie)', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
     slide7.addShape('rect', {
-      x: 0.5,
-      y: 1.0,
-      w: 9,
-      h: 4.0,
-      fill: { color: ANDSKINCARE_CONFIG.colors.darkBg },
-      line: { color: ANDSKINCARE_CONFIG.colors.border, width: 1 },
+      x: 0.5, y: 1.2, w: 9, h: 3.6,
+      fill: { color: CONFIG.colors.lightGray },
+      line: { color: 'CCCCCC', width: 1 }
+    });
+    slide7.addText('Screenshot der Facebook Insights (Demographie) hier einfügen', {
+      x: 0.5, y: 2.8, w: 9, h: 0.4,
+      fontSize: 12, color: CONFIG.colors.gray, align: 'center'
     });
     
-    slide7.addText('Screenshot der Demographie-Daten hier einfügen\n(Alter & Geschlecht aus Facebook Insights)', {
-      x: 0.5,
-      y: 2.7,
-      w: 9,
-      h: 0.8,
-      fontSize: 14,
-      color: '888888',
-      align: 'center',
-    });
+    addFamefactIcon(slide7, 7);
     
-    addFamefactBranding(slide7);
-    
-    // ==========================================
-    // INSTAGRAM SLIDES (8-13)
-    // ==========================================
-    
-    // SLIDE 8: Instagram Analysis Placeholder
+    // ========================================
+    // SLIDE 8: Instagram Analyse
+    // ========================================
     const slide8 = pptx.addSlide();
-    slide8.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide8.background = { color: CONFIG.colors.white };
+    
+    // Instagram icon
+    slide8.addShape('ellipse', {
+      x: 4.5, y: 0.3, w: 0.8, h: 0.8,
+      line: { color: CONFIG.colors.black, width: 2 }
+    });
+    slide8.addShape('ellipse', {
+      x: 4.7, y: 0.5, w: 0.4, h: 0.4,
+      line: { color: CONFIG.colors.black, width: 1.5 }
+    });
     
     slide8.addText('Instagram Analyse', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.6,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+      x: 0, y: 1.2, w: '100%', h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black, align: 'center'
     });
-    
-    slide8.addText(ANDSKINCARE_CONFIG.instagramUrl, {
-      x: 0.5,
-      y: 0.85,
-      w: 9,
-      h: 0.35,
-      fontSize: 14,
-      color: ANDSKINCARE_CONFIG.colors.instagram,
+    slide8.addText(CONFIG.instagramHandle, {
+      x: 0, y: 1.7, w: '100%', h: 0.3,
+      fontSize: 14, color: CONFIG.colors.gray, align: 'center'
     });
     
     slide8.addShape('rect', {
-      x: 0.5,
-      y: 1.4,
-      w: 9,
-      h: 3.6,
-      fill: { color: ANDSKINCARE_CONFIG.colors.darkBg },
-      line: { color: ANDSKINCARE_CONFIG.colors.border, width: 1 },
+      x: 1, y: 2.1, w: 8, h: 2.8,
+      fill: { color: CONFIG.colors.lightGray },
+      line: { color: 'CCCCCC', width: 1 }
+    });
+    slide8.addText('Screenshot des Instagram-Profils hier einfügen', {
+      x: 1, y: 3.3, w: 8, h: 0.4,
+      fontSize: 12, color: CONFIG.colors.gray, align: 'center'
     });
     
-    slide8.addText('Screenshot der Instagram-Seite hier einfügen', {
-      x: 0.5,
-      y: 2.9,
-      w: 9,
-      h: 0.5,
-      fontSize: 14,
-      color: '888888',
-      align: 'center',
-    });
+    addFamefactIcon(slide8, 8);
     
-    addFamefactBranding(slide8);
-    
-    // SLIDE 9: Instagram KPI Table
+    // ========================================
+    // SLIDE 9: Instagram Kennzahlen
+    // ========================================
     const slide9 = pptx.addSlide();
-    slide9.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide9.background = { color: CONFIG.colors.white };
     
-    slide9.addText('Instagram Kennzahlen', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.6,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide9.addText('Instagram', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide9.addText('Kennzahlen', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const igTableData = createKPITable(igKpis, months, 'instagram');
-    
-    slide9.addTable(igTableData, {
-      x: 0.5,
-      y: 1.1,
-      w: 9,
-      colW: [2.5, 2.17, 2.17, 2.16],
-      fontSize: 10,
-      border: { type: 'solid', color: ANDSKINCARE_CONFIG.colors.border, pt: 0.5 },
+    const igTable = createInstagramKPITable(igKpis);
+    slide9.addTable(igTable, {
+      x: 0.5, y: 1.2, w: 9,
+      colW: [3, 2, 2, 2],
+      border: { type: 'solid', color: 'CCCCCC', pt: 0.5 },
     });
     
-    addFamefactBranding(slide9);
+    addFamefactIcon(slide9, 9);
     
-    // SLIDE 10: Instagram Posts by Interactions
+    // ========================================
+    // SLIDE 10: Instagram Posts nach Interaktionen
+    // ========================================
     const slide10 = pptx.addSlide();
-    slide10.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide10.background = { color: CONFIG.colors.white };
     
-    slide10.addText('Instagram Posts nach Interaktionen', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide10.addText('Instagram', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide10.addText('Postings (Feed) nach Interaktionen', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const topIgPostsByInteractions = [...igPosts]
-      .map(p => ({
-        ...p,
-        interactions: (p.reactions_total || 0) + (p.comments_total || 0)
-      }))
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 5);
+    const igPostsByInteractions = [...igPosts]
+      .filter(p => p.type !== 'VIDEO' && p.type !== 'REEL')
+      .map(p => ({ ...p, value: (p.reactions_total || 0) + (p.comments_total || 0) + (p.saves || 0) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 9);
     
-    if (topIgPostsByInteractions.length > 0) {
-      const barStartX = 1.0;
-      const barWidth = 1.7;
-      await addPostImagesAboveBars(slide10, topIgPostsByInteractions, barStartX, barWidth, 0.9);
-      
-      const chartData = [{
-        name: 'Interaktionen',
-        labels: topIgPostsByInteractions.map((_, i) => `Post ${i + 1}`),
-        values: topIgPostsByInteractions.map(p => p.interactions),
-      }];
-      
-      slide10.addChart('bar', chartData, {
-        x: 0.5,
-        y: 1.7,
-        w: 9,
-        h: 3.0,
-        barDir: 'col',
-        chartColors: [ANDSKINCARE_CONFIG.colors.instagram.replace('#', '')],
-        showValue: true,
-        dataLabelPosition: 'outEnd',
-        dataLabelFontSize: 11,
-        dataLabelColor: 'FFFFFF',
-        dataLabelFontBold: true,
-        catAxisLabelColor: 'FFFFFF',
-        valAxisLabelColor: 'FFFFFF',
-        catGridLine: { style: 'none' },
-        valGridLine: { color: ANDSKINCARE_CONFIG.colors.border },
-        valAxisHidden: true,
-      });
-      
-      topIgPostsByInteractions.forEach((post, i) => {
-        const date = new Date(post.created_time);
-        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
-        slide10.addText(dateStr, {
-          x: barStartX + (i * barWidth),
-          y: 4.75,
-          w: barWidth,
-          h: 0.25,
-          fontSize: 9,
-          color: ANDSKINCARE_CONFIG.colors.textMuted,
-          align: 'center',
-        });
-      });
-    } else {
-      slide10.addText('Keine Instagram Post-Daten für diesen Monat verfügbar', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 0.5,
-        fontSize: 14,
-        color: '888888',
-        align: 'center',
+    createBarChartWithImages(slide10, igPostsByInteractions, CONFIG.colors.green, 'Interaktionen', 1.3);
+    
+    if (igPostsByInteractions.some(p => p.type === 'CAROUSEL_ALBUM')) {
+      slide10.addText('*Carousel Posting', {
+        x: 0.5, y: 4.8, w: 3, h: 0.25,
+        fontSize: 9, color: CONFIG.colors.black
       });
     }
     
-    addFamefactBranding(slide10);
+    addFamefactIcon(slide10, 10);
     
-    // SLIDE 11: Instagram Reels by Views
+    // ========================================
+    // SLIDE 11: Instagram Reels nach Videoplays
+    // ========================================
     const slide11 = pptx.addSlide();
-    slide11.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide11.background = { color: CONFIG.colors.white };
     
-    slide11.addText('Instagram Reels nach Views', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide11.addText('Instagram', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide11.addText('Postings nach Videoplays', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const igReels = igPosts
-      .filter(p => {
-        const type = (p.type || '').toLowerCase();
-        return (type === 'video' || type === 'reel' || type.includes('reel')) && 
-               p.video_3s_views && p.video_3s_views > 0;
-      })
-      .map(p => ({ ...p, interactions: p.video_3s_views || 0 }))
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 5);
+    const igReels = [...igPosts]
+      .filter(p => p.type === 'VIDEO' || p.type === 'REEL')
+      .map(p => ({ ...p, value: p.video_3s_views || p.reach || 0 }))
+      .filter(p => p.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
     
-    if (igReels.length > 0) {
-      const barStartX = 1.0;
-      const barWidth = 1.7;
-      await addPostImagesAboveBars(slide11, igReels, barStartX, barWidth, 0.9);
-      
-      const reelChartData = [{
-        name: 'Views',
-        labels: igReels.map((_, i) => `Reel ${i + 1}`),
-        values: igReels.map(p => p.video_3s_views || 0),
-      }];
-      
-      slide11.addChart('bar', reelChartData, {
-        x: 0.5,
-        y: 1.7,
-        w: 9,
-        h: 3.0,
-        barDir: 'col',
-        chartColors: ['9B59B6'],
-        showValue: true,
-        dataLabelPosition: 'outEnd',
-        dataLabelFontSize: 11,
-        dataLabelColor: 'FFFFFF',
-        dataLabelFontBold: true,
-        catAxisLabelColor: 'FFFFFF',
-        valAxisLabelColor: 'FFFFFF',
-        catGridLine: { style: 'none' },
-        valGridLine: { color: ANDSKINCARE_CONFIG.colors.border },
-        valAxisHidden: true,
-      });
-      
-      igReels.forEach((post, i) => {
-        const date = new Date(post.created_time);
-        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
-        slide11.addText(dateStr, {
-          x: barStartX + (i * barWidth),
-          y: 4.75,
-          w: barWidth,
-          h: 0.25,
-          fontSize: 9,
-          color: ANDSKINCARE_CONFIG.colors.textMuted,
-          align: 'center',
-        });
-      });
-    } else {
-      slide11.addText('Keine Instagram Reel-Daten für diesen Monat verfügbar', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 0.5,
-        fontSize: 14,
-        color: '888888',
-        align: 'center',
-      });
-    }
+    createBarChartWithImages(slide11, igReels, CONFIG.colors.purple, 'Video Views', 1.3);
     
-    addFamefactBranding(slide11);
+    addFamefactIcon(slide11, 11);
     
-    // SLIDE 12: Instagram Top 3 Postings
+    // ========================================
+    // SLIDE 12: Instagram Top Postings (2 large images)
+    // ========================================
     const slide12 = pptx.addSlide();
-    slide12.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide12.background = { color: CONFIG.colors.white };
     
-    slide12.addText('Top Postings Instagram', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide12.addText('Instagram', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide12.addText('Top Postings', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
-    const top3IgPosts = topIgPostsByInteractions.slice(0, 3);
+    const topIgPosts = [...igPosts]
+      .map(p => ({ ...p, interactions: (p.reactions_total || 0) + (p.comments_total || 0) }))
+      .sort((a, b) => b.interactions - a.interactions)
+      .slice(0, 2);
     
-    if (top3IgPosts.length > 0) {
-      top3IgPosts.forEach((post, i) => {
-        const yPos = 1.0 + (i * 1.5);
-        
-        slide12.addShape('rect', {
-          x: 0.5,
-          y: yPos,
-          w: 9,
-          h: 1.35,
-          fill: { color: ANDSKINCARE_CONFIG.colors.darkBg },
-          line: { color: ANDSKINCARE_CONFIG.colors.border, width: 1 },
-        });
-        
-        if (post.thumbnail_url) {
-          try {
-            slide12.addImage({
-              path: post.thumbnail_url,
-              x: 0.6,
-              y: yPos + 0.1,
-              w: 1.15,
-              h: 1.15,
-            });
-          } catch {
-            slide12.addShape('rect', {
-              x: 0.6,
-              y: yPos + 0.1,
-              w: 1.15,
-              h: 1.15,
-              fill: { color: '363652' },
-            });
-          }
-        } else {
+    topIgPosts.forEach((post, idx) => {
+      const xPos = idx === 0 ? 0.8 : 5.2;
+      if (post.thumbnail_url) {
+        try {
+          slide12.addImage({
+            path: post.thumbnail_url,
+            x: xPos, y: 1.2, w: 4, h: 3.5,
+          });
+        } catch {
           slide12.addShape('rect', {
-            x: 0.6,
-            y: yPos + 0.1,
-            w: 1.15,
-            h: 1.15,
-            fill: { color: '363652' },
+            x: xPos, y: 1.2, w: 4, h: 3.5,
+            fill: { color: CONFIG.colors.lightGray },
+            line: { color: 'CCCCCC', width: 1 }
           });
         }
-        
-        slide12.addShape('ellipse', {
-          x: 1.9,
-          y: yPos + 0.15,
-          w: 0.45,
-          h: 0.45,
-          fill: { color: ANDSKINCARE_CONFIG.colors.instagram.replace('#', '') },
+      } else {
+        slide12.addShape('rect', {
+          x: xPos, y: 1.2, w: 4, h: 3.5,
+          fill: { color: CONFIG.colors.lightGray },
+          line: { color: 'CCCCCC', width: 1 }
         });
-        slide12.addText(`#${i + 1}`, {
-          x: 1.9,
-          y: yPos + 0.15,
-          w: 0.45,
-          h: 0.45,
-          fontSize: 13,
-          bold: true,
-          color: 'FFFFFF',
-          align: 'center',
-          valign: 'middle',
-        });
-        
-        const message = post.message 
-          ? post.message.substring(0, 120) + (post.message.length > 120 ? '...' : '') 
-          : 'Kein Text';
-        slide12.addText(message, {
-          x: 2.45,
-          y: yPos + 0.1,
-          w: 5.5,
-          h: 0.75,
-          fontSize: 9,
-          color: 'FFFFFF',
-        });
-        
-        const date = new Date(post.created_time);
-        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
-        slide12.addText(`📅 ${dateStr}   ❤️ ${formatNumber(post.reactions_total)}   💬 ${formatNumber(post.comments_total)}   👁 ${formatNumber(post.reach || 0)}`, {
-          x: 2.45,
-          y: yPos + 0.9,
-          w: 5.5,
-          h: 0.35,
-          fontSize: 9,
-          color: ANDSKINCARE_CONFIG.colors.textMuted,
-        });
-        
-        slide12.addText(formatNumber(post.interactions), {
-          x: 8.0,
-          y: yPos + 0.35,
-          w: 1.3,
-          h: 0.65,
-          fontSize: 22,
-          bold: true,
-          color: ANDSKINCARE_CONFIG.colors.instagram.replace('#', ''),
-          align: 'center',
-        });
-      });
-    } else {
-      slide12.addText('Keine Instagram Post-Daten für diesen Monat verfügbar', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 0.5,
-        fontSize: 14,
-        color: '888888',
-        align: 'center',
-      });
-    }
+      }
+    });
     
-    addFamefactBranding(slide12);
+    addFamefactIcon(slide12, 12);
     
-    // SLIDE 13: Instagram Demographics Placeholder
+    // ========================================
+    // SLIDE 13: Instagram Demographie
+    // ========================================
     const slide13 = pptx.addSlide();
-    slide13.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide13.background = { color: CONFIG.colors.white };
     
-    slide13.addText('Instagram Demographie', {
-      x: 0.5,
-      y: 0.3,
-      w: 9,
-      h: 0.5,
-      fontSize: 28,
-      bold: true,
-      color: 'FFFFFF',
+    slide13.addText('Instagram', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide13.addText('Follower (Demographie)', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray
     });
     
     slide13.addShape('rect', {
-      x: 0.5,
-      y: 1.0,
-      w: 9,
-      h: 4.0,
-      fill: { color: ANDSKINCARE_CONFIG.colors.darkBg },
-      line: { color: ANDSKINCARE_CONFIG.colors.border, width: 1 },
+      x: 0.5, y: 1.2, w: 9, h: 3.6,
+      fill: { color: CONFIG.colors.lightGray },
+      line: { color: 'CCCCCC', width: 1 }
+    });
+    slide13.addText('Screenshot der Instagram Insights (Demographie) hier einfügen', {
+      x: 0.5, y: 2.8, w: 9, h: 0.4,
+      fontSize: 12, color: CONFIG.colors.gray, align: 'center'
     });
     
-    slide13.addText('Screenshot der Demographie-Daten hier einfügen\n(Alter & Geschlecht aus Instagram Insights)', {
-      x: 0.5,
-      y: 2.7,
-      w: 9,
-      h: 0.8,
-      fontSize: 14,
-      color: '888888',
-      align: 'center',
-    });
+    addFamefactIcon(slide13, 13);
     
-    addFamefactBranding(slide13);
-    
-    // ==========================================
-    // SLIDE 14: Outro / Contact
-    // ==========================================
+    // ========================================
+    // SLIDE 14: Zusammenfassung
+    // ========================================
     const slide14 = pptx.addSlide();
-    slide14.background = { color: ANDSKINCARE_CONFIG.colors.background };
+    slide14.background = { color: CONFIG.colors.white };
     
-    slide14.addText('Vielen Dank!', {
-      x: 0,
-      y: 1.5,
-      w: '100%',
-      h: 0.8,
-      fontSize: 40,
-      bold: true,
-      color: 'FFFFFF',
-      align: 'center',
+    slide14.addText('Facebook / Instagram', {
+      x: 0.5, y: 0.3, w: 9, h: 0.5,
+      fontSize: 28, bold: true, color: CONFIG.colors.black
+    });
+    slide14.addText('Zusammenfassung', {
+      x: 0.5, y: 0.75, w: 9, h: 0.35,
+      fontSize: 16, color: CONFIG.colors.gray, italic: true
     });
     
-    slide14.addText('Bei Fragen stehen wir Ihnen gerne zur Verfügung.', {
-      x: 0,
-      y: 2.5,
-      w: '100%',
-      h: 0.5,
-      fontSize: 16,
-      color: ANDSKINCARE_CONFIG.colors.textMuted,
-      align: 'center',
+    // Facebook summary
+    const fbCurrentKpi = fbKpis[2];
+    const fbPrevKpi = fbKpis[1];
+    slide14.addText('Facebook:', {
+      x: 0.8, y: 1.3, w: 9, h: 0.3,
+      fontSize: 12, bold: true, color: CONFIG.colors.black
     });
     
-    slide14.addText('famefact GmbH\nSocial Media Agentur Berlin', {
-      x: 0,
-      y: 3.3,
-      w: '100%',
-      h: 0.8,
-      fontSize: 14,
-      color: ANDSKINCARE_CONFIG.colors.primary.replace('#', ''),
-      align: 'center',
+    const fbReachChange = fbPrevKpi.total_reach > 0 
+      ? ((fbCurrentKpi.total_reach - fbPrevKpi.total_reach) / fbPrevKpi.total_reach * 100).toFixed(0)
+      : '0';
+    const fbBullets = [
+      `Reichweite ${parseInt(fbReachChange) >= 0 ? 'steigt' : 'sinkt'} auf ${formatNumber(fbCurrentKpi.total_reach)} (${parseInt(fbReachChange) >= 0 ? '+' : ''}${fbReachChange}% ggü. ${getShortMonthName(fbPrevKpi.month)})`,
+      `${fbCurrentKpi.posts_count} Postings im ${getShortMonthName(fbCurrentKpi.month)}`,
+      `Interaktionsrate: ${fbCurrentKpi.engagement_rate.toFixed(2).replace('.', ',')}%`,
+    ];
+    
+    fbBullets.forEach((text, idx) => {
+      slide14.addText('●  ' + text, {
+        x: 1, y: 1.6 + idx * 0.35, w: 8.5, h: 0.3,
+        fontSize: 11, color: CONFIG.colors.black
+      });
     });
     
-    slide14.addText('www.famefact.com', {
-      x: 0,
-      y: 4.2,
-      w: '100%',
-      h: 0.4,
-      fontSize: 12,
-      color: ANDSKINCARE_CONFIG.colors.textMuted,
-      align: 'center',
+    // Instagram summary
+    const igCurrentKpi = igKpis[2];
+    const igPrevKpi = igKpis[1];
+    slide14.addText('Instagram:', {
+      x: 0.8, y: 2.8, w: 9, h: 0.3,
+      fontSize: 12, bold: true, color: CONFIG.colors.black
     });
     
-    addFamefactBranding(slide14);
+    const igReachChange = igPrevKpi.total_reach > 0 
+      ? ((igCurrentKpi.total_reach - igPrevKpi.total_reach) / igPrevKpi.total_reach * 100).toFixed(0)
+      : '0';
+    const igBullets = [
+      `Follower-Wachstum: ${igCurrentKpi.new_followers >= 0 ? '+' : ''}${igCurrentKpi.new_followers} neue Follower`,
+      `Reichweite: ${formatNumber(igCurrentKpi.total_reach)} (${parseInt(igReachChange) >= 0 ? '+' : ''}${igReachChange}% ggü. ${getShortMonthName(igPrevKpi.month)})`,
+      `Reels bleiben wichtiger Treiber für Reichweite und Sichtbarkeit`,
+    ];
     
-    // Generate the PPTX
-    const pptxBuffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+    igBullets.forEach((text, idx) => {
+      slide14.addText('●  ' + text, {
+        x: 1, y: 3.1 + idx * 0.35, w: 8.5, h: 0.3,
+        fontSize: 11, color: CONFIG.colors.black
+      });
+    });
     
-    return new NextResponse(pptxBuffer, {
+    // Gesamtfazit
+    slide14.addText('Gesamtfazit ' + getShortMonthName(month) + ':', {
+      x: 0.5, y: 4.2, w: 9, h: 0.3,
+      fontSize: 11, bold: true, color: CONFIG.colors.black
+    });
+    slide14.addText(
+      `Der ${getShortMonthName(month)} zeigt eine stabile Performance auf beiden Plattformen. ` +
+      `Die organische Basis bleibt solide und bietet eine gute Ausgangslage für neue Impulse und Kampagnen.`,
+      {
+        x: 0.5, y: 4.5, w: 9, h: 0.6,
+        fontSize: 10, color: CONFIG.colors.black
+      }
+    );
+    
+    addFamefactIcon(slide14, 14);
+    
+    // ========================================
+    // SLIDE 15: Outro (black background)
+    // ========================================
+    const slide15 = pptx.addSlide();
+    slide15.background = { color: CONFIG.colors.black };
+    
+    // famefact logo (white)
+    slide15.addText('famefact.', {
+      x: 0.5, y: 0.4, w: 2.5, h: 0.5,
+      fontSize: 22, bold: true, color: CONFIG.colors.white, fontFace: 'Arial'
+    });
+    
+    // Contact photo placeholder
+    slide15.addShape('rect', {
+      x: 0.5, y: 1.2, w: 2.5, h: 2.8,
+      fill: { color: '333333' },
+      line: { color: '555555', width: 1 }
+    });
+    slide15.addText('Foto', {
+      x: 0.5, y: 2.4, w: 2.5, h: 0.4,
+      fontSize: 12, color: CONFIG.colors.gray, align: 'center'
+    });
+    
+    // Contact info
+    slide15.addText(CONFIG.contact.name, {
+      x: 0.5, y: 4.1, w: 4, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.white
+    });
+    slide15.addText(CONFIG.contact.title, {
+      x: 0.5, y: 4.4, w: 4, h: 0.25,
+      fontSize: 11, color: CONFIG.colors.white
+    });
+    
+    slide15.addText('famefact', {
+      x: 0.5, y: 4.85, w: 4, h: 0.35,
+      fontSize: 16, bold: true, color: CONFIG.colors.white
+    });
+    slide15.addText('FIRST IN SOCIALTAINMENT', {
+      x: 0.5, y: 5.15, w: 4, h: 0.25,
+      fontSize: 9, color: CONFIG.colors.white, charSpacing: 2
+    });
+    
+    slide15.addText(CONFIG.contact.company, {
+      x: 0.5, y: 5.55, w: 4, h: 0.2,
+      fontSize: 9, color: CONFIG.colors.white
+    });
+    slide15.addText(CONFIG.contact.address, {
+      x: 0.5, y: 5.75, w: 4, h: 0.2,
+      fontSize: 9, color: CONFIG.colors.white
+    });
+    slide15.addText(CONFIG.contact.city, {
+      x: 0.5, y: 5.95, w: 4, h: 0.2,
+      fontSize: 9, color: CONFIG.colors.white
+    });
+    
+    slide15.addText('E-Mail: ' + CONFIG.contact.email, {
+      x: 0.5, y: 6.3, w: 4, h: 0.2,
+      fontSize: 9, color: CONFIG.colors.white
+    });
+    slide15.addText('Tel.: ' + CONFIG.contact.phone, {
+      x: 0.5, y: 6.5, w: 4, h: 0.2,
+      fontSize: 9, color: CONFIG.colors.white
+    });
+    
+    // famefact graphic (right side)
+    slide15.addShape('rect', {
+      x: 7, y: 0.5, w: 2.5, h: 2.5,
+      fill: { color: CONFIG.colors.green },
+      rotate: 45
+    });
+    slide15.addShape('rect', {
+      x: 7.8, y: 1.5, w: 2, h: 2,
+      fill: { color: CONFIG.colors.purple },
+      rotate: 45
+    });
+    
+    // Generate file
+    const buffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
+    
+    return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'Content-Disposition': `attachment; filename="${ANDSKINCARE_CONFIG.customerName}_Report_${month}.pptx"`,
+        'Content-Disposition': `attachment; filename="${CONFIG.customerSlug}_Report_${month}.pptx"`,
       },
     });
     
   } catch (error) {
-    console.error('Error generating ANDskincare report:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate report', 
-      details: String(error) 
-    }, { status: 500 });
+    console.error('Error generating report:', error);
+    return NextResponse.json({ error: 'Failed to generate report', details: String(error) }, { status: 500 });
   }
 }
