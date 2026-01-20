@@ -763,7 +763,13 @@ export async function GET(request: NextRequest) {
     const slide5 = pptx.addSlide();
     slide5.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide5.addText('Videos nach 3-Sek-Aufrufen', {
+    // Check if we have real video views data
+    const hasVideoViewsData = fbPosts.some(p => {
+      const type = (p.type || '').toLowerCase();
+      return (type === 'video' || type === 'reel') && p.video_3s_views && p.video_3s_views > 0;
+    });
+    
+    slide5.addText(hasVideoViewsData ? 'Videos nach 3-Sek-Aufrufen' : 'Videos nach Reichweite', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -773,26 +779,30 @@ export async function GET(request: NextRequest) {
       color: 'FFFFFF',
     });
     
-    // Filter videos (check multiple types)
+    // Filter videos (check multiple types) - use reach as fallback if video_3s_views is 0
     const fbVideoPosts = fbPosts
       .filter(p => {
         const type = (p.type || '').toLowerCase();
-        return (type === 'video' || type === 'reel' || type.includes('video')) && 
-               p.video_3s_views && p.video_3s_views > 0;
+        return type === 'video' || type === 'reel' || type.includes('video');
       })
-      .map(p => ({ ...p, interactions: p.video_3s_views || 0 }))
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 5);
+      .map(p => ({ 
+        ...p, 
+        videoMetric: (p.video_3s_views && p.video_3s_views > 0) ? p.video_3s_views : (p.reach || 0)
+      }))
+      .sort((a, b) => b.videoMetric - a.videoMetric)
+      .slice(0, 6);
     
     if (fbVideoPosts.length > 0) {
       const barStartX = 1.0;
       const barWidth = 1.7;
       await addPostImagesAboveBars(slide5, fbVideoPosts, barStartX, barWidth, 0.9);
       
+      // Use videoMetric (video_3s_views or reach as fallback)
+      const hasRealVideoViews = fbVideoPosts.some(p => p.video_3s_views && p.video_3s_views > 0);
       const videoChartData = [{
-        name: '3-Sek-Aufrufe',
+        name: hasRealVideoViews ? '3-Sek-Aufrufe' : 'Reichweite',
         labels: fbVideoPosts.map((_, i) => `Video ${i + 1}`),
-        values: fbVideoPosts.map(p => p.video_3s_views || 0),
+        values: fbVideoPosts.map(p => p.videoMetric),
       }];
       
       slide5.addChart('bar', videoChartData, {
