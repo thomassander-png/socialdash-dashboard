@@ -5,8 +5,7 @@ import PptxGenJS from 'pptxgenjs';
 // ANDskincare specific configuration
 const ANDSKINCARE_CONFIG = {
   customerName: 'ANDskincare',
-  pageId: '103168941408498', // ANDskincare Facebook Page ID
-  igAccountId: '17841403195498656', // ANDskincare Instagram Account ID
+  customerSlug: 'andskincare', // Used for database lookup
   colors: {
     primary: '#A8D65C', // Green for posts
     secondary: '#9B59B6', // Purple for videos
@@ -43,9 +42,26 @@ interface MonthlyKPI {
   engagement_rate: number;
 }
 
-async function getFacebookPosts(month: string): Promise<PostData[]> {
+// Get the page IDs for ANDskincare from the database
+async function getPageIds(): Promise<string[]> {
+  const result = await query<{ account_id: string }>(`
+    SELECT ca.account_id 
+    FROM customer_accounts ca 
+    JOIN customers c ON ca.customer_id = c.customer_id 
+    WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1) 
+      AND ca.platform = 'facebook'
+  `, [ANDSKINCARE_CONFIG.customerSlug]);
+  
+  return result.map(r => r.account_id);
+}
+
+async function getFacebookPosts(month: string, pageIds: string[]): Promise<PostData[]> {
+  if (pageIds.length === 0) return [];
+  
   const startDate = `${month}-01`;
-  const endDate = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).toISOString().split('T')[0];
+  
+  // Create placeholders for page IDs
+  const placeholders = pageIds.map((_, i) => `$${i + 3}`).join(', ');
   
   const posts = await query<PostData>(`
     SELECT 
@@ -68,17 +84,32 @@ async function getFacebookPosts(month: string): Promise<PostData[]> {
       ORDER BY snapshot_time DESC 
       LIMIT 1
     ) m ON true
-    WHERE p.page_id = $1
-      AND p.created_time >= $2
-      AND p.created_time < $3::date + interval '1 month'
+    WHERE p.page_id IN (${placeholders})
+      AND p.created_time >= $1
+      AND p.created_time < $2::date + interval '1 month'
     ORDER BY p.created_time DESC
-  `, [ANDSKINCARE_CONFIG.pageId, startDate, startDate]);
+  `, [startDate, startDate, ...pageIds]);
   
   return posts;
 }
 
-async function getMonthlyKPIs(months: string[]): Promise<MonthlyKPI[]> {
+async function getMonthlyKPIs(months: string[], pageIds: string[]): Promise<MonthlyKPI[]> {
+  if (pageIds.length === 0) {
+    return months.map(month => ({
+      month,
+      posts_count: 0,
+      total_reactions: 0,
+      total_comments: 0,
+      total_reach: 0,
+      total_impressions: 0,
+      total_video_views: 0,
+      avg_reach: 0,
+      engagement_rate: 0,
+    }));
+  }
+  
   const kpis: MonthlyKPI[] = [];
+  const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
   
   for (const month of months) {
     const startDate = `${month}-01`;
@@ -105,10 +136,10 @@ async function getMonthlyKPIs(months: string[]): Promise<MonthlyKPI[]> {
         ORDER BY snapshot_time DESC 
         LIMIT 1
       ) m ON true
-      WHERE p.page_id = $1
-        AND p.created_time >= $2::date
-        AND p.created_time < $2::date + interval '1 month'
-    `, [ANDSKINCARE_CONFIG.pageId, startDate]);
+      WHERE p.page_id IN (${placeholders})
+        AND p.created_time >= $1::date
+        AND p.created_time < $1::date + interval '1 month'
+    `, [startDate, ...pageIds]);
     
     const data = result[0];
     const postsCount = parseInt(data.posts_count) || 0;
@@ -150,8 +181,13 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
     
+    // Get page IDs for ANDskincare from database
+    const pageIds = await getPageIds();
+    console.log('ANDskincare Page IDs:', pageIds);
+    
     // Get data
-    const posts = await getFacebookPosts(month);
+    const posts = await getFacebookPosts(month, pageIds);
+    console.log('Posts found:', posts.length);
     
     // Calculate previous months for KPI comparison
     const currentDate = new Date(month + '-01');
@@ -166,7 +202,8 @@ export async function GET(request: NextRequest) {
       month
     ];
     
-    const kpis = await getMonthlyKPIs(months);
+    const kpis = await getMonthlyKPIs(months, pageIds);
+    console.log('KPIs:', kpis);
     
     // Create PowerPoint
     const pptx = new PptxGenJS();
@@ -252,7 +289,7 @@ export async function GET(request: NextRequest) {
     const slide2 = pptx.addSlide();
     slide2.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide2.addText('📘 Facebook Analyse', {
+    slide2.addText('Facebook Analyse', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -294,7 +331,7 @@ export async function GET(request: NextRequest) {
     const slide3 = pptx.addSlide();
     slide3.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide3.addText('📊 Facebook Kennzahlen', {
+    slide3.addText('Facebook Kennzahlen', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -305,48 +342,48 @@ export async function GET(request: NextRequest) {
     });
     
     // KPI Table
-    const tableData = [
+    const tableData: PptxGenJS.TableRow[] = [
       [
-        { text: 'Kennzahl', options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF' } },
-        { text: getMonthName(months[0]), options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF' } },
-        { text: getMonthName(months[1]), options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF' } },
-        { text: getMonthName(months[2]), options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF' } },
+        { text: 'Kennzahl', options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF', align: 'center' } },
+        { text: getMonthName(months[0]), options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF', align: 'center' } },
+        { text: getMonthName(months[1]), options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF', align: 'center' } },
+        { text: getMonthName(months[2]), options: { bold: true, fill: { color: '2ECC71' }, color: 'FFFFFF', align: 'center' } },
       ],
       [
-        { text: 'Beiträge', options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: kpis[0]?.posts_count.toString() || '0', options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: kpis[1]?.posts_count.toString() || '0', options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: kpis[2]?.posts_count.toString() || '0', options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
+        { text: 'Beiträge', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: kpis[0]?.posts_count.toString() || '0', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: kpis[1]?.posts_count.toString() || '0', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: kpis[2]?.posts_count.toString() || '0', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
       ],
       [
-        { text: 'Reaktionen', options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[0]?.total_reactions || 0), options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[1]?.total_reactions || 0), options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[2]?.total_reactions || 0), options: { fill: { color: '363652' }, color: 'FFFFFF' } },
+        { text: 'Reaktionen', options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[0]?.total_reactions || 0), options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[1]?.total_reactions || 0), options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[2]?.total_reactions || 0), options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
       ],
       [
-        { text: 'Kommentare', options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[0]?.total_comments || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[1]?.total_comments || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[2]?.total_comments || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
+        { text: 'Kommentare', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[0]?.total_comments || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[1]?.total_comments || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[2]?.total_comments || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
       ],
       [
-        { text: 'Reichweite', options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[0]?.total_reach || 0), options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[1]?.total_reach || 0), options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[2]?.total_reach || 0), options: { fill: { color: '363652' }, color: 'FFFFFF' } },
+        { text: 'Reichweite', options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[0]?.total_reach || 0), options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[1]?.total_reach || 0), options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[2]?.total_reach || 0), options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
       ],
       [
-        { text: 'Ø Reichweite/Post', options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[0]?.avg_reach || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[1]?.avg_reach || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
-        { text: formatNumber(kpis[2]?.avg_reach || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF' } },
+        { text: 'Ø Reichweite/Post', options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[0]?.avg_reach || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[1]?.avg_reach || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
+        { text: formatNumber(kpis[2]?.avg_reach || 0), options: { fill: { color: '2D2D44' }, color: 'FFFFFF', align: 'center' } },
       ],
       [
-        { text: 'Engagement Rate', options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: (kpis[0]?.engagement_rate || 0).toFixed(2) + '%', options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: (kpis[1]?.engagement_rate || 0).toFixed(2) + '%', options: { fill: { color: '363652' }, color: 'FFFFFF' } },
-        { text: (kpis[2]?.engagement_rate || 0).toFixed(2) + '%', options: { fill: { color: '363652' }, color: 'FFFFFF' } },
+        { text: 'Engagement Rate', options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: (kpis[0]?.engagement_rate || 0).toFixed(2) + '%', options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: (kpis[1]?.engagement_rate || 0).toFixed(2) + '%', options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
+        { text: (kpis[2]?.engagement_rate || 0).toFixed(2) + '%', options: { fill: { color: '363652' }, color: 'FFFFFF', align: 'center' } },
       ],
     ];
     
@@ -354,18 +391,16 @@ export async function GET(request: NextRequest) {
       x: 0.5,
       y: 1.2,
       w: 9,
-      colW: [2.5, 2.2, 2.2, 2.1],
+      colW: [2.5, 2.17, 2.17, 2.16],
       fontSize: 12,
-      align: 'center',
-      valign: 'middle',
-      border: { type: 'solid', color: '444466', pt: 1 },
+      border: { type: 'solid', color: '444466', pt: 0.5 },
     });
     
     // Slide 4: Posts by Interactions (Bar Chart)
     const slide4 = pptx.addSlide();
     slide4.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide4.addText('📊 Posts nach Interaktionen', {
+    slide4.addText('Posts nach Interaktionen', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -375,64 +410,71 @@ export async function GET(request: NextRequest) {
       color: 'FFFFFF',
     });
     
-    // Sort posts by interactions and take top 5
+    // Sort posts by interactions and get top 5
     const topPostsByInteractions = [...posts]
-      .sort((a, b) => (b.reactions_total + b.comments_total) - (a.reactions_total + a.comments_total))
+      .map(p => ({
+        ...p,
+        interactions: (p.reactions_total || 0) + (p.comments_total || 0)
+      }))
+      .sort((a, b) => b.interactions - a.interactions)
       .slice(0, 5);
     
-    // Draw bar chart
-    const barStartX = 0.8;
-    const barStartY = 4.5;
-    const barWidth = 1.5;
-    const barSpacing = 0.3;
-    const maxInteractions = Math.max(...topPostsByInteractions.map(p => p.reactions_total + p.comments_total), 1);
-    const maxBarHeight = 2.5;
-    
-    topPostsByInteractions.forEach((post, i) => {
-      const interactions = post.reactions_total + post.comments_total;
-      const barHeight = (interactions / maxInteractions) * maxBarHeight;
-      const barX = barStartX + (i * (barWidth + barSpacing));
-      const barY = barStartY - barHeight;
+    if (topPostsByInteractions.length > 0) {
+      // Create bar chart data
+      const chartData = [{
+        name: 'Interaktionen',
+        labels: topPostsByInteractions.map((_, i) => `Post ${i + 1}`),
+        values: topPostsByInteractions.map(p => p.interactions),
+      }];
       
-      // Bar
-      slide4.addShape('rect', {
-        x: barX,
-        y: barY,
-        w: barWidth,
-        h: barHeight,
-        fill: { color: 'A8D65C' },
+      slide4.addChart('bar', chartData, {
+        x: 0.5,
+        y: 1.2,
+        w: 9,
+        h: 3.8,
+        barDir: 'col',
+        chartColors: [ANDSKINCARE_CONFIG.colors.primary.replace('#', '')],
+        showValue: true,
+        dataLabelPosition: 'outEnd',
+        dataLabelFontSize: 10,
+        dataLabelColor: 'FFFFFF',
+        catAxisLabelColor: 'FFFFFF',
+        valAxisLabelColor: 'FFFFFF',
+        catGridLine: { style: 'none' },
+        valGridLine: { color: '444466' },
       });
       
-      // Value label
-      slide4.addText(formatNumber(interactions), {
-        x: barX,
-        y: barY - 0.4,
-        w: barWidth,
-        h: 0.3,
-        fontSize: 12,
-        bold: true,
-        color: 'FFFFFF',
+      // Add date labels below
+      topPostsByInteractions.forEach((post, i) => {
+        const date = new Date(post.created_time);
+        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
+        slide4.addText(dateStr, {
+          x: 0.9 + (i * 1.8),
+          y: 5.1,
+          w: 1.5,
+          h: 0.3,
+          fontSize: 9,
+          color: 'AAAAAA',
+          align: 'center',
+        });
+      });
+    } else {
+      slide4.addText('Keine Post-Daten für diesen Monat verfügbar', {
+        x: 0.5,
+        y: 2.5,
+        w: 9,
+        h: 0.5,
+        fontSize: 14,
+        color: '888888',
         align: 'center',
       });
-      
-      // Date label
-      const postDate = new Date(post.created_time);
-      slide4.addText(`${postDate.getDate()}.${(postDate.getMonth() + 1).toString().padStart(2, '0')}.`, {
-        x: barX,
-        y: barStartY + 0.1,
-        w: barWidth,
-        h: 0.3,
-        fontSize: 10,
-        color: 'CCCCCC',
-        align: 'center',
-      });
-    });
+    }
     
-    // Slide 5: Videos by 3-Second Views
+    // Slide 5: Videos by 3-Sec Views (Bar Chart)
     const slide5 = pptx.addSlide();
     slide5.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide5.addText('🎬 Videos nach 3-Sek-Aufrufen', {
+    slide5.addText('Videos nach 3-Sek-Aufrufen', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -442,51 +484,47 @@ export async function GET(request: NextRequest) {
       color: 'FFFFFF',
     });
     
-    // Filter videos and sort by views
+    // Filter videos and sort by 3-sec views
     const videoPosts = posts
       .filter(p => p.type === 'video' && p.video_3s_views && p.video_3s_views > 0)
       .sort((a, b) => (b.video_3s_views || 0) - (a.video_3s_views || 0))
       .slice(0, 5);
     
     if (videoPosts.length > 0) {
-      const maxViews = Math.max(...videoPosts.map(p => p.video_3s_views || 0), 1);
+      const videoChartData = [{
+        name: '3-Sek-Aufrufe',
+        labels: videoPosts.map((_, i) => `Video ${i + 1}`),
+        values: videoPosts.map(p => p.video_3s_views || 0),
+      }];
       
+      slide5.addChart('bar', videoChartData, {
+        x: 0.5,
+        y: 1.2,
+        w: 9,
+        h: 3.8,
+        barDir: 'col',
+        chartColors: [ANDSKINCARE_CONFIG.colors.secondary.replace('#', '')],
+        showValue: true,
+        dataLabelPosition: 'outEnd',
+        dataLabelFontSize: 10,
+        dataLabelColor: 'FFFFFF',
+        catAxisLabelColor: 'FFFFFF',
+        valAxisLabelColor: 'FFFFFF',
+        catGridLine: { style: 'none' },
+        valGridLine: { color: '444466' },
+      });
+      
+      // Add date labels below
       videoPosts.forEach((post, i) => {
-        const views = post.video_3s_views || 0;
-        const barHeight = (views / maxViews) * maxBarHeight;
-        const barX = barStartX + (i * (barWidth + barSpacing));
-        const barY = barStartY - barHeight;
-        
-        // Bar (purple for videos)
-        slide5.addShape('rect', {
-          x: barX,
-          y: barY,
-          w: barWidth,
-          h: barHeight,
-          fill: { color: '9B59B6' },
-        });
-        
-        // Value label
-        slide5.addText(formatNumber(views), {
-          x: barX,
-          y: barY - 0.4,
-          w: barWidth,
+        const date = new Date(post.created_time);
+        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.`;
+        slide5.addText(dateStr, {
+          x: 0.9 + (i * 1.8),
+          y: 5.1,
+          w: 1.5,
           h: 0.3,
-          fontSize: 12,
-          bold: true,
-          color: 'FFFFFF',
-          align: 'center',
-        });
-        
-        // Date label
-        const postDate = new Date(post.created_time);
-        slide5.addText(`${postDate.getDate()}.${(postDate.getMonth() + 1).toString().padStart(2, '0')}.`, {
-          x: barX,
-          y: barStartY + 0.1,
-          w: barWidth,
-          h: 0.3,
-          fontSize: 10,
-          color: 'CCCCCC',
+          fontSize: 9,
+          color: 'AAAAAA',
           align: 'center',
         });
       });
@@ -502,11 +540,11 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Slide 6: Top Postings
+    // Slide 6: Top 3 Postings
     const slide6 = pptx.addSlide();
     slide6.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide6.addText('🏆 Top Postings', {
+    slide6.addText('Top Postings', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -518,100 +556,92 @@ export async function GET(request: NextRequest) {
     
     const top3Posts = topPostsByInteractions.slice(0, 3);
     
-    top3Posts.forEach((post, i) => {
-      const cardX = 0.5 + (i * 3.2);
-      const cardY = 1.2;
-      const cardW = 3;
-      const cardH = 3.5;
-      
-      // Card background
-      slide6.addShape('rect', {
-        x: cardX,
-        y: cardY,
-        w: cardW,
-        h: cardH,
-        fill: { color: '2D2D44' },
-        line: { color: '444466', width: 1 },
+    if (top3Posts.length > 0) {
+      top3Posts.forEach((post, i) => {
+        const yPos = 1.2 + (i * 1.5);
+        
+        // Post card background
+        slide6.addShape('rect', {
+          x: 0.5,
+          y: yPos,
+          w: 9,
+          h: 1.3,
+          fill: { color: '2D2D44' },
+          line: { color: '444466', width: 1 },
+        });
+        
+        // Rank badge
+        slide6.addShape('ellipse', {
+          x: 0.7,
+          y: yPos + 0.15,
+          w: 0.5,
+          h: 0.5,
+          fill: { color: ANDSKINCARE_CONFIG.colors.primary.replace('#', '') },
+        });
+        slide6.addText(`#${i + 1}`, {
+          x: 0.7,
+          y: yPos + 0.15,
+          w: 0.5,
+          h: 0.5,
+          fontSize: 14,
+          bold: true,
+          color: '1a1a2e',
+          align: 'center',
+          valign: 'middle',
+        });
+        
+        // Post message (truncated)
+        const message = post.message ? post.message.substring(0, 100) + (post.message.length > 100 ? '...' : '') : 'Kein Text';
+        slide6.addText(message, {
+          x: 1.4,
+          y: yPos + 0.1,
+          w: 6.5,
+          h: 0.7,
+          fontSize: 10,
+          color: 'FFFFFF',
+        });
+        
+        // Metrics
+        const date = new Date(post.created_time);
+        const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+        slide6.addText(`📅 ${dateStr}  |  👍 ${formatNumber(post.reactions_total)}  |  💬 ${formatNumber(post.comments_total)}  |  👁 ${formatNumber(post.reach || 0)}`, {
+          x: 1.4,
+          y: yPos + 0.85,
+          w: 6.5,
+          h: 0.3,
+          fontSize: 9,
+          color: 'AAAAAA',
+        });
+        
+        // Interaction count
+        slide6.addText(formatNumber(post.interactions), {
+          x: 8.2,
+          y: yPos + 0.3,
+          w: 1,
+          h: 0.6,
+          fontSize: 20,
+          bold: true,
+          color: ANDSKINCARE_CONFIG.colors.primary.replace('#', ''),
+          align: 'center',
+        });
       });
-      
-      // Rank badge
-      slide6.addShape('ellipse', {
-        x: cardX + 0.1,
-        y: cardY + 0.1,
-        w: 0.4,
-        h: 0.4,
-        fill: { color: 'A8D65C' },
-      });
-      slide6.addText((i + 1).toString(), {
-        x: cardX + 0.1,
-        y: cardY + 0.1,
-        w: 0.4,
-        h: 0.4,
-        fontSize: 14,
-        bold: true,
-        color: '1a1a2e',
-        align: 'center',
-        valign: 'middle',
-      });
-      
-      // Image placeholder
-      slide6.addShape('rect', {
-        x: cardX + 0.2,
-        y: cardY + 0.6,
-        w: cardW - 0.4,
-        h: 1.8,
-        fill: { color: '3D3D5C' },
-      });
-      slide6.addText('📷', {
-        x: cardX + 0.2,
-        y: cardY + 1.2,
-        w: cardW - 0.4,
+    } else {
+      slide6.addText('Keine Post-Daten für diesen Monat verfügbar', {
+        x: 0.5,
+        y: 2.5,
+        w: 9,
         h: 0.5,
-        fontSize: 24,
-        align: 'center',
-      });
-      
-      // Metrics
-      const interactions = post.reactions_total + post.comments_total;
-      slide6.addText(`${formatNumber(interactions)} Interaktionen`, {
-        x: cardX + 0.2,
-        y: cardY + 2.5,
-        w: cardW - 0.4,
-        h: 0.3,
-        fontSize: 12,
-        bold: true,
-        color: 'A8D65C',
-        align: 'center',
-      });
-      
-      slide6.addText(`👍 ${formatNumber(post.reactions_total)}  💬 ${formatNumber(post.comments_total)}`, {
-        x: cardX + 0.2,
-        y: cardY + 2.85,
-        w: cardW - 0.4,
-        h: 0.25,
-        fontSize: 10,
-        color: 'CCCCCC',
-        align: 'center',
-      });
-      
-      // Date
-      const postDate = new Date(post.created_time);
-      slide6.addText(`${postDate.getDate()}.${(postDate.getMonth() + 1).toString().padStart(2, '0')}.${postDate.getFullYear()}`, {
-        x: cardX + 0.2,
-        y: cardY + 3.15,
-        w: cardW - 0.4,
-        h: 0.25,
-        fontSize: 9,
+        fontSize: 14,
         color: '888888',
         align: 'center',
       });
-    });
+    }
     
     // Slide 7: Demographics Placeholder
     const slide7 = pptx.addSlide();
     slide7.background = { color: ANDSKINCARE_CONFIG.colors.background };
     
-    slide7.addText('👥 Demographie', {
+    slide7.addText('Demographie', {
       x: 0.5,
       y: 0.3,
       w: 9,
@@ -640,24 +670,22 @@ export async function GET(request: NextRequest) {
       align: 'center',
     });
     
-    // Generate file
-    const buffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+    // Generate the PPTX
+    const pptxBuffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
     
     // Return as downloadable file
-    const filename = `ANDskincare_Report_${month}.pptx`;
-    
-    return new NextResponse(buffer, {
+    return new NextResponse(pptxBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': `attachment; filename="${ANDSKINCARE_CONFIG.customerName}_Report_${month}.pptx"`,
       },
     });
     
   } catch (error) {
     console.error('Error generating ANDskincare report:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate report', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ 
+      error: 'Failed to generate report', 
+      details: String(error) 
+    }, { status: 500 });
   }
 }
