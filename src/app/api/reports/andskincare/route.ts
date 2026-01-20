@@ -1104,7 +1104,7 @@ export async function GET(request: NextRequest) {
     // Generate file
     const buffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
     
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'Content-Disposition': `attachment; filename="${CONFIG.customerSlug}_Report_${month}.pptx"`,
