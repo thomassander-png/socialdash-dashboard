@@ -117,7 +117,7 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
         COALESCE(m.likes, 0) as reactions_total,
         COALESCE(m.comments, 0) as comments_total,
         NULL as shares_total, m.reach, m.impressions,
-        m.video_views as video_3s_views,
+        NULL as video_3s_views,
         COALESCE(p.thumbnail_url, p.media_url) as thumbnail_url,
         COALESCE(m.saves, 0) as saves
       FROM ig_posts p
