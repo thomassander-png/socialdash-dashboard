@@ -220,12 +220,12 @@ async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'fa
         const result = await query<any>(`
           SELECT 
             COUNT(DISTINCT p.media_id) as posts_count,
-            COALESCE(SUM(m.like_count), 0) as total_reactions,
-            COALESCE(SUM(m.comments_count), 0) as total_comments,
+            COALESCE(SUM(m.likes), 0) as total_reactions,
+            COALESCE(SUM(m.comments), 0) as total_comments,
             COALESCE(SUM(m.reach), 0) as total_reach,
             COALESCE(SUM(m.impressions), 0) as total_impressions,
-            COALESCE(SUM(m.video_views), 0) as total_video_views,
-            COALESCE(SUM(m.saved), 0) as total_saves
+            0 as total_video_views,
+            COALESCE(SUM(m.saves), 0) as total_saves
           FROM ig_posts p
           LEFT JOIN LATERAL (
             SELECT * FROM ig_post_metrics WHERE media_id = p.media_id ORDER BY snapshot_time DESC LIMIT 1
