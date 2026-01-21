@@ -105,6 +105,8 @@ async function getFacebookPosts(month: string, pageIds: string[]): Promise<PostD
 async function getInstagramPosts(month: string, pageIds: string[]): Promise<PostData[]> {
   if (pageIds.length === 0) return [];
   const startDate = `${month}-01`;
+  // Calculate end date as first day of next month
+  const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   const placeholders = pageIds.map((_, i) => `$${i + 3}`).join(', ');
   
   try {
@@ -123,9 +125,9 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
         SELECT * FROM ig_post_metrics WHERE media_id = p.media_id ORDER BY snapshot_time DESC LIMIT 1
       ) m ON true
       WHERE p.account_id IN (${placeholders})
-        AND p.timestamp >= $1 AND p.timestamp < $2::date + interval '1 month'
-      ORDER BY p.timestamp DESC
-    `, [startDate, startDate, ...pageIds]);
+        AND p.timestamp::date >= $1::date AND p.timestamp::date < $2::date
+      ORDER BY (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) DESC
+    `, [startDate, endDate, ...pageIds]);
     return posts;
   } catch (error) {
     console.error('Error fetching Instagram posts:', error);
