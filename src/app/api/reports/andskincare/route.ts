@@ -112,12 +112,12 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
       SELECT 
         p.media_id as post_id, p.caption as message, p.timestamp as created_time,
         p.media_type as type, p.permalink,
-        COALESCE(m.like_count, 0) as reactions_total,
-        COALESCE(m.comments_count, 0) as comments_total,
+        COALESCE(m.likes, 0) as reactions_total,
+        COALESCE(m.comments, 0) as comments_total,
         NULL as shares_total, m.reach, m.impressions,
         m.video_views as video_3s_views,
-        p.media_url as thumbnail_url,
-        m.saved as saves
+        COALESCE(p.thumbnail_url, p.media_url) as thumbnail_url,
+        COALESCE(m.saves, 0) as saves
       FROM ig_posts p
       LEFT JOIN LATERAL (
         SELECT * FROM ig_post_metrics WHERE media_id = p.media_id ORDER BY snapshot_time DESC LIMIT 1
