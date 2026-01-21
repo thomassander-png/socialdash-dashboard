@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const sample = await pool.query(`
       SELECT * FROM ig_follower_history 
       WHERE account_id = $1 
-      ORDER BY recorded_at DESC 
+      ORDER BY snapshot_time DESC 
       LIMIT 10
     `, [accountId]);
     
