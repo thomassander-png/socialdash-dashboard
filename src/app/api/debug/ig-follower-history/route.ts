@@ -19,11 +19,10 @@ export async function GET(request: NextRequest) {
       ORDER BY ordinal_position
     `);
     
-    // Get sample data for ANDskincare
+    // Get sample data for ANDskincare - first get all data without ordering
     const sample = await pool.query(`
       SELECT * FROM ig_follower_history 
       WHERE account_id = $1 
-      ORDER BY snapshot_time DESC 
       LIMIT 10
     `, [accountId]);
     
