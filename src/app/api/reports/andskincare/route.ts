@@ -141,6 +141,7 @@ async function getFollowerData(months: string[], pageIds: string[], platform: 'f
   
   const table = platform === 'facebook' ? 'fb_follower_snapshots' : 'ig_follower_history';
   const idCol = platform === 'facebook' ? 'page_id' : 'account_id';
+  const dateCol = platform === 'facebook' ? 'snapshot_time' : 'snapshot_date';
   const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
   const results: {month: string, followers: number}[] = [];
   
@@ -150,7 +151,7 @@ async function getFollowerData(months: string[], pageIds: string[], platform: 'f
         SELECT COALESCE(MAX(followers_count), 0) as followers
         FROM ${table}
         WHERE ${idCol} IN (${placeholders})
-          AND snapshot_time <= $1::date + interval '1 month'
+          AND ${dateCol} <= $1::date + interval '1 month'
       `, [month + '-01', ...pageIds]);
       results.push({ month, followers: parseInt(result[0]?.followers || '0') || 0 });
     } catch {
