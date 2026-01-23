@@ -97,3 +97,12 @@
 
 - [ ] Excel-KPI-Export pro Monat auf Overview-Seite hinzufügen
 - [ ] Detaillierte Tagesansicht im Excel-Export (wie asphericon Excel)
+
+
+## Dashboard Verbesserungen (Januar 2026)
+
+- [x] Monatsfilter korrigieren - Posts nur für ausgewählten Monat anzeigen (war bereits korrekt)
+- [x] Mobile-responsive Design implementieren
+- [x] Sidebar für Mobile optimieren (Hamburger-Menü)
+- [x] KPI-Karten für Mobile stacken
+- [x] Charts für Mobile anpassen

@@ -12,6 +12,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { logout, user, isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Show loading state
   if (isLoading) {
@@ -47,12 +48,56 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/admin/accounts', label: 'Accounts', icon: '⚙️' },
   ];
 
+  const handleNavClick = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <div className="flex h-screen bg-[#0a0a0a]">
-      {/* Sidebar */}
-      <div className="w-64 bg-[#141414] border-r border-[#262626] p-6 overflow-y-auto flex flex-col">
-        {/* Logo */}
-        <div className="mb-8">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[#141414] border-b border-[#262626] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#84cc16] rounded-lg flex items-center justify-center">
+            <span className="text-black font-bold text-sm">S</span>
+          </div>
+          <h1 className="text-white font-bold text-sm">SocialDash</h1>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 text-gray-400 hover:text-white transition-colors"
+          aria-label="Toggle menu"
+        >
+          {isMobileMenuOpen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Desktop always visible, Mobile slide-in */}
+      <div className={`
+        fixed lg:relative inset-y-0 left-0 z-40
+        w-64 bg-[#141414] border-r border-[#262626] p-6 overflow-y-auto flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        lg:transform-none
+        pt-16 lg:pt-6
+      `}>
+        {/* Logo - Hidden on mobile (shown in header) */}
+        <div className="mb-8 hidden lg:block">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-[#84cc16] rounded-lg flex items-center justify-center">
               <span className="text-black font-bold">S</span>
@@ -72,6 +117,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={handleNavClick}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-[#84cc16]/20 text-[#84cc16]'
@@ -97,6 +143,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={handleNavClick}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-[#84cc16]/20 text-[#84cc16]'
@@ -130,7 +177,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 lg:p-6 pt-16 lg:pt-6">
         {children}
       </div>
     </div>

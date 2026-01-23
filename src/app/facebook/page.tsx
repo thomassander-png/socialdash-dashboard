@@ -87,20 +87,20 @@ function KPICard({ title, value, emoji, change, accentColor = 'gray' }: {
   };
   
   return (
-    <div className={`bg-[#141414] border border-[#262626] ${borderColors[accentColor]} border-l-4 rounded-xl p-4`}>
+    <div className={`bg-[#141414] border border-[#262626] ${borderColors[accentColor]} border-l-4 rounded-xl p-3 sm:p-4`}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-gray-400 text-xs uppercase tracking-wider font-medium">{title}</span>
-        <div className="flex items-center gap-2">
+        <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider font-medium">{title}</span>
+        <div className="flex items-center gap-1 sm:gap-2">
           {hasChange && (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            <span className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
               {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
             </span>
           )}
-          <span className="text-lg">{emoji}</span>
+          <span className="text-base sm:text-lg">{emoji}</span>
         </div>
       </div>
-      <div className="text-3xl font-bold text-white mb-1">{formatNumberRaw(value)}</div>
-      <p className="text-gray-500 text-xs">vs. Vormonat</p>
+      <div className="text-xl sm:text-3xl font-bold text-white mb-1">{formatNumberRaw(value)}</div>
+      <p className="text-gray-500 text-[10px] sm:text-xs">vs. Vormonat</p>
     </div>
   );
 }
@@ -114,16 +114,16 @@ function InteractionCompareCard({ title, current, previous, currentLabel, prevLa
   prevLabel: string;
 }) {
   return (
-    <div className="bg-[#141414] border border-[#262626] border-l-yellow-500 border-l-4 rounded-xl p-5">
-      <h3 className="text-gray-400 text-sm uppercase tracking-wider mb-4">{title}</h3>
+    <div className="bg-[#141414] border border-[#262626] border-l-yellow-500 border-l-4 rounded-xl p-4 sm:p-5">
+      <h3 className="text-gray-400 text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4">{title}</h3>
       <div className="flex justify-between items-end">
         <div>
-          <p className="text-yellow-500 text-xs mb-1">{currentLabel}</p>
-          <p className="text-3xl font-bold text-blue-400">{formatNumberRaw(current)}</p>
+          <p className="text-yellow-500 text-[10px] sm:text-xs mb-1">{currentLabel}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-blue-400">{formatNumberRaw(current)}</p>
         </div>
         <div className="text-right">
-          <p className="text-gray-500 text-xs mb-1">{prevLabel}</p>
-          <p className="text-2xl font-bold text-gray-400">{formatNumberRaw(previous)}</p>
+          <p className="text-gray-500 text-[10px] sm:text-xs mb-1">{prevLabel}</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-400">{formatNumberRaw(previous)}</p>
         </div>
       </div>
     </div>
@@ -140,21 +140,21 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
   const gaugePosition = Math.min(rate * 10, 100);
   
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+    <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 sm:p-5">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-gray-400 text-sm flex items-center gap-2">
-          <span className="text-lg">👍</span>
+        <h3 className="text-gray-400 text-xs sm:text-sm flex items-center gap-2">
+          <span className="text-base sm:text-lg">👍</span>
           <span className="uppercase tracking-wider">Engagement Rate</span>
         </h3>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${statusColor}`}>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <span className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded ${statusColor}`}>
             {status}
           </span>
-          <span className="text-green-400 text-xs">↑{rateChange.toFixed(1)}%</span>
+          <span className="text-green-400 text-[10px] sm:text-xs">↑{rateChange.toFixed(1)}%</span>
         </div>
       </div>
       
-      <div className={`text-5xl font-bold ${rateColor} mb-4`}>{rate.toFixed(2)}%</div>
+      <div className={`text-3xl sm:text-5xl font-bold ${rateColor} mb-4`}>{rate.toFixed(2)}%</div>
       
       {/* Gauge mit farbigem Punkt */}
       <div className="relative h-2 bg-[#262626] rounded-full mb-2">
@@ -167,7 +167,7 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
           style={{ left: `calc(${gaugePosition}% - 6px)` }}
         ></div>
       </div>
-      <div className="flex justify-between text-xs text-gray-500 mb-4">
+      <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mb-4">
         <span>0%</span>
         <span>5%</span>
         <span>10%+</span>
@@ -175,15 +175,15 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
       
       <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#262626]">
         <div>
-          <p className="text-gray-500 text-xs">Interaktionen</p>
-          <p className="text-lg font-bold text-white">{formatNumberRaw(interactions)}</p>
+          <p className="text-gray-500 text-[10px] sm:text-xs">Interaktionen</p>
+          <p className="text-base sm:text-lg font-bold text-white">{formatNumberRaw(interactions)}</p>
         </div>
         <div>
-          <p className="text-gray-500 text-xs">Reichweite</p>
-          <p className="text-lg font-bold text-white">{formatNumberRaw(reach)}</p>
+          <p className="text-gray-500 text-[10px] sm:text-xs">Reichweite</p>
+          <p className="text-base sm:text-lg font-bold text-white">{formatNumberRaw(reach)}</p>
         </div>
       </div>
-      <p className="text-gray-600 text-xs mt-3">Berechnung: Interaktionen ÷ Reichweite × 100</p>
+      <p className="text-gray-600 text-[10px] sm:text-xs mt-3">Berechnung: Interaktionen ÷ Reichweite × 100</p>
     </div>
   );
 }
@@ -236,21 +236,21 @@ function FacebookContent() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      {/* Header - Responsive */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8 gap-4">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">📘</span>
+          <span className="text-2xl lg:text-3xl">📘</span>
           <div>
-            <h1 className="text-3xl font-bold text-white">Facebook Analytics</h1>
-            <p className="text-gray-500 mt-1">Performance Metriken und Post-Übersicht</p>
+            <h1 className="text-xl lg:text-3xl font-bold text-white">Facebook Analytics</h1>
+            <p className="text-gray-500 text-sm mt-1">Performance Metriken und Post-Übersicht</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
           <select
             value={selectedCustomer}
             onChange={(e) => setSelectedCustomer(e.target.value)}
-            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-4 py-2 focus:border-[#84cc16] focus:outline-none"
+            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-3 sm:px-4 py-2 text-sm focus:border-[#84cc16] focus:outline-none"
           >
             <option value="all">Alle Kunden</option>
             {customers.map(c => (
@@ -261,27 +261,28 @@ function FacebookContent() {
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-4 py-2 focus:border-[#84cc16] focus:outline-none"
+            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-3 sm:px-4 py-2 text-sm focus:border-[#84cc16] focus:outline-none"
           >
             {monthOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
           
-          <button className="bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+          <button className="bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm">
             <span>📄</span>
-            Report erstellen
+            <span className="hidden sm:inline">Report erstellen</span>
+            <span className="sm:hidden">Report</span>
           </button>
         </div>
       </div>
 
       {/* Management Summary Button */}
       <div className="mb-6">
-        <button className="bg-[#84cc16]/20 border border-[#84cc16] text-[#84cc16] px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#84cc16]/30 transition-colors">
+        <button className="bg-[#84cc16]/20 border border-[#84cc16] text-[#84cc16] px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#84cc16]/30 transition-colors text-sm">
           <span>📄</span>
           Management Summary
         </button>
-        <p className="text-gray-500 text-sm mt-1">Wählen Sie einen Kunden für den Management Report</p>
+        <p className="text-gray-500 text-xs sm:text-sm mt-1">Wählen Sie einen Kunden für den Management Report</p>
       </div>
 
       {loading ? (
@@ -290,8 +291,8 @@ function FacebookContent() {
         </div>
       ) : stats ? (
         <>
-          {/* KPI Cards - 5 in einer Reihe mit farbigen Rahmen */}
-          <div className="grid grid-cols-5 gap-4 mb-6">
+          {/* KPI Cards - Responsive Grid: 2 cols on mobile, 3 on tablet, 5 on desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
             <KPICard 
               title="Follower" 
               value={stats.fbFollowers} 
@@ -329,8 +330,8 @@ function FacebookContent() {
             />
           </div>
 
-          {/* Comparison Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          {/* Comparison Cards - Responsive: Stack on mobile, 3 cols on desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <InteractionCompareCard
               title="Interaktionen"
               current={interactions}
@@ -351,8 +352,8 @@ function FacebookContent() {
             />
           </div>
 
-          {/* Top 5 Posts Section */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          {/* Top 5 Posts Section - Stack on mobile, 2 cols on desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Top5PostsChart 
               posts={posts} 
               platform="facebook" 
@@ -364,18 +365,18 @@ function FacebookContent() {
             />
           </div>
 
-          {/* Posts Table */}
-          <div className="mb-6">
+          {/* Posts Table - Scrollable on mobile */}
+          <div className="mb-6 overflow-x-auto">
             <PostsTable posts={posts} platform="facebook" />
           </div>
 
           {/* API Limitations Notice */}
-          <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+          <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="text-yellow-500 flex-shrink-0" size={24} />
+              <AlertTriangle className="text-yellow-500 flex-shrink-0" size={20} />
               <div>
-                <h3 className="font-bold text-yellow-500 mb-2">Facebook API Einschränkungen</h3>
-                <div className="space-y-1 text-sm">
+                <h3 className="font-bold text-yellow-500 mb-2 text-sm sm:text-base">Facebook API Einschränkungen</h3>
+                <div className="space-y-1 text-xs sm:text-sm">
                   <p><span className="text-gray-400 font-medium">Shares:</span> <span className="text-gray-500">Nicht für alle Posts verfügbar, daher separat ausgewiesen und nicht in Interaktionen enthalten.</span></p>
                   <p><span className="text-gray-400 font-medium">Saves:</span> <span className="text-gray-500">Nicht über die Graph API abrufbar und werden nicht angezeigt.</span></p>
                   <p><span className="text-gray-400 font-medium">Organisch vs. Paid:</span> <span className="text-gray-500">Nur über Ads API verfügbar (nicht implementiert).</span></p>
