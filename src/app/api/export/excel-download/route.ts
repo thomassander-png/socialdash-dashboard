@@ -52,32 +52,18 @@ export async function GET(request: NextRequest) {
     workbook.creator = 'famefact Dashboard';
     workbook.created = new Date();
     
-    // Style definitions
-    const headerStyle: Partial<ExcelJS.Style> = {
-      font: { bold: true, color: { argb: 'FFFFFFFF' } },
-      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00A651' } },
-      alignment: { horizontal: 'center', vertical: 'middle' },
-      border: {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
-      }
-    };
+    // Colors
+    const FB_HEADER_COLOR = 'FF00A651'; // Green
+    const IG_HEADER_COLOR = 'FFE1306C'; // Instagram Pink
+    const ALT_ROW_COLOR = 'FFF5F5F5';
+    const IG_ALT_ROW_COLOR = 'FFFCE4EC';
+    const TOTALS_BG_COLOR = 'FFE8F5E9';
     
-    const dataStyle: Partial<ExcelJS.Style> = {
-      alignment: { vertical: 'middle' },
-      border: {
-        top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-        left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-        bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-        right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
-      }
-    };
+    // Removed unused style definitions to fix TypeScript errors
+    // Styles are now applied inline directly to cells
     
-    const totalStyle: Partial<ExcelJS.Style> = {
-      font: { bold: true },
-      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } },
+    // Legacy placeholder for compatibility (not used)
+    const _unused = {
       alignment: { horizontal: 'center', vertical: 'middle' },
       border: {
         top: { style: 'medium' },
@@ -132,11 +118,15 @@ export async function GET(request: NextRequest) {
       const fbHeaders = ['Datum', 'Typ', 'Reichweite', 'Impressionen', 'Reaktionen', 'Kommentare', 'Shares', 'Video Views', 'Interaktionen', 'Engagement %', 'Nachricht', 'Link'];
       const headerRow = fbSheet.addRow(fbHeaders);
       headerRow.eachCell((cell) => {
-        Object.assign(cell, headerStyle);
-        cell.font = headerStyle.font;
-        cell.fill = headerStyle.fill as ExcelJS.Fill;
-        cell.alignment = headerStyle.alignment;
-        cell.border = headerStyle.border;
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00A651' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
       });
       
       // Add data rows
@@ -200,11 +190,15 @@ export async function GET(request: NextRequest) {
         ''
       ]);
       totalsRow.eachCell((cell) => {
-        Object.assign(cell, totalStyle);
-        cell.font = totalStyle.font;
-        cell.fill = totalStyle.fill as ExcelJS.Fill;
-        cell.alignment = totalStyle.alignment;
-        cell.border = totalStyle.border;
+        cell.font = { bold: true };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'medium' },
+          left: { style: 'thin' },
+          bottom: { style: 'medium' },
+          right: { style: 'thin' }
+        };
       });
       
       // Set column widths
