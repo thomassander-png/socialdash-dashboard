@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       if (existingFb.length === 0) {
         await query(
           `INSERT INTO customer_accounts (customer_id, account_id, platform) VALUES ($1, $2, 'facebook')`,
-          [customerId, fbPageId, ]
+          [customerId, fbPageId]
         );
         console.log(`Added Facebook account ${fbPageId} to customer ${customerId}`);
       }
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error adding customer:', error);
-    return NextResponse.json({ error: 'Failed to add customer' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to add customer', details: errorMessage }, { status: 500 });
   }
 }
