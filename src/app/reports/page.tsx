@@ -8,7 +8,10 @@ function ReportsContent() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [selectedQuarter, setSelectedQuarter] = useState('Q4');
+  const [selectedYear, setSelectedYear] = useState(2025);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -21,8 +24,20 @@ function ReportsContent() {
     return { value, label };
   });
 
+  // Quarter options
+  const quarterOptions = [
+    { value: 'Q1', label: 'Q1 (Jan-Mär)' },
+    { value: 'Q2', label: 'Q2 (Apr-Jun)' },
+    { value: 'Q3', label: 'Q3 (Jul-Sep)' },
+    { value: 'Q4', label: 'Q4 (Okt-Dez)' },
+  ];
+
+  // Year options
+  const yearOptions = [2025, 2024, 2023];
+
   const handleGenerateReport = async (reportType: string) => {
     setIsGenerating(true);
+    setGeneratingReport(reportType);
     setError(null);
     setSuccess(null);
 
@@ -50,6 +65,41 @@ function ReportsContent() {
       setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
     } finally {
       setIsGenerating(false);
+      setGeneratingReport(null);
+    }
+  };
+
+  const handleGenerateQuarterlyReport = async (reportType: string) => {
+    setIsGenerating(true);
+    setGeneratingReport(reportType);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/reports/${reportType}?quarter=${selectedQuarter}&year=${selectedYear}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate report');
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${reportType}_${selectedQuarter}_${selectedYear}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setSuccess(`Quartalsreport erfolgreich generiert und heruntergeladen!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+    } finally {
+      setIsGenerating(false);
+      setGeneratingReport(null);
     }
   };
 
@@ -62,24 +112,6 @@ function ReportsContent() {
       <p className="text-gray-400 mb-6">
         Generiere kundenspezifische PowerPoint-Reports im famefact-Design.
       </p>
-
-      {/* Month Selector */}
-      <div className="bg-[#1e1e2e] rounded-lg p-4 mb-6">
-        <label className="block text-sm font-medium text-gray-400 mb-2">
-          Berichtsmonat auswählen
-        </label>
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          className="bg-[#2d2d44] text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-green-500 focus:outline-none"
-        >
-          {monthOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {/* Status Messages */}
       {error && (
@@ -121,7 +153,22 @@ function ReportsContent() {
           <div className="flex flex-wrap gap-2 mb-4">
             <span className="px-2 py-1 bg-[#A8D65C]/20 text-[#A8D65C] rounded text-xs">Facebook</span>
             <span className="px-2 py-1 bg-[#9B59B6]/20 text-[#9B59B6] rounded text-xs">Instagram</span>
-            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">PPTX</span>
+            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">Monatlich</span>
+          </div>
+
+          {/* Month Selector */}
+          <div className="mb-4">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full bg-[#2d2d44] text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-green-500 focus:outline-none text-sm"
+            >
+              {monthOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           
           <button
@@ -129,7 +176,7 @@ function ReportsContent() {
             disabled={isGenerating}
             className="w-full bg-gradient-to-r from-[#A8D65C] to-[#9B59B6] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGenerating ? (
+            {generatingReport === 'andskincare' ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
@@ -139,6 +186,75 @@ function ReportsContent() {
               </span>
             ) : (
               '📥 Report generieren'
+            )}
+          </button>
+        </div>
+
+        {/* Captrain Deutschland Quarterly Report */}
+        <div className="bg-gradient-to-br from-[#00A651]/20 to-[#003366]/20 rounded-xl p-6 border border-[#00A651]/30 hover:border-[#00A651]/60 transition-all">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-lg bg-[#00A651] flex items-center justify-center">
+              <span className="text-white text-2xl">🚂</span>
+            </div>
+            <div>
+              <span className="text-[#00A651] font-bold text-lg">CAPTRAIN</span>
+              <span className="text-gray-400 text-sm block">Deutschland</span>
+            </div>
+          </div>
+          
+          <h3 className="text-xl font-bold text-white mb-2">Captrain Quartalsreport</h3>
+          <p className="text-gray-400 text-sm mb-4">
+            Premium Quartals-Report mit Executive Summary, monatlicher Übersicht, 
+            Top Postings und Fazit.
+          </p>
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="px-2 py-1 bg-[#00A651]/20 text-[#00A651] rounded text-xs">Facebook</span>
+            <span className="px-2 py-1 bg-[#003366]/20 text-blue-400 rounded text-xs">Quartal</span>
+            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">Premium</span>
+          </div>
+
+          {/* Quarter & Year Selector */}
+          <div className="flex gap-2 mb-4">
+            <select
+              value={selectedQuarter}
+              onChange={(e) => setSelectedQuarter(e.target.value)}
+              className="flex-1 bg-[#2d2d44] text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-green-500 focus:outline-none text-sm"
+            >
+              {quarterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="w-24 bg-[#2d2d44] text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-green-500 focus:outline-none text-sm"
+            >
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <button
+            onClick={() => handleGenerateQuarterlyReport('captrain-quarterly')}
+            disabled={isGenerating}
+            className="w-full bg-gradient-to-r from-[#00A651] to-[#003366] text-white font-semibold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generatingReport === 'captrain-quarterly' ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Generiere...
+              </span>
+            ) : (
+              '📥 Quartalsreport generieren'
             )}
           </button>
         </div>
@@ -162,10 +278,10 @@ function ReportsContent() {
           <span>ℹ️</span> Hinweise zu den Reports
         </h4>
         <ul className="text-gray-400 text-sm space-y-1">
-          <li>• Reports enthalten automatisch die letzten 3 Monate für KPI-Vergleiche</li>
-          <li>• Screenshot-Platzhalter müssen manuell mit Facebook Insights Screenshots befüllt werden</li>
-          <li>• <span className="text-yellow-400">Shares</span>: Nicht für alle Posts verfügbar (API-Limitation)</li>
-          <li>• <span className="text-yellow-400">Saves</span>: Nicht über die Graph API abrufbar</li>
+          <li>• <span className="text-[#A8D65C]">ANDskincare</span>: Monatliche Reports mit Facebook & Instagram KPIs</li>
+          <li>• <span className="text-[#00A651]">Captrain</span>: Quartals-Reports mit Executive Summary und Trends</li>
+          <li>• Reports enthalten automatisch Vergleichsdaten für bessere Analyse</li>
+          <li>• <span className="text-yellow-400">Hinweis</span>: Captrain-Daten müssen erst gecached werden (Collector konfigurieren)</li>
         </ul>
       </div>
     </div>
