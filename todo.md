@@ -106,3 +106,13 @@
 - [x] Sidebar für Mobile optimieren (Hamburger-Menü)
 - [x] KPI-Karten für Mobile stacken
 - [x] Charts für Mobile anpassen
+
+
+## PowerPoint Premium Design Upgrade (Januar 2026)
+
+- [x] Globales Styling: Inter/Arial Schriftart, konsistente Branding-Farben
+- [x] Branding-Element: Dezente Linie oben auf jeder Slide
+- [x] Premium KPI Tabelle: Abgerundete Header, farbige Trend-Werte (grün/rot/gelb)
+- [x] Executive Summary Slide: 3 große KPI-Boxen + Gesamtfazit
+- [x] Top-Post Galerie: Größere Bilder (1.5 Zoll) mit halbtransparenten Overlays
+- [x] Bessere Abstände: 0.5 Zoll Seitenränder
