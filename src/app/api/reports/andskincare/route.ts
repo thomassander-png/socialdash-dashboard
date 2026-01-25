@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import PptxGenJS from 'pptxgenjs';
 
-// ANDskincare specific configuration - PREMIUM famefact design
+// ANDskincare specific configuration - HIGH-END AGENCY LEVEL design
 const CONFIG = {
   customerName: 'ANDskincare',
   customerSlug: 'andskincare',
   facebookUrl: 'facebook.com/ANDskincare',
   instagramHandle: 'and.skincare',
-  // Global styling
+  // Global styling - Typography hierarchy
   fontFamily: 'Inter',
   fontFamilyFallback: 'Arial',
   // Premium margins (0.5 inch on all sides)
@@ -21,12 +21,15 @@ const CONFIG = {
     // famefact brand colors
     green: 'A8D65C',         // Posts bars
     purple: 'B8A9C9',        // Videos/Reels bars
+    // Premium background (not pure white)
+    background: 'F9F9F9',    // Light gray background
     // Basic colors
     white: 'FFFFFF',
     black: '000000',
     gray: '666666',
     lightGray: 'F5F5F5',
     darkGray: '333333',
+    mediumGray: '999999',
     // Table colors
     tableHeader: '84CC16',   // Primary green header
     tableHeaderIG: 'A855F7', // Purple header for Instagram
@@ -39,6 +42,8 @@ const CONFIG = {
     darkBlue: '2B7A8C',      // Men
     // Branding line
     brandingLine: '84CC16',  // Top branding line color
+    // Shadow color
+    shadow: 'E0E0E0',
   },
   // Contact info for outro slide
   contact: {
@@ -293,6 +298,11 @@ function formatNumber(num: number): string {
 
 function formatDate(date: Date): string {
   const d = new Date(date);
+  return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.`;
+}
+
+function formatDateShort(date: Date): string {
+  const d = new Date(date);
   return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
 }
 
@@ -320,55 +330,117 @@ function getTrendColor(currentValue: number, previousValue: number): string {
 }
 
 // Get trend text with color
-function getTrendText(currentValue: number, previousValue: number): { text: string; color: string } {
-  if (previousValue === 0) return { text: '—', color: CONFIG.colors.gray };
+function getTrendText(currentValue: number, previousValue: number): { text: string; color: string; percentage: number } {
+  if (previousValue === 0) return { text: '—', color: CONFIG.colors.gray, percentage: 0 };
   const change = ((currentValue - previousValue) / previousValue) * 100;
   const text = (change >= 0 ? '+' : '') + change.toFixed(1).replace('.', ',') + '%';
-  return { text, color: getTrendColor(currentValue, previousValue) };
+  return { text, color: getTrendColor(currentValue, previousValue), percentage: change };
 }
 
-// Add branding line to top of each slide
+// Add premium branding line to top of each slide
 function addBrandingLine(slide: PptxGenJS.Slide, color: string = CONFIG.colors.brandingLine) {
+  // Elegant thin branding line at top
   slide.addShape('rect', {
-    x: 0, y: 0, w: '100%', h: 0.08,
+    x: 0, y: 0, w: '100%', h: 0.06,
     fill: { color: color }
+  });
+}
+
+// Add subtle design element (watermark-style)
+function addSubtleWatermark(slide: PptxGenJS.Slide) {
+  // Very subtle diagonal line pattern in corner
+  slide.addShape('rect', {
+    x: 9.2, y: 0, w: 0.8, h: 0.06,
+    fill: { color: CONFIG.colors.secondary, transparency: 70 }
   });
 }
 
 // Add famefact icon and page number to slide (bottom)
 function addFamefactIcon(slide: PptxGenJS.Slide, pageNum: number) {
-  // famefact icon placeholder (simplified)
-  slide.addText('⬡', {
-    x: CONFIG.margin, y: 4.9, w: 0.4, h: 0.4,
-    fontSize: 24, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+  // Minimalist hexagon icon
+  slide.addShape('hexagon', {
+    x: CONFIG.margin, y: 4.95, w: 0.3, h: 0.3,
+    fill: { color: CONFIG.colors.primary },
   });
-  // Page number (bottom right)
-  slide.addText(pageNum.toString(), {
+  // Page number (bottom right) - Light font weight
+  slide.addText(pageNum.toString().padStart(2, '0'), {
     x: 9.5 - CONFIG.margin, y: 5.1, w: 0.5, h: 0.3,
-    fontSize: 11, color: CONFIG.colors.gray, align: 'right', fontFace: CONFIG.fontFamily
+    fontSize: 10, color: CONFIG.colors.mediumGray, align: 'right', fontFace: CONFIG.fontFamily
   });
 }
 
-// Create Premium KPI table for Facebook with rounded headers and trend colors
-function createPremiumFacebookKPITable(
+// Draw professional icon using shapes (replaces emojis)
+function drawUserIcon(slide: PptxGenJS.Slide, x: number, y: number, size: number, color: string) {
+  // Head (circle)
+  slide.addShape('ellipse', {
+    x: x + size * 0.3, y: y, w: size * 0.4, h: size * 0.4,
+    fill: { color: color }
+  });
+  // Body (rounded rect)
+  slide.addShape('roundRect', {
+    x: x + size * 0.15, y: y + size * 0.45, w: size * 0.7, h: size * 0.5,
+    fill: { color: color },
+    rectRadius: 0.1
+  });
+}
+
+function drawEyeIcon(slide: PptxGenJS.Slide, x: number, y: number, size: number, color: string) {
+  // Eye outline (ellipse)
+  slide.addShape('ellipse', {
+    x: x, y: y + size * 0.25, w: size, h: size * 0.5,
+    line: { color: color, width: 2 }
+  });
+  // Pupil (filled circle)
+  slide.addShape('ellipse', {
+    x: x + size * 0.35, y: y + size * 0.35, w: size * 0.3, h: size * 0.3,
+    fill: { color: color }
+  });
+}
+
+function drawChatIcon(slide: PptxGenJS.Slide, x: number, y: number, size: number, color: string) {
+  // Chat bubble (rounded rect)
+  slide.addShape('roundRect', {
+    x: x, y: y, w: size, h: size * 0.7,
+    fill: { color: color },
+    rectRadius: 0.1
+  });
+  // Tail (triangle simulated with small rect)
+  slide.addShape('rect', {
+    x: x + size * 0.15, y: y + size * 0.65, w: size * 0.2, h: size * 0.2,
+    fill: { color: color },
+    rotate: 45
+  });
+}
+
+// Create Premium KPI table with zero-row filtering
+function createPremiumKPITable(
   slide: PptxGenJS.Slide, 
   kpis: MonthlyKPI[], 
-  startY: number
+  startY: number,
+  platform: 'facebook' | 'instagram'
 ): void {
   const tableX = CONFIG.margin;
   const tableW = 10 - (CONFIG.margin * 2);
   const colW = [3.2, 2.2, 2.2, 2.2];
   const rowH = 0.38;
-  const headerH = 0.45;
+  const headerH = 0.48;
+  const headerColor = platform === 'facebook' ? CONFIG.colors.tableHeader : CONFIG.colors.tableHeaderIG;
   
-  // Draw rounded header background (simulated with rect + round corners)
+  // Shadow effect for header
   slide.addShape('roundRect', {
-    x: tableX, y: startY, w: tableW, h: headerH,
-    fill: { color: CONFIG.colors.tableHeader },
-    rectRadius: 0.1
+    x: tableX + 0.03, y: startY + 0.03, w: tableW, h: headerH,
+    fill: { color: CONFIG.colors.shadow },
+    rectRadius: 0.12
   });
   
-  // Header texts
+  // Draw rounded header background
+  slide.addShape('roundRect', {
+    x: tableX, y: startY, w: tableW, h: headerH,
+    fill: { color: headerColor },
+    rectRadius: 0.12
+  });
+  
+  // Header texts - Bold weight
   const headers = ['KPI', getShortMonthName(kpis[2].month), getShortMonthName(kpis[1].month), getShortMonthName(kpis[0].month)];
   let xPos = tableX;
   headers.forEach((header, idx) => {
@@ -380,77 +452,82 @@ function createPremiumFacebookKPITable(
     xPos += colW[idx];
   });
   
-  // Data rows with trend coloring
-  const dataRows = [
+  // Define data rows based on platform
+  const dataRows: { label: string; values: string[]; isEngagementRate?: boolean; rawValues?: number[] }[] = platform === 'facebook' ? [
     { 
       label: 'Neue Fans', 
       values: kpis.map(k => k.new_followers > 0 ? `+${k.new_followers}` : k.new_followers.toString()),
-      trendIdx: null // No trend comparison
+      rawValues: kpis.map(k => Math.abs(k.new_followers))
     },
     { 
       label: 'Fans total', 
       values: kpis.map(k => formatNumber(k.followers)),
-      trendIdx: null
+      rawValues: kpis.map(k => k.followers)
     },
     { 
       label: 'Post-Reichweite', 
       values: kpis.map(k => formatNumber(k.total_reach)),
-      trendIdx: 0 // Compare with previous month
+      rawValues: kpis.map(k => k.total_reach)
     },
     { 
       label: 'Ø Reichweite pro Post', 
       values: kpis.map(k => formatNumber(k.avg_reach)),
-      trendIdx: 0
+      rawValues: kpis.map(k => k.avg_reach)
     },
     { 
-      label: 'Interaktionen\n(Teilen, Liken, Kommentieren)', 
+      label: 'Interaktionen (Teilen, Liken, Kommentieren)', 
       values: kpis.map(k => formatNumber(k.total_reactions + k.total_comments + k.total_shares)),
-      trendIdx: 0
+      rawValues: kpis.map(k => k.total_reactions + k.total_comments + k.total_shares)
     },
     { 
       label: '3-sekündige Video Plays', 
       values: kpis.map(k => formatNumber(k.total_video_views)),
-      trendIdx: null
+      rawValues: kpis.map(k => k.total_video_views)
     },
     { 
-      label: 'Interaktionsrate*', 
+      label: 'Interaktionsrate', 
       values: kpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + '%'),
-      trendIdx: 0, // Special: color based on absolute value
-      isEngagementRate: true
+      isEngagementRate: true,
+      rawValues: kpis.map(k => k.engagement_rate)
     },
     { 
       label: 'Anzahl der Postings', 
       values: kpis.map(k => k.posts_count.toString()),
-      trendIdx: null
+      rawValues: kpis.map(k => k.posts_count)
     },
-    { 
-      label: 'Budget pro Posting', 
-      values: ['0,00 €', '0,00 €', '0,00 €'],
-      trendIdx: null
-    },
-    { 
-      label: 'Ausgaben', 
-      values: ['0,00 €', '0,00 €', '0,00 €'],
-      trendIdx: null
-    },
+  ] : [
+    { label: 'Neue Follower', values: kpis.map(k => k.new_followers > 0 ? `+${k.new_followers}` : k.new_followers.toString()), rawValues: kpis.map(k => Math.abs(k.new_followers)) },
+    { label: 'Follower total', values: kpis.map(k => formatNumber(k.followers)), rawValues: kpis.map(k => k.followers) },
+    { label: 'Post-Reichweite', values: kpis.map(k => formatNumber(k.total_reach)), rawValues: kpis.map(k => k.total_reach) },
+    { label: 'Ø Reichweite pro Post', values: kpis.map(k => formatNumber(k.avg_reach)), rawValues: kpis.map(k => k.avg_reach) },
+    { label: 'Interaktionen (Likes, Kommentare, Saves)', values: kpis.map(k => formatNumber(k.total_reactions + k.total_comments + k.total_saves)), rawValues: kpis.map(k => k.total_reactions + k.total_comments + k.total_saves) },
+    { label: 'Saves', values: kpis.map(k => k.total_saves.toString()), rawValues: kpis.map(k => k.total_saves) },
+    { label: 'Interaktionsrate', values: kpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + '%'), isEngagementRate: true, rawValues: kpis.map(k => k.engagement_rate) },
+    { label: 'Anzahl an Postings', values: kpis.map(k => k.posts_count.toString()), rawValues: kpis.map(k => k.posts_count) },
   ];
   
-  let currentY = startY + headerH;
-  dataRows.forEach((row, rowIdx) => {
+  // Filter out rows where all values are 0 (cleaner report)
+  const filteredRows = dataRows.filter(row => {
+    if (!row.rawValues) return true;
+    return row.rawValues.some(v => v !== 0);
+  });
+  
+  let currentY = startY + headerH + 0.05;
+  filteredRows.forEach((row, rowIdx) => {
     const isAlt = rowIdx % 2 === 0;
     const bgColor = isAlt ? CONFIG.colors.lightGray : CONFIG.colors.white;
     
-    // Row background
+    // Row background with subtle border
     slide.addShape('rect', {
       x: tableX, y: currentY, w: tableW, h: rowH,
       fill: { color: bgColor },
-      line: { color: 'DDDDDD', width: 0.3 }
+      line: { color: 'E8E8E8', width: 0.3 }
     });
     
-    // Label cell
+    // Label cell - Light weight
     slide.addText(row.label, {
-      x: tableX + 0.1, y: currentY, w: colW[0] - 0.2, h: rowH,
-      fontSize: 10, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily,
+      x: tableX + 0.15, y: currentY, w: colW[0] - 0.2, h: rowH,
+      fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily,
       align: 'left', valign: 'middle'
     });
     
@@ -458,6 +535,7 @@ function createPremiumFacebookKPITable(
     let cellX = tableX + colW[0];
     for (let i = 2; i >= 0; i--) {
       let textColor = CONFIG.colors.black;
+      let isBold = false;
       
       // Apply trend coloring for engagement rate
       if (row.isEngagementRate) {
@@ -465,23 +543,13 @@ function createPremiumFacebookKPITable(
         if (rate >= 5) textColor = CONFIG.colors.trendUp;
         else if (rate >= 2) textColor = CONFIG.colors.trendNeutral;
         else textColor = CONFIG.colors.trendDown;
-      }
-      // Apply trend coloring for other metrics (compare current with previous)
-      else if (row.trendIdx !== null && i === 2) {
-        // Only color the current month column
-        const currentVal = parseFloat(row.values[i].replace(/[^\d,-]/g, '').replace(',', '.')) || 0;
-        const prevVal = parseFloat(row.values[i - 1].replace(/[^\d,-]/g, '').replace(',', '.')) || 0;
-        if (prevVal > 0) {
-          const change = ((currentVal - prevVal) / prevVal) * 100;
-          if (change >= 5) textColor = CONFIG.colors.trendUp;
-          else if (change <= -5) textColor = CONFIG.colors.trendDown;
-        }
+        isBold = true;
       }
       
       slide.addText(row.values[i], {
         x: cellX + 0.1, y: currentY, w: colW[3 - i] - 0.2, h: rowH,
         fontSize: 10, color: textColor, fontFace: CONFIG.fontFamily,
-        align: 'center', valign: 'middle', bold: row.isEngagementRate
+        align: 'center', valign: 'middle', bold: isBold
       });
       cellX += colW[3 - i];
     }
@@ -489,123 +557,40 @@ function createPremiumFacebookKPITable(
     currentY += rowH;
   });
   
-  // Footnote
-  slide.addText('*Die Interaktionsrate berechnet sich aus allen Interaktionen durch die Gesamtreichweite mal 100', {
-    x: CONFIG.margin, y: currentY + 0.15, w: tableW, h: 0.25,
-    fontSize: 8, color: CONFIG.colors.gray, italic: true, fontFace: CONFIG.fontFamily
+  // Footnote - Light italic
+  slide.addText('*Die Interaktionsrate berechnet sich aus allen Interaktionen durch die Gesamtreichweite × 100', {
+    x: CONFIG.margin, y: currentY + 0.12, w: tableW, h: 0.25,
+    fontSize: 8, color: CONFIG.colors.mediumGray, italic: true, fontFace: CONFIG.fontFamily
   });
 }
 
-// Create Premium KPI table for Instagram with purple header
-function createPremiumInstagramKPITable(
-  slide: PptxGenJS.Slide, 
-  kpis: MonthlyKPI[], 
-  startY: number
-): void {
-  const tableX = CONFIG.margin;
-  const tableW = 10 - (CONFIG.margin * 2);
-  const colW = [3.2, 2.2, 2.2, 2.2];
-  const rowH = 0.38;
-  const headerH = 0.45;
-  
-  // Draw rounded header background with Instagram purple
-  slide.addShape('roundRect', {
-    x: tableX, y: startY, w: tableW, h: headerH,
-    fill: { color: CONFIG.colors.tableHeaderIG },
-    rectRadius: 0.1
-  });
-  
-  // Header texts
-  const headers = ['KPI', getShortMonthName(kpis[2].month), getShortMonthName(kpis[1].month), getShortMonthName(kpis[0].month)];
-  let xPos = tableX;
-  headers.forEach((header, idx) => {
-    slide.addText(header, {
-      x: xPos + 0.1, y: startY, w: colW[idx] - 0.2, h: headerH,
-      fontSize: 11, bold: true, color: CONFIG.colors.white, 
-      fontFace: CONFIG.fontFamily, align: idx === 0 ? 'left' : 'center', valign: 'middle'
-    });
-    xPos += colW[idx];
-  });
-  
-  // Data rows
-  const dataRows = [
-    { label: 'Neue Follower', values: kpis.map(k => k.new_followers > 0 ? `+ ${k.new_followers}` : k.new_followers.toString()), isEngagementRate: false },
-    { label: 'Follower total', values: kpis.map(k => formatNumber(k.followers)), isEngagementRate: false },
-    { label: 'Post-Reichweite', values: kpis.map(k => formatNumber(k.total_reach)), isEngagementRate: false },
-    { label: 'Ø Reichweite pro Post', values: kpis.map(k => formatNumber(k.avg_reach)), isEngagementRate: false },
-    { label: 'Interaktionen\n(Likes, Kommentare, Saves, Klicks)', values: kpis.map(k => formatNumber(k.total_reactions + k.total_comments + k.total_saves)), isEngagementRate: false },
-    { label: 'Videoviews', values: kpis.map(k => formatNumber(k.total_video_views)), isEngagementRate: false },
-    { label: 'Savings', values: kpis.map(k => k.total_saves.toString()), isEngagementRate: false },
-    { label: 'Interaktionsrate', values: kpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + ' %'), isEngagementRate: true },
-    { label: 'Anzahl an Postings', values: kpis.map(k => k.posts_count.toString()), isEngagementRate: false },
-    { label: 'Ausgaben', values: ['0,00 €', '0,00 €', '0,00 €'], isEngagementRate: false },
-  ];
-  
-  let currentY = startY + headerH;
-  dataRows.forEach((row, rowIdx) => {
-    const isAlt = rowIdx % 2 === 0;
-    const bgColor = isAlt ? CONFIG.colors.lightGray : CONFIG.colors.white;
-    
-    slide.addShape('rect', {
-      x: tableX, y: currentY, w: tableW, h: rowH,
-      fill: { color: bgColor },
-      line: { color: 'DDDDDD', width: 0.3 }
-    });
-    
-    slide.addText(row.label, {
-      x: tableX + 0.1, y: currentY, w: colW[0] - 0.2, h: rowH,
-      fontSize: 10, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily,
-      align: 'left', valign: 'middle'
-    });
-    
-    let cellX = tableX + colW[0];
-    for (let i = 2; i >= 0; i--) {
-      let textColor = CONFIG.colors.black;
-      
-      if (row.isEngagementRate) {
-        const rate = kpis[i].engagement_rate;
-        if (rate >= 5) textColor = CONFIG.colors.trendUp;
-        else if (rate >= 2) textColor = CONFIG.colors.trendNeutral;
-        else textColor = CONFIG.colors.trendDown;
-      }
-      
-      slide.addText(row.values[i], {
-        x: cellX + 0.1, y: currentY, w: colW[3 - i] - 0.2, h: rowH,
-        fontSize: 10, color: textColor, fontFace: CONFIG.fontFamily,
-        align: 'center', valign: 'middle', bold: row.isEngagementRate
-      });
-      cellX += colW[3 - i];
-    }
-    
-    currentY += rowH;
-  });
-}
-
-// Create Executive Summary Slide
+// Create Premium Executive Summary Slide with Shape Icons and Pill Trends
 function createExecutiveSummarySlide(
   slide: PptxGenJS.Slide,
   fbKpis: MonthlyKPI[],
   igKpis: MonthlyKPI[],
   month: string
 ): void {
+  slide.background = { color: CONFIG.colors.background };
   addBrandingLine(slide);
-  slide.background = { color: CONFIG.colors.white };
+  addSubtleWatermark(slide);
   
-  // Title
+  // Title - Bold weight
   slide.addText('Executive Summary', {
-    x: CONFIG.margin, y: 0.3, w: 9, h: 0.5,
+    x: CONFIG.margin, y: 0.25, w: 9, h: 0.5,
     fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
   });
+  // Subtitle - Light weight
   slide.addText(getMonthName(month), {
-    x: CONFIG.margin, y: 0.75, w: 9, h: 0.35,
-    fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
+    x: CONFIG.margin, y: 0.7, w: 9, h: 0.35,
+    fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
   });
   
-  // Left side: 3 KPI boxes
-  const boxW = 2.8;
-  const boxH = 1.8;
-  const boxY = 1.4;
-  const boxGap = 0.2;
+  // Left side: 3 KPI boxes with shadows
+  const boxW = 2.7;
+  const boxH = 1.9;
+  const boxY = 1.2;
+  const boxGap = 0.25;
   
   const fbCurrent = fbKpis[2];
   const igCurrent = igKpis[2];
@@ -617,27 +602,44 @@ function createExecutiveSummarySlide(
   const prevTotalFollowers = fbPrev.followers + igPrev.followers;
   const followerTrend = getTrendText(totalFollowers, prevTotalFollowers);
   
+  // Shadow
   slide.addShape('roundRect', {
-    x: CONFIG.margin, y: boxY, w: boxW, h: boxH,
-    fill: { color: CONFIG.colors.lightGray },
-    line: { color: CONFIG.colors.primary, width: 2 },
+    x: CONFIG.margin + 0.04, y: boxY + 0.04, w: boxW, h: boxH,
+    fill: { color: CONFIG.colors.shadow },
     rectRadius: 0.15
   });
-  slide.addText('👥', {
-    x: CONFIG.margin + 0.2, y: boxY + 0.15, w: 0.5, h: 0.4,
-    fontSize: 20
+  // Box
+  slide.addShape('roundRect', {
+    x: CONFIG.margin, y: boxY, w: boxW, h: boxH,
+    fill: { color: CONFIG.colors.white },
+    line: { color: CONFIG.colors.primary, width: 1.5 },
+    rectRadius: 0.15
   });
+  // Icon (shape-based user icon)
+  drawUserIcon(slide, CONFIG.margin + 0.3, boxY + 0.2, 0.45, CONFIG.colors.primary);
+  // Label - Light weight
   slide.addText('Follower Gesamt', {
-    x: CONFIG.margin + 0.1, y: boxY + 0.55, w: boxW - 0.2, h: 0.3,
-    fontSize: 10, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily, align: 'center'
+    x: CONFIG.margin + 0.1, y: boxY + 0.7, w: boxW - 0.2, h: 0.25,
+    fontSize: 10, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily, align: 'center'
   });
+  // Value - Bold
   slide.addText(formatNumber(totalFollowers), {
-    x: CONFIG.margin + 0.1, y: boxY + 0.85, w: boxW - 0.2, h: 0.5,
-    fontSize: 24, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily, align: 'center'
+    x: CONFIG.margin + 0.1, y: boxY + 0.95, w: boxW - 0.2, h: 0.45,
+    fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily, align: 'center'
+  });
+  // Trend Pill
+  const pillW = 1.1;
+  const pillH = 0.32;
+  const pillX = CONFIG.margin + (boxW - pillW) / 2;
+  const pillY = boxY + 1.45;
+  slide.addShape('roundRect', {
+    x: pillX, y: pillY, w: pillW, h: pillH,
+    fill: { color: followerTrend.color },
+    rectRadius: 0.16
   });
   slide.addText(followerTrend.text, {
-    x: CONFIG.margin + 0.1, y: boxY + 1.35, w: boxW - 0.2, h: 0.3,
-    fontSize: 12, color: followerTrend.color, fontFace: CONFIG.fontFamily, align: 'center', bold: true
+    x: pillX, y: pillY, w: pillW, h: pillH,
+    fontSize: 11, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily, align: 'center', valign: 'middle'
   });
   
   // KPI 2: Total Reach
@@ -645,27 +647,42 @@ function createExecutiveSummarySlide(
   const prevTotalReach = fbPrev.total_reach + igPrev.total_reach;
   const reachTrend = getTrendText(totalReach, prevTotalReach);
   
+  const box2X = CONFIG.margin + boxW + boxGap;
+  // Shadow
   slide.addShape('roundRect', {
-    x: CONFIG.margin + boxW + boxGap, y: boxY, w: boxW, h: boxH,
-    fill: { color: CONFIG.colors.lightGray },
-    line: { color: CONFIG.colors.primary, width: 2 },
+    x: box2X + 0.04, y: boxY + 0.04, w: boxW, h: boxH,
+    fill: { color: CONFIG.colors.shadow },
     rectRadius: 0.15
   });
-  slide.addText('👁️', {
-    x: CONFIG.margin + boxW + boxGap + 0.2, y: boxY + 0.15, w: 0.5, h: 0.4,
-    fontSize: 20
+  // Box
+  slide.addShape('roundRect', {
+    x: box2X, y: boxY, w: boxW, h: boxH,
+    fill: { color: CONFIG.colors.white },
+    line: { color: CONFIG.colors.primary, width: 1.5 },
+    rectRadius: 0.15
   });
+  // Icon (eye)
+  drawEyeIcon(slide, box2X + 0.25, boxY + 0.18, 0.5, CONFIG.colors.primary);
+  // Label
   slide.addText('Reichweite Gesamt', {
-    x: CONFIG.margin + boxW + boxGap + 0.1, y: boxY + 0.55, w: boxW - 0.2, h: 0.3,
-    fontSize: 10, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily, align: 'center'
+    x: box2X + 0.1, y: boxY + 0.7, w: boxW - 0.2, h: 0.25,
+    fontSize: 10, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily, align: 'center'
   });
+  // Value
   slide.addText(formatNumber(totalReach), {
-    x: CONFIG.margin + boxW + boxGap + 0.1, y: boxY + 0.85, w: boxW - 0.2, h: 0.5,
-    fontSize: 24, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily, align: 'center'
+    x: box2X + 0.1, y: boxY + 0.95, w: boxW - 0.2, h: 0.45,
+    fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily, align: 'center'
+  });
+  // Trend Pill
+  const pill2X = box2X + (boxW - pillW) / 2;
+  slide.addShape('roundRect', {
+    x: pill2X, y: pillY, w: pillW, h: pillH,
+    fill: { color: reachTrend.color },
+    rectRadius: 0.16
   });
   slide.addText(reachTrend.text, {
-    x: CONFIG.margin + boxW + boxGap + 0.1, y: boxY + 1.35, w: boxW - 0.2, h: 0.3,
-    fontSize: 12, color: reachTrend.color, fontFace: CONFIG.fontFamily, align: 'center', bold: true
+    x: pill2X, y: pillY, w: pillW, h: pillH,
+    fontSize: 11, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily, align: 'center', valign: 'middle'
   });
   
   // KPI 3: Total Interactions
@@ -675,202 +692,300 @@ function createExecutiveSummarySlide(
                                 (igPrev.total_reactions + igPrev.total_comments + igPrev.total_saves);
   const interactionTrend = getTrendText(totalInteractions, prevTotalInteractions);
   
+  const box3X = CONFIG.margin + (boxW + boxGap) * 2;
+  // Shadow
   slide.addShape('roundRect', {
-    x: CONFIG.margin + (boxW + boxGap) * 2, y: boxY, w: boxW, h: boxH,
-    fill: { color: CONFIG.colors.lightGray },
-    line: { color: CONFIG.colors.primary, width: 2 },
+    x: box3X + 0.04, y: boxY + 0.04, w: boxW, h: boxH,
+    fill: { color: CONFIG.colors.shadow },
     rectRadius: 0.15
   });
-  slide.addText('💬', {
-    x: CONFIG.margin + (boxW + boxGap) * 2 + 0.2, y: boxY + 0.15, w: 0.5, h: 0.4,
-    fontSize: 20
+  // Box
+  slide.addShape('roundRect', {
+    x: box3X, y: boxY, w: boxW, h: boxH,
+    fill: { color: CONFIG.colors.white },
+    line: { color: CONFIG.colors.primary, width: 1.5 },
+    rectRadius: 0.15
   });
+  // Icon (chat bubble)
+  drawChatIcon(slide, box3X + 0.25, boxY + 0.18, 0.5, CONFIG.colors.primary);
+  // Label
   slide.addText('Interaktionen Gesamt', {
-    x: CONFIG.margin + (boxW + boxGap) * 2 + 0.1, y: boxY + 0.55, w: boxW - 0.2, h: 0.3,
-    fontSize: 10, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily, align: 'center'
+    x: box3X + 0.1, y: boxY + 0.7, w: boxW - 0.2, h: 0.25,
+    fontSize: 10, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily, align: 'center'
   });
+  // Value
   slide.addText(formatNumber(totalInteractions), {
-    x: CONFIG.margin + (boxW + boxGap) * 2 + 0.1, y: boxY + 0.85, w: boxW - 0.2, h: 0.5,
-    fontSize: 24, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily, align: 'center'
+    x: box3X + 0.1, y: boxY + 0.95, w: boxW - 0.2, h: 0.45,
+    fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily, align: 'center'
+  });
+  // Trend Pill
+  const pill3X = box3X + (boxW - pillW) / 2;
+  slide.addShape('roundRect', {
+    x: pill3X, y: pillY, w: pillW, h: pillH,
+    fill: { color: interactionTrend.color },
+    rectRadius: 0.16
   });
   slide.addText(interactionTrend.text, {
-    x: CONFIG.margin + (boxW + boxGap) * 2 + 0.1, y: boxY + 1.35, w: boxW - 0.2, h: 0.3,
-    fontSize: 12, color: interactionTrend.color, fontFace: CONFIG.fontFamily, align: 'center', bold: true
+    x: pill3X, y: pillY, w: pillW, h: pillH,
+    fontSize: 11, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily, align: 'center', valign: 'middle'
   });
   
   // Right side: Gesamtfazit box
-  const fazitX = CONFIG.margin + (boxW + boxGap) * 3 + 0.3;
+  const fazitX = CONFIG.margin + (boxW + boxGap) * 3 + 0.2;
   const fazitW = 10 - fazitX - CONFIG.margin;
   
+  // Shadow
+  slide.addShape('roundRect', {
+    x: fazitX + 0.04, y: boxY + 0.04, w: fazitW, h: boxH,
+    fill: { color: CONFIG.colors.shadow },
+    rectRadius: 0.15
+  });
+  // Box
   slide.addShape('roundRect', {
     x: fazitX, y: boxY, w: fazitW, h: boxH,
     fill: { color: CONFIG.colors.white },
-    line: { color: CONFIG.colors.secondary, width: 2 },
+    line: { color: CONFIG.colors.secondary, width: 1.5 },
     rectRadius: 0.15
   });
   
   slide.addText('Gesamtfazit', {
-    x: fazitX + 0.15, y: boxY + 0.1, w: fazitW - 0.3, h: 0.35,
+    x: fazitX + 0.15, y: boxY + 0.12, w: fazitW - 0.3, h: 0.3,
     fontSize: 12, bold: true, color: CONFIG.colors.secondary, fontFace: CONFIG.fontFamily
   });
   
-  const fazitText = `Der ${getShortMonthName(month)} zeigt eine ${
-    totalReach > prevTotalReach ? 'positive' : 'stabile'
-  } Performance auf beiden Plattformen. Die organische Basis bleibt solide und bietet eine gute Ausgangslage für neue Impulse.`;
+  const performanceWord = totalReach > prevTotalReach ? 'positive' : (totalReach < prevTotalReach ? 'rückläufige' : 'stabile');
+  const fazitText = `Der ${getShortMonthName(month)} zeigt eine ${performanceWord} Performance auf beiden Plattformen. Die organische Basis bleibt solide und bietet eine gute Ausgangslage für neue Impulse.`;
   
   slide.addText(fazitText, {
-    x: fazitX + 0.15, y: boxY + 0.45, w: fazitW - 0.3, h: 1.2,
-    fontSize: 10, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+    x: fazitX + 0.15, y: boxY + 0.45, w: fazitW - 0.3, h: 1.3,
+    fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily
   });
   
-  // Platform breakdown below
-  const breakdownY = boxY + boxH + 0.4;
+  // Platform breakdown below - cleaner design
+  const breakdownY = boxY + boxH + 0.35;
+  const breakdownW = 4.2;
+  const breakdownH = 1.5;
   
   // Facebook mini summary
-  slide.addShape('rect', {
-    x: CONFIG.margin, y: breakdownY, w: 4.3, h: 1.6,
-    fill: { color: CONFIG.colors.lightGray },
-    line: { color: CONFIG.colors.primary, width: 1.5 }
+  slide.addShape('roundRect', {
+    x: CONFIG.margin + 0.03, y: breakdownY + 0.03, w: breakdownW, h: breakdownH,
+    fill: { color: CONFIG.colors.shadow },
+    rectRadius: 0.1
   });
-  slide.addText('📘 Facebook', {
-    x: CONFIG.margin + 0.15, y: breakdownY + 0.1, w: 4, h: 0.3,
+  slide.addShape('roundRect', {
+    x: CONFIG.margin, y: breakdownY, w: breakdownW, h: breakdownH,
+    fill: { color: CONFIG.colors.white },
+    line: { color: CONFIG.colors.primary, width: 1 },
+    rectRadius: 0.1
+  });
+  // Facebook icon (f in circle)
+  slide.addShape('ellipse', {
+    x: CONFIG.margin + 0.15, y: breakdownY + 0.12, w: 0.35, h: 0.35,
+    fill: { color: CONFIG.colors.primary }
+  });
+  slide.addText('f', {
+    x: CONFIG.margin + 0.15, y: breakdownY + 0.12, w: 0.35, h: 0.35,
+    fontSize: 14, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle', fontFace: CONFIG.fontFamily
+  });
+  slide.addText('Facebook', {
+    x: CONFIG.margin + 0.55, y: breakdownY + 0.15, w: 2, h: 0.3,
     fontSize: 12, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
   });
   slide.addText(`Reichweite: ${formatNumber(fbCurrent.total_reach)}\nInteraktionen: ${formatNumber(fbCurrent.total_reactions + fbCurrent.total_comments)}\nEngagement: ${fbCurrent.engagement_rate.toFixed(2).replace('.', ',')}%`, {
-    x: CONFIG.margin + 0.15, y: breakdownY + 0.45, w: 4, h: 1,
-    fontSize: 10, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+    x: CONFIG.margin + 0.15, y: breakdownY + 0.5, w: breakdownW - 0.3, h: 0.9,
+    fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily
   });
   
   // Instagram mini summary
-  slide.addShape('rect', {
-    x: CONFIG.margin + 4.5, y: breakdownY, w: 4.3, h: 1.6,
-    fill: { color: CONFIG.colors.lightGray },
+  const igBoxX = CONFIG.margin + breakdownW + 0.3;
+  slide.addShape('roundRect', {
+    x: igBoxX + 0.03, y: breakdownY + 0.03, w: breakdownW, h: breakdownH,
+    fill: { color: CONFIG.colors.shadow },
+    rectRadius: 0.1
+  });
+  slide.addShape('roundRect', {
+    x: igBoxX, y: breakdownY, w: breakdownW, h: breakdownH,
+    fill: { color: CONFIG.colors.white },
+    line: { color: CONFIG.colors.secondary, width: 1 },
+    rectRadius: 0.1
+  });
+  // Instagram icon (camera outline)
+  slide.addShape('roundRect', {
+    x: igBoxX + 0.15, y: breakdownY + 0.12, w: 0.35, h: 0.35,
+    line: { color: CONFIG.colors.secondary, width: 2 },
+    rectRadius: 0.08
+  });
+  slide.addShape('ellipse', {
+    x: igBoxX + 0.24, y: breakdownY + 0.21, w: 0.17, h: 0.17,
     line: { color: CONFIG.colors.secondary, width: 1.5 }
   });
-  slide.addText('📸 Instagram', {
-    x: CONFIG.margin + 4.65, y: breakdownY + 0.1, w: 4, h: 0.3,
+  slide.addText('Instagram', {
+    x: igBoxX + 0.55, y: breakdownY + 0.15, w: 2, h: 0.3,
     fontSize: 12, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
   });
   slide.addText(`Reichweite: ${formatNumber(igCurrent.total_reach)}\nInteraktionen: ${formatNumber(igCurrent.total_reactions + igCurrent.total_comments)}\nEngagement: ${igCurrent.engagement_rate.toFixed(2).replace('.', ',')}%`, {
-    x: CONFIG.margin + 4.65, y: breakdownY + 0.45, w: 4, h: 1,
-    fontSize: 10, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+    x: igBoxX + 0.15, y: breakdownY + 0.5, w: breakdownW - 0.3, h: 0.9,
+    fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily
   });
 }
 
-// Create premium bar chart with larger images and overlays
-function createPremiumBarChartWithImages(
+// Create Top 3 Content Showcase Slide (replaces bar charts)
+function createTop3ContentShowcase(
   slide: PptxGenJS.Slide,
-  posts: (PostData & { value: number })[],
-  barColor: string,
-  yAxisLabel: string,
-  startY: number
-) {
-  if (posts.length === 0) {
-    slide.addText('Keine Daten für diesen Zeitraum', {
+  posts: PostData[],
+  platform: 'facebook' | 'instagram',
+  month: string
+): void {
+  slide.background = { color: CONFIG.colors.background };
+  const accentColor = platform === 'facebook' ? CONFIG.colors.primary : CONFIG.colors.secondary;
+  addBrandingLine(slide, accentColor);
+  addSubtleWatermark(slide);
+  
+  // Title
+  slide.addText(platform === 'facebook' ? 'Facebook' : 'Instagram', {
+    x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+    fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+  });
+  slide.addText('Top 3 Content', {
+    x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+    fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
+  });
+  
+  // Get top 3 posts by interactions
+  const topPosts = [...posts]
+    .map(p => ({ 
+      ...p, 
+      interactions: (p.reactions_total || 0) + (p.comments_total || 0) + (p.saves || 0),
+      engagementRate: p.reach && p.reach > 0 ? (((p.reactions_total || 0) + (p.comments_total || 0)) / p.reach * 100) : 0
+    }))
+    .sort((a, b) => b.interactions - a.interactions)
+    .slice(0, 3);
+  
+  if (topPosts.length === 0) {
+    slide.addText('Keine Posts für diesen Zeitraum verfügbar', {
       x: 1, y: 2.5, w: 8, h: 0.5,
-      fontSize: 14, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
+      fontSize: 14, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
     });
     return;
   }
   
-  const maxValue = Math.max(...posts.map(p => p.value));
-  const chartHeight = 2.8;
-  const chartWidth = 10 - (CONFIG.margin * 2) - 0.5;
-  const startX = CONFIG.margin + 0.7;
-  const chartBottom = startY + chartHeight;
+  // Display 3 large portrait images side by side
+  const imgW = 2.8;
+  const imgH = 3.5; // Portrait aspect ratio
+  const startX = CONFIG.margin + 0.2;
+  const startY = 1.0;
+  const gap = 0.35;
   
-  // Calculate bar width based on number of posts (min 1.5 inch for images)
-  const imgSize = 1.5; // Minimum 1.5 inch for images
-  const barWidth = Math.min(imgSize, (chartWidth - 0.5) / posts.length - 0.15);
-  const actualImgSize = Math.max(barWidth * 0.9, 1.2);
-  
-  // Y-axis
-  slide.addShape('line', {
-    x: startX - 0.1, y: startY, w: 0, h: chartHeight,
-    line: { color: CONFIG.colors.gray, width: 0.5 }
-  });
-  
-  // Y-axis labels and grid lines
-  const ySteps = 5;
-  for (let i = 0; i <= ySteps; i++) {
-    const yVal = Math.round((maxValue / ySteps) * (ySteps - i));
-    const yPos = startY + (chartHeight / ySteps) * i;
-    slide.addText(formatNumber(yVal), {
-      x: CONFIG.margin - 0.1, y: yPos - 0.12, w: 0.7, h: 0.24,
-      fontSize: 8, color: CONFIG.colors.gray, align: 'right', fontFace: CONFIG.fontFamily
-    });
-    // Grid line
-    slide.addShape('line', {
-      x: startX, y: yPos, w: chartWidth, h: 0,
-      line: { color: 'E8E8E8', width: 0.3, dashType: 'dash' }
-    });
-  }
-  
-  // Bars and images with overlays
-  const spacing = chartWidth / posts.length;
-  posts.forEach((post, idx) => {
-    const barHeight = maxValue > 0 ? (post.value / maxValue) * chartHeight : 0;
-    const xPos = startX + idx * spacing + (spacing - barWidth) / 2;
-    const barY = chartBottom - barHeight;
+  topPosts.forEach((post, idx) => {
+    const xPos = startX + idx * (imgW + gap);
     
-    // Bar with gradient effect (simulated with two rectangles)
+    // Shadow for image
     slide.addShape('rect', {
-      x: xPos, y: barY, w: barWidth, h: barHeight,
-      fill: { color: barColor },
+      x: xPos + 0.05, y: startY + 0.05, w: imgW, h: imgH,
+      fill: { color: CONFIG.colors.shadow }
     });
-    // Lighter overlay on left side for 3D effect
-    slide.addShape('rect', {
-      x: xPos, y: barY, w: barWidth * 0.3, h: barHeight,
-      fill: { color: barColor, transparency: 30 },
-    });
-    
-    // Image above bar (larger, min 1.5 inch)
-    const imgY = barY - actualImgSize - 0.08;
-    const imgX = xPos + (barWidth - actualImgSize) / 2;
     
     if (post.thumbnail_url) {
       try {
+        // Main image
         slide.addImage({
           path: post.thumbnail_url,
-          x: imgX,
-          y: imgY,
-          w: actualImgSize, 
-          h: actualImgSize,
+          x: xPos, y: startY, w: imgW, h: imgH,
+          sizing: { type: 'cover', w: imgW, h: imgH }
         });
         
-        // Semi-transparent overlay box with interaction count (bottom right of image)
-        const overlayW = actualImgSize * 0.6;
-        const overlayH = 0.28;
-        const overlayX = imgX + actualImgSize - overlayW - 0.05;
-        const overlayY = imgY + actualImgSize - overlayH - 0.05;
-        
-        // Black background with 50% transparency
-        slide.addShape('rect', {
-          x: overlayX, y: overlayY, w: overlayW, h: overlayH,
-          fill: { color: CONFIG.colors.black, transparency: 50 },
+        // Date badge (top right, small and subtle)
+        const dateW = 0.9;
+        const dateH = 0.28;
+        slide.addShape('roundRect', {
+          x: xPos + imgW - dateW - 0.08, y: startY + 0.08, w: dateW, h: dateH,
+          fill: { color: CONFIG.colors.black, transparency: 40 },
           rectRadius: 0.05
         });
-        
-        // White text for interaction count
-        slide.addText(formatNumber(post.value), {
-          x: overlayX, y: overlayY, w: overlayW, h: overlayH,
-          fontSize: 9, bold: true, color: CONFIG.colors.white, 
-          fontFace: CONFIG.fontFamily, align: 'center', valign: 'middle'
+        slide.addText(formatDate(post.created_time), {
+          x: xPos + imgW - dateW - 0.08, y: startY + 0.08, w: dateW, h: dateH,
+          fontSize: 8, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily, align: 'center', valign: 'middle'
         });
-      } catch {
+        
+        // Elegant overlay on bottom third with metrics
+        const overlayH = imgH * 0.35;
+        const overlayY = startY + imgH - overlayH;
+        
+        // Gradient-like overlay (darker at bottom)
         slide.addShape('rect', {
-          x: imgX, y: imgY, w: actualImgSize, h: actualImgSize,
-          fill: { color: 'EEEEEE' }, line: { color: 'CCCCCC', width: 0.5 }
+          x: xPos, y: overlayY, w: imgW, h: overlayH,
+          fill: { color: CONFIG.colors.black, transparency: 35 }
+        });
+        
+        // Metrics in overlay
+        const metricsY = overlayY + 0.15;
+        
+        // Reach
+        slide.addText('Reichweite', {
+          x: xPos + 0.1, y: metricsY, w: imgW - 0.2, h: 0.2,
+          fontSize: 8, color: 'CCCCCC', fontFace: CONFIG.fontFamily
+        });
+        slide.addText(formatNumber(post.reach || 0), {
+          x: xPos + 0.1, y: metricsY + 0.18, w: imgW - 0.2, h: 0.28,
+          fontSize: 14, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
+        });
+        
+        // Interactions
+        slide.addText('Interaktionen', {
+          x: xPos + 0.1, y: metricsY + 0.52, w: imgW - 0.2, h: 0.2,
+          fontSize: 8, color: 'CCCCCC', fontFace: CONFIG.fontFamily
+        });
+        slide.addText(formatNumber(post.interactions), {
+          x: xPos + 0.1, y: metricsY + 0.7, w: imgW - 0.2, h: 0.28,
+          fontSize: 14, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
+        });
+        
+        // Engagement rate (small pill)
+        const engPillW = 0.9;
+        const engPillH = 0.25;
+        slide.addShape('roundRect', {
+          x: xPos + imgW - engPillW - 0.1, y: metricsY + 0.75, w: engPillW, h: engPillH,
+          fill: { color: accentColor },
+          rectRadius: 0.12
+        });
+        slide.addText(`${post.engagementRate.toFixed(1)}%`, {
+          x: xPos + imgW - engPillW - 0.1, y: metricsY + 0.75, w: engPillW, h: engPillH,
+          fontSize: 9, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily, align: 'center', valign: 'middle'
+        });
+        
+      } catch {
+        // Fallback placeholder
+        slide.addShape('rect', {
+          x: xPos, y: startY, w: imgW, h: imgH,
+          fill: { color: CONFIG.colors.lightGray },
+          line: { color: 'DDDDDD', width: 1 }
+        });
+        slide.addText('Bild nicht verfügbar', {
+          x: xPos, y: startY + imgH / 2 - 0.15, w: imgW, h: 0.3,
+          fontSize: 10, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
         });
       }
+    } else {
+      // No thumbnail
+      slide.addShape('rect', {
+        x: xPos, y: startY, w: imgW, h: imgH,
+        fill: { color: CONFIG.colors.lightGray },
+        line: { color: 'DDDDDD', width: 1 }
+      });
+      slide.addText('Kein Bild', {
+        x: xPos, y: startY + imgH / 2 - 0.15, w: imgW, h: 0.3,
+        fontSize: 10, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
+      });
     }
     
-    // Date label below bar
-    const isCarousel = post.type === 'carousel' || post.type === 'CAROUSEL_ALBUM';
-    const dateStr = formatDate(post.created_time) + (isCarousel ? '*' : '');
-    slide.addText(dateStr, {
-      x: xPos - 0.15, y: chartBottom + 0.05, w: barWidth + 0.3, h: 0.25,
-      fontSize: 7, color: CONFIG.colors.black, align: 'center', fontFace: CONFIG.fontFamily
+    // Rank badge
+    slide.addShape('ellipse', {
+      x: xPos - 0.15, y: startY - 0.15, w: 0.4, h: 0.4,
+      fill: { color: accentColor }
+    });
+    slide.addText((idx + 1).toString(), {
+      x: xPos - 0.15, y: startY - 0.15, w: 0.4, h: 0.4,
+      fontSize: 14, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle', fontFace: CONFIG.fontFamily
     });
   });
 }
@@ -903,7 +1018,7 @@ export async function GET(request: NextRequest) {
     
     console.log('FB Posts:', fbPosts.length, 'IG Posts:', igPosts.length);
     
-    // Create PowerPoint with premium styling
+    // Create PowerPoint with HIGH-END AGENCY styling
     const pptx = new PptxGenJS();
     pptx.author = 'famefact GmbH';
     pptx.title = `${CONFIG.customerName} Social Media Report - ${getMonthName(month)}`;
@@ -911,32 +1026,32 @@ export async function GET(request: NextRequest) {
     pptx.layout = 'LAYOUT_16x9';
     
     // ========================================
-    // SLIDE 1: Cover (white background with branding)
+    // SLIDE 1: Cover (premium gray background)
     // ========================================
     const slide1 = pptx.addSlide();
-    slide1.background = { color: CONFIG.colors.white };
+    slide1.background = { color: CONFIG.colors.background };
     addBrandingLine(slide1);
     
-    // famefact logo (top left)
+    // famefact logo (top left) - Bold
     slide1.addText('famefact.', {
-      x: CONFIG.margin, y: 0.3, w: 2, h: 0.4,
+      x: CONFIG.margin, y: 0.25, w: 2, h: 0.4,
       fontSize: 18, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
     
     // famefact graphic (top right) - green/purple diamond shapes
     slide1.addShape('rect', {
-      x: 7.5, y: 0.2, w: 1.5, h: 1.5,
+      x: 7.5, y: 0.15, w: 1.4, h: 1.4,
       fill: { color: CONFIG.colors.primary },
       rotate: 45
     });
     slide1.addShape('rect', {
-      x: 8.2, y: 0.8, w: 1.2, h: 1.2,
+      x: 8.15, y: 0.7, w: 1.1, h: 1.1,
       fill: { color: CONFIG.colors.secondary },
       rotate: 45
     });
     
     // ANDskincare Logo (center)
-    const logoY = 1.8;
+    const logoY = 1.7;
     ['A', 'N', 'D'].forEach((letter, i) => {
       slide1.addShape('ellipse', {
         x: 3.5 + i * 1.1, y: logoY, w: 0.9, h: 0.9,
@@ -948,585 +1063,404 @@ export async function GET(request: NextRequest) {
       });
     });
     slide1.addText('SKINCARE', {
-      x: 0, y: logoY + 1.1, w: '100%', h: 0.4,
-      fontSize: 18, color: '808080', align: 'center', charSpacing: 6, fontFace: CONFIG.fontFamily
+      x: 0, y: logoY + 1.05, w: '100%', h: 0.4,
+      fontSize: 16, color: '808080', align: 'center', charSpacing: 5, fontFace: CONFIG.fontFamily
     });
     
     // Title
     slide1.addText('Social Media Reporting', {
-      x: 0, y: 3.5, w: '100%', h: 0.6,
-      fontSize: 32, bold: true, color: CONFIG.colors.black, align: 'center', fontFace: CONFIG.fontFamily
+      x: 0, y: 3.4, w: '100%', h: 0.55,
+      fontSize: 30, bold: true, color: CONFIG.colors.black, align: 'center', fontFace: CONFIG.fontFamily
     });
     slide1.addText(getMonthName(month), {
-      x: 0, y: 4.1, w: '100%', h: 0.4,
-      fontSize: 20, color: CONFIG.colors.primary, align: 'center', fontFace: CONFIG.fontFamily
+      x: 0, y: 3.95, w: '100%', h: 0.4,
+      fontSize: 18, color: CONFIG.colors.primary, align: 'center', fontFace: CONFIG.fontFamily
     });
     
     // ========================================
-    // SLIDE 2: Executive Summary (NEW!)
+    // SLIDE 2: Executive Summary (Premium)
     // ========================================
     const slide2 = pptx.addSlide();
     createExecutiveSummarySlide(slide2, fbKpis, igKpis, month);
     addFamefactIcon(slide2, 2);
     
     // ========================================
-    // SLIDE 3: Facebook Analyse (Screenshot placeholder)
+    // SLIDE 3: Facebook Kennzahlen (Premium Table)
     // ========================================
     const slide3 = pptx.addSlide();
-    slide3.background = { color: CONFIG.colors.white };
+    slide3.background = { color: CONFIG.colors.background };
     addBrandingLine(slide3, CONFIG.colors.primary);
+    addSubtleWatermark(slide3);
     
-    // Facebook icon
-    slide3.addShape('ellipse', {
-      x: 4.5, y: 0.3, w: 0.8, h: 0.8,
-      fill: { color: CONFIG.colors.black }
+    slide3.addText('Facebook', {
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide3.addText('f', {
-      x: 4.5, y: 0.3, w: 0.8, h: 0.8,
-      fontSize: 28, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle', fontFace: CONFIG.fontFamily
-    });
-    
-    slide3.addText('Facebook Analyse', {
-      x: 0, y: 1.2, w: '100%', h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, align: 'center', fontFace: CONFIG.fontFamily
+    slide3.addText('Kennzahlen', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    // Screenshot placeholder
-    slide3.addShape('rect', {
-      x: 1, y: 1.9, w: 8, h: 3,
-      fill: { color: CONFIG.colors.lightGray },
-      line: { color: 'CCCCCC', width: 1 }
-    });
-    slide3.addText('Screenshot der Facebook-Seite hier einfügen', {
-      x: 1, y: 3.2, w: 8, h: 0.4,
-      fontSize: 12, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
-    });
+    createPremiumKPITable(slide3, fbKpis, 1.0, 'facebook');
     
     addFamefactIcon(slide3, 3);
     
     // ========================================
-    // SLIDE 4: Facebook Kennzahlen (Premium Table)
+    // SLIDE 4: Facebook Top 3 Content (NEW - replaces bar chart)
     // ========================================
     const slide4 = pptx.addSlide();
-    slide4.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide4, CONFIG.colors.primary);
-    
-    slide4.addText('Facebook', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-    });
-    slide4.addText('Kennzahlen', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
-    });
-    
-    createPremiumFacebookKPITable(slide4, fbKpis, 1.1);
-    
+    createTop3ContentShowcase(slide4, fbPosts.filter(p => p.type !== 'video' && p.type !== 'VIDEO'), 'facebook', month);
     addFamefactIcon(slide4, 4);
     
     // ========================================
-    // SLIDE 5: Facebook Posts nach Interaktionen (Premium Chart)
+    // SLIDE 5: Facebook Videos Top 3
     // ========================================
+    const fbVideos = fbPosts.filter(p => p.type === 'video' || p.type === 'VIDEO' || p.type === 'reel' || p.type === 'REEL');
     const slide5 = pptx.addSlide();
-    slide5.background = { color: CONFIG.colors.white };
+    slide5.background = { color: CONFIG.colors.background };
     addBrandingLine(slide5, CONFIG.colors.primary);
+    addSubtleWatermark(slide5);
     
     slide5.addText('Facebook', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide5.addText('Postings (Feed) nach Interaktionen', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
+    slide5.addText('Top Videos & Reels', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    const fbPostsByInteractions = [...fbPosts]
-      .filter(p => p.type !== 'video' && p.type !== 'VIDEO')
-      .map(p => ({ ...p, value: (p.reactions_total || 0) + (p.comments_total || 0) }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-    
-    createPremiumBarChartWithImages(slide5, fbPostsByInteractions, CONFIG.colors.green, 'Interaktionen', 1.5);
-    
-    if (fbPostsByInteractions.some(p => p.type === 'carousel' || p.type === 'CAROUSEL_ALBUM')) {
-      slide5.addText('*Carousel Posting', {
-        x: CONFIG.margin, y: 4.8, w: 3, h: 0.25,
-        fontSize: 9, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+    if (fbVideos.length > 0) {
+      createTop3ContentShowcase(slide5, fbVideos, 'facebook', month);
+    } else {
+      slide5.addText('Keine Videos für diesen Zeitraum verfügbar', {
+        x: 1, y: 2.5, w: 8, h: 0.5,
+        fontSize: 14, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
       });
     }
-    
     addFamefactIcon(slide5, 5);
     
     // ========================================
-    // SLIDE 6: Facebook Videos nach 3-Sek-Views
+    // SLIDE 6: Facebook Demographie
     // ========================================
     const slide6 = pptx.addSlide();
-    slide6.background = { color: CONFIG.colors.white };
+    slide6.background = { color: CONFIG.colors.background };
     addBrandingLine(slide6, CONFIG.colors.primary);
+    addSubtleWatermark(slide6);
     
     slide6.addText('Facebook', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide6.addText('Postings (Feed) nach 3-sekündigen Videoplays', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
+    slide6.addText('Fans (Demographie)', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    const fbVideos = [...fbPosts]
-      .filter(p => p.type === 'video' || p.type === 'VIDEO' || p.type === 'reel' || p.type === 'REEL')
-      .map(p => ({ 
-        ...p, 
-        value: (p.video_3s_views && p.video_3s_views > 0) ? p.video_3s_views : (p.reach || 0)
-      }))
-      .filter(p => p.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-    
-    createPremiumBarChartWithImages(slide6, fbVideos, CONFIG.colors.purple, 'Video Views', 1.5);
+    // Placeholder with shadow
+    slide6.addShape('roundRect', {
+      x: CONFIG.margin + 0.04, y: 1.04, w: 10 - (CONFIG.margin * 2), h: 3.5,
+      fill: { color: CONFIG.colors.shadow },
+      rectRadius: 0.1
+    });
+    slide6.addShape('roundRect', {
+      x: CONFIG.margin, y: 1.0, w: 10 - (CONFIG.margin * 2), h: 3.5,
+      fill: { color: CONFIG.colors.white },
+      line: { color: 'E0E0E0', width: 1 },
+      rectRadius: 0.1
+    });
+    slide6.addText('Screenshot der Facebook Insights (Demographie) hier einfügen', {
+      x: CONFIG.margin, y: 2.6, w: 10 - (CONFIG.margin * 2), h: 0.4,
+      fontSize: 12, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
+    });
     
     addFamefactIcon(slide6, 6);
     
     // ========================================
-    // SLIDE 7: Facebook Top Postings (2 large images)
+    // SLIDE 7: Instagram Kennzahlen (Premium Table)
     // ========================================
     const slide7 = pptx.addSlide();
-    slide7.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide7, CONFIG.colors.primary);
+    slide7.background = { color: CONFIG.colors.background };
+    addBrandingLine(slide7, CONFIG.colors.secondary);
+    addSubtleWatermark(slide7);
     
-    slide7.addText('Facebook', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+    slide7.addText('Instagram', {
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide7.addText('Top Postings', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
+    slide7.addText('Kennzahlen', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    const topFbPosts = [...fbPosts]
-      .map(p => ({ ...p, interactions: (p.reactions_total || 0) + (p.comments_total || 0) }))
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 2);
-    
-    topFbPosts.forEach((post, idx) => {
-      const xPos = idx === 0 ? CONFIG.margin + 0.3 : 5.2;
-      if (post.thumbnail_url) {
-        try {
-          slide7.addImage({
-            path: post.thumbnail_url,
-            x: xPos, y: 1.1, w: 4, h: 3.5,
-          });
-          // Overlay with stats
-          slide7.addShape('rect', {
-            x: xPos, y: 4.1, w: 4, h: 0.5,
-            fill: { color: CONFIG.colors.black, transparency: 50 }
-          });
-          slide7.addText(`${formatNumber(post.interactions)} Interaktionen`, {
-            x: xPos, y: 4.1, w: 4, h: 0.5,
-            fontSize: 12, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle', fontFace: CONFIG.fontFamily
-          });
-        } catch {
-          slide7.addShape('rect', {
-            x: xPos, y: 1.1, w: 4, h: 3.5,
-            fill: { color: CONFIG.colors.lightGray },
-            line: { color: 'CCCCCC', width: 1 }
-          });
-        }
-      } else {
-        slide7.addShape('rect', {
-          x: xPos, y: 1.1, w: 4, h: 3.5,
-          fill: { color: CONFIG.colors.lightGray },
-          line: { color: 'CCCCCC', width: 1 }
-        });
-      }
-    });
+    createPremiumKPITable(slide7, igKpis, 1.0, 'instagram');
     
     addFamefactIcon(slide7, 7);
     
     // ========================================
-    // SLIDE 8: Facebook Demographie
+    // SLIDE 8: Instagram Top 3 Content
     // ========================================
     const slide8 = pptx.addSlide();
-    slide8.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide8, CONFIG.colors.primary);
-    
-    slide8.addText('Facebook', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-    });
-    slide8.addText('Fans (Demographie)', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
-    });
-    
-    slide8.addShape('rect', {
-      x: CONFIG.margin, y: 1.1, w: 10 - (CONFIG.margin * 2), h: 3.6,
-      fill: { color: CONFIG.colors.lightGray },
-      line: { color: 'CCCCCC', width: 1 }
-    });
-    slide8.addText('Screenshot der Facebook Insights (Demographie) hier einfügen', {
-      x: CONFIG.margin, y: 2.7, w: 10 - (CONFIG.margin * 2), h: 0.4,
-      fontSize: 12, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
-    });
-    
+    createTop3ContentShowcase(slide8, igPosts.filter(p => p.type !== 'VIDEO' && p.type !== 'REEL'), 'instagram', month);
     addFamefactIcon(slide8, 8);
     
     // ========================================
-    // SLIDE 9: Instagram Analyse
+    // SLIDE 9: Instagram Reels Top 3
     // ========================================
+    const igReels = igPosts.filter(p => p.type === 'VIDEO' || p.type === 'REEL');
     const slide9 = pptx.addSlide();
-    slide9.background = { color: CONFIG.colors.white };
+    slide9.background = { color: CONFIG.colors.background };
     addBrandingLine(slide9, CONFIG.colors.secondary);
+    addSubtleWatermark(slide9);
     
-    // Instagram icon
-    slide9.addShape('ellipse', {
-      x: 4.5, y: 0.3, w: 0.8, h: 0.8,
-      line: { color: CONFIG.colors.black, width: 2 }
+    slide9.addText('Instagram', {
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide9.addShape('ellipse', {
-      x: 4.7, y: 0.5, w: 0.4, h: 0.4,
-      line: { color: CONFIG.colors.black, width: 1.5 }
-    });
-    
-    slide9.addText('Instagram Analyse', {
-      x: 0, y: 1.2, w: '100%', h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, align: 'center', fontFace: CONFIG.fontFamily
-    });
-    slide9.addText(CONFIG.instagramHandle, {
-      x: 0, y: 1.7, w: '100%', h: 0.3,
-      fontSize: 14, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
+    slide9.addText('Top Reels', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    slide9.addShape('rect', {
-      x: 1, y: 2.1, w: 8, h: 2.8,
-      fill: { color: CONFIG.colors.lightGray },
-      line: { color: 'CCCCCC', width: 1 }
-    });
-    slide9.addText('Screenshot des Instagram-Profils hier einfügen', {
-      x: 1, y: 3.3, w: 8, h: 0.4,
-      fontSize: 12, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
-    });
-    
+    if (igReels.length > 0) {
+      createTop3ContentShowcase(slide9, igReels, 'instagram', month);
+    } else {
+      slide9.addText('Keine Reels für diesen Zeitraum verfügbar', {
+        x: 1, y: 2.5, w: 8, h: 0.5,
+        fontSize: 14, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
+      });
+    }
     addFamefactIcon(slide9, 9);
     
     // ========================================
-    // SLIDE 10: Instagram Kennzahlen (Premium Table)
+    // SLIDE 10: Instagram Demographie
     // ========================================
     const slide10 = pptx.addSlide();
-    slide10.background = { color: CONFIG.colors.white };
+    slide10.background = { color: CONFIG.colors.background };
     addBrandingLine(slide10, CONFIG.colors.secondary);
+    addSubtleWatermark(slide10);
     
     slide10.addText('Instagram', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide10.addText('Kennzahlen', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
+    slide10.addText('Follower (Demographie)', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    createPremiumInstagramKPITable(slide10, igKpis, 1.1);
+    // Placeholder with shadow
+    slide10.addShape('roundRect', {
+      x: CONFIG.margin + 0.04, y: 1.04, w: 10 - (CONFIG.margin * 2), h: 3.5,
+      fill: { color: CONFIG.colors.shadow },
+      rectRadius: 0.1
+    });
+    slide10.addShape('roundRect', {
+      x: CONFIG.margin, y: 1.0, w: 10 - (CONFIG.margin * 2), h: 3.5,
+      fill: { color: CONFIG.colors.white },
+      line: { color: 'E0E0E0', width: 1 },
+      rectRadius: 0.1
+    });
+    slide10.addText('Screenshot der Instagram Insights (Demographie) hier einfügen', {
+      x: CONFIG.margin, y: 2.6, w: 10 - (CONFIG.margin * 2), h: 0.4,
+      fontSize: 12, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
+    });
     
     addFamefactIcon(slide10, 10);
     
     // ========================================
-    // SLIDE 11: Instagram Posts nach Interaktionen
+    // SLIDE 11: Zusammenfassung
     // ========================================
     const slide11 = pptx.addSlide();
-    slide11.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide11, CONFIG.colors.secondary);
+    slide11.background = { color: CONFIG.colors.background };
+    addBrandingLine(slide11);
+    addSubtleWatermark(slide11);
     
-    slide11.addText('Instagram', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+    slide11.addText('Zusammenfassung', {
+      x: CONFIG.margin, y: 0.2, w: 9, h: 0.45,
+      fontSize: 26, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide11.addText('Postings (Feed) nach Interaktionen', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
-    });
-    
-    const igPostsByInteractions = [...igPosts]
-      .filter(p => p.type !== 'VIDEO' && p.type !== 'REEL')
-      .map(p => ({ ...p, value: (p.reactions_total || 0) + (p.comments_total || 0) + (p.saves || 0) }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-    
-    createPremiumBarChartWithImages(slide11, igPostsByInteractions, CONFIG.colors.green, 'Interaktionen', 1.5);
-    
-    if (igPostsByInteractions.some(p => p.type === 'CAROUSEL_ALBUM')) {
-      slide11.addText('*Carousel Posting', {
-        x: CONFIG.margin, y: 4.8, w: 3, h: 0.25,
-        fontSize: 9, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-      });
-    }
-    
-    addFamefactIcon(slide11, 11);
-    
-    // ========================================
-    // SLIDE 12: Instagram Reels nach Videoplays
-    // ========================================
-    const slide12 = pptx.addSlide();
-    slide12.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide12, CONFIG.colors.secondary);
-    
-    slide12.addText('Instagram', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-    });
-    slide12.addText('Postings nach Videoplays', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
+    slide11.addText('Facebook & Instagram', {
+      x: CONFIG.margin, y: 0.6, w: 9, h: 0.3,
+      fontSize: 14, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    const igReels = [...igPosts]
-      .filter(p => p.type === 'VIDEO' || p.type === 'REEL')
-      .map(p => ({ ...p, value: p.video_3s_views || p.reach || 0 }))
-      .filter(p => p.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-    
-    createPremiumBarChartWithImages(slide12, igReels, CONFIG.colors.purple, 'Video Views', 1.5);
-    
-    addFamefactIcon(slide12, 12);
-    
-    // ========================================
-    // SLIDE 13: Instagram Top Postings
-    // ========================================
-    const slide13 = pptx.addSlide();
-    slide13.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide13, CONFIG.colors.secondary);
-    
-    slide13.addText('Instagram', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-    });
-    slide13.addText('Top Postings', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
-    });
-    
-    const topIgPosts = [...igPosts]
-      .map(p => ({ ...p, interactions: (p.reactions_total || 0) + (p.comments_total || 0) }))
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 2);
-    
-    topIgPosts.forEach((post, idx) => {
-      const xPos = idx === 0 ? CONFIG.margin + 0.3 : 5.2;
-      if (post.thumbnail_url) {
-        try {
-          slide13.addImage({
-            path: post.thumbnail_url,
-            x: xPos, y: 1.1, w: 4, h: 3.5,
-          });
-          // Overlay with stats
-          slide13.addShape('rect', {
-            x: xPos, y: 4.1, w: 4, h: 0.5,
-            fill: { color: CONFIG.colors.black, transparency: 50 }
-          });
-          slide13.addText(`${formatNumber(post.interactions)} Interaktionen`, {
-            x: xPos, y: 4.1, w: 4, h: 0.5,
-            fontSize: 12, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle', fontFace: CONFIG.fontFamily
-          });
-        } catch {
-          slide13.addShape('rect', {
-            x: xPos, y: 1.1, w: 4, h: 3.5,
-            fill: { color: CONFIG.colors.lightGray },
-            line: { color: 'CCCCCC', width: 1 }
-          });
-        }
-      } else {
-        slide13.addShape('rect', {
-          x: xPos, y: 1.1, w: 4, h: 3.5,
-          fill: { color: CONFIG.colors.lightGray },
-          line: { color: 'CCCCCC', width: 1 }
-        });
-      }
-    });
-    
-    addFamefactIcon(slide13, 13);
-    
-    // ========================================
-    // SLIDE 14: Instagram Demographie
-    // ========================================
-    const slide14 = pptx.addSlide();
-    slide14.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide14, CONFIG.colors.secondary);
-    
-    slide14.addText('Instagram', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-    });
-    slide14.addText('Follower (Demographie)', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, fontFace: CONFIG.fontFamily
-    });
-    
-    slide14.addShape('rect', {
-      x: CONFIG.margin, y: 1.1, w: 10 - (CONFIG.margin * 2), h: 3.6,
-      fill: { color: CONFIG.colors.lightGray },
-      line: { color: 'CCCCCC', width: 1 }
-    });
-    slide14.addText('Screenshot der Instagram Insights (Demographie) hier einfügen', {
-      x: CONFIG.margin, y: 2.7, w: 10 - (CONFIG.margin * 2), h: 0.4,
-      fontSize: 12, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
-    });
-    
-    addFamefactIcon(slide14, 14);
-    
-    // ========================================
-    // SLIDE 15: Zusammenfassung
-    // ========================================
-    const slide15 = pptx.addSlide();
-    slide15.background = { color: CONFIG.colors.white };
-    addBrandingLine(slide15);
-    
-    slide15.addText('Facebook / Instagram', {
-      x: CONFIG.margin, y: 0.2, w: 9, h: 0.5,
-      fontSize: 28, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
-    });
-    slide15.addText('Zusammenfassung', {
-      x: CONFIG.margin, y: 0.65, w: 9, h: 0.35,
-      fontSize: 16, color: CONFIG.colors.gray, italic: true, fontFace: CONFIG.fontFamily
-    });
-    
-    // Facebook summary
+    // Facebook summary box
     const fbCurrentKpi = fbKpis[2];
     const fbPrevKpi = fbKpis[1];
-    slide15.addText('Facebook:', {
-      x: CONFIG.margin + 0.3, y: 1.2, w: 9, h: 0.3,
+    
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin + 0.03, y: 1.03, w: 4.3, h: 1.8,
+      fill: { color: CONFIG.colors.shadow },
+      rectRadius: 0.1
+    });
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin, y: 1.0, w: 4.3, h: 1.8,
+      fill: { color: CONFIG.colors.white },
+      line: { color: CONFIG.colors.primary, width: 1 },
+      rectRadius: 0.1
+    });
+    
+    // Facebook icon
+    slide11.addShape('ellipse', {
+      x: CONFIG.margin + 0.15, y: 1.12, w: 0.35, h: 0.35,
+      fill: { color: CONFIG.colors.primary }
+    });
+    slide11.addText('f', {
+      x: CONFIG.margin + 0.15, y: 1.12, w: 0.35, h: 0.35,
+      fontSize: 14, bold: true, color: CONFIG.colors.white, align: 'center', valign: 'middle', fontFace: CONFIG.fontFamily
+    });
+    slide11.addText('Facebook', {
+      x: CONFIG.margin + 0.55, y: 1.15, w: 2, h: 0.3,
       fontSize: 12, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
     
     const fbReachChange = fbPrevKpi.total_reach > 0 
       ? ((fbCurrentKpi.total_reach - fbPrevKpi.total_reach) / fbPrevKpi.total_reach * 100).toFixed(0)
       : '0';
-    const fbBullets = [
-      `Reichweite ${parseInt(fbReachChange) >= 0 ? 'steigt' : 'sinkt'} auf ${formatNumber(fbCurrentKpi.total_reach)} (${parseInt(fbReachChange) >= 0 ? '+' : ''}${fbReachChange}% ggü. ${getShortMonthName(fbPrevKpi.month)})`,
-      `${fbCurrentKpi.posts_count} Postings im ${getShortMonthName(fbCurrentKpi.month)}`,
-      `Interaktionsrate: ${fbCurrentKpi.engagement_rate.toFixed(2).replace('.', ',')}%`,
-    ];
+    const fbSummaryText = `• Reichweite: ${formatNumber(fbCurrentKpi.total_reach)} (${parseInt(fbReachChange) >= 0 ? '+' : ''}${fbReachChange}%)\n• ${fbCurrentKpi.posts_count} Postings\n• Engagement: ${fbCurrentKpi.engagement_rate.toFixed(2).replace('.', ',')}%`;
     
-    fbBullets.forEach((text, idx) => {
-      const trendColor = idx === 0 ? (parseInt(fbReachChange) >= 0 ? CONFIG.colors.trendUp : CONFIG.colors.trendDown) : CONFIG.colors.black;
-      slide15.addText('●  ' + text, {
-        x: CONFIG.margin + 0.5, y: 1.5 + idx * 0.35, w: 8.5, h: 0.3,
-        fontSize: 11, color: idx === 0 ? trendColor : CONFIG.colors.black, fontFace: CONFIG.fontFamily
-      });
+    slide11.addText(fbSummaryText, {
+      x: CONFIG.margin + 0.15, y: 1.5, w: 4, h: 1.2,
+      fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily
     });
     
-    // Instagram summary
+    // Instagram summary box
     const igCurrentKpi = igKpis[2];
     const igPrevKpi = igKpis[1];
-    slide15.addText('Instagram:', {
-      x: CONFIG.margin + 0.3, y: 2.7, w: 9, h: 0.3,
+    
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin + 4.53, y: 1.03, w: 4.3, h: 1.8,
+      fill: { color: CONFIG.colors.shadow },
+      rectRadius: 0.1
+    });
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin + 4.5, y: 1.0, w: 4.3, h: 1.8,
+      fill: { color: CONFIG.colors.white },
+      line: { color: CONFIG.colors.secondary, width: 1 },
+      rectRadius: 0.1
+    });
+    
+    // Instagram icon
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin + 4.65, y: 1.12, w: 0.35, h: 0.35,
+      line: { color: CONFIG.colors.secondary, width: 2 },
+      rectRadius: 0.08
+    });
+    slide11.addShape('ellipse', {
+      x: CONFIG.margin + 4.74, y: 1.21, w: 0.17, h: 0.17,
+      line: { color: CONFIG.colors.secondary, width: 1.5 }
+    });
+    slide11.addText('Instagram', {
+      x: CONFIG.margin + 5.05, y: 1.15, w: 2, h: 0.3,
       fontSize: 12, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
     
     const igReachChange = igPrevKpi.total_reach > 0 
       ? ((igCurrentKpi.total_reach - igPrevKpi.total_reach) / igPrevKpi.total_reach * 100).toFixed(0)
       : '0';
-    const igBullets = [
-      `Follower-Wachstum: ${igCurrentKpi.new_followers >= 0 ? '+' : ''}${igCurrentKpi.new_followers} neue Follower`,
-      `Reichweite: ${formatNumber(igCurrentKpi.total_reach)} (${parseInt(igReachChange) >= 0 ? '+' : ''}${igReachChange}% ggü. ${getShortMonthName(igPrevKpi.month)})`,
-      `Reels bleiben wichtiger Treiber für Reichweite und Sichtbarkeit`,
-    ];
+    const igSummaryText = `• Follower: ${igCurrentKpi.new_followers >= 0 ? '+' : ''}${igCurrentKpi.new_followers} neu\n• Reichweite: ${formatNumber(igCurrentKpi.total_reach)} (${parseInt(igReachChange) >= 0 ? '+' : ''}${igReachChange}%)\n• Engagement: ${igCurrentKpi.engagement_rate.toFixed(2).replace('.', ',')}%`;
     
-    igBullets.forEach((text, idx) => {
-      const trendColor = idx === 0 ? (igCurrentKpi.new_followers >= 0 ? CONFIG.colors.trendUp : CONFIG.colors.trendDown) : CONFIG.colors.black;
-      slide15.addText('●  ' + text, {
-        x: CONFIG.margin + 0.5, y: 3.0 + idx * 0.35, w: 8.5, h: 0.3,
-        fontSize: 11, color: idx === 0 ? trendColor : CONFIG.colors.black, fontFace: CONFIG.fontFamily
-      });
+    slide11.addText(igSummaryText, {
+      x: CONFIG.margin + 4.65, y: 1.5, w: 4, h: 1.2,
+      fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily
     });
     
-    // Gesamtfazit
-    slide15.addText('Gesamtfazit ' + getShortMonthName(month) + ':', {
-      x: CONFIG.margin, y: 4.1, w: 9, h: 0.3,
+    // Gesamtfazit box
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin + 0.03, y: 3.03, w: 8.8, h: 1.5,
+      fill: { color: CONFIG.colors.shadow },
+      rectRadius: 0.1
+    });
+    slide11.addShape('roundRect', {
+      x: CONFIG.margin, y: 3.0, w: 8.8, h: 1.5,
+      fill: { color: CONFIG.colors.white },
+      line: { color: 'E0E0E0', width: 1 },
+      rectRadius: 0.1
+    });
+    
+    slide11.addText('Gesamtfazit ' + getShortMonthName(month), {
+      x: CONFIG.margin + 0.15, y: 3.1, w: 8.5, h: 0.3,
       fontSize: 11, bold: true, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
     });
-    slide15.addText(
-      `Der ${getShortMonthName(month)} zeigt eine stabile Performance auf beiden Plattformen. ` +
-      `Die organische Basis bleibt solide und bietet eine gute Ausgangslage für neue Impulse und Kampagnen.`,
+    
+    const totalReachCurrent = fbCurrentKpi.total_reach + igCurrentKpi.total_reach;
+    const totalReachPrev = fbPrevKpi.total_reach + igPrevKpi.total_reach;
+    const overallTrend = totalReachCurrent > totalReachPrev ? 'positive' : (totalReachCurrent < totalReachPrev ? 'rückläufige' : 'stabile');
+    
+    slide11.addText(
+      `Der ${getShortMonthName(month)} zeigt eine ${overallTrend} Performance auf beiden Plattformen. ` +
+      `Die organische Basis bleibt solide und bietet eine gute Ausgangslage für neue Impulse und Kampagnen. ` +
+      `Besonders die Content-Strategie mit visuell ansprechenden Posts zeigt weiterhin gute Ergebnisse.`,
       {
-        x: CONFIG.margin, y: 4.4, w: 10 - (CONFIG.margin * 2), h: 0.6,
-        fontSize: 10, color: CONFIG.colors.black, fontFace: CONFIG.fontFamily
+        x: CONFIG.margin + 0.15, y: 3.4, w: 8.5, h: 1,
+        fontSize: 10, color: CONFIG.colors.darkGray, fontFace: CONFIG.fontFamily
       }
     );
     
-    addFamefactIcon(slide15, 15);
+    addFamefactIcon(slide11, 11);
     
     // ========================================
-    // SLIDE 16: Outro (black background)
+    // SLIDE 12: Outro (black background)
     // ========================================
-    const slide16 = pptx.addSlide();
-    slide16.background = { color: CONFIG.colors.black };
+    const slide12 = pptx.addSlide();
+    slide12.background = { color: CONFIG.colors.black };
     
     // famefact logo (white)
-    slide16.addText('famefact.', {
-      x: CONFIG.margin, y: 0.4, w: 2.5, h: 0.5,
-      fontSize: 22, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
+    slide12.addText('famefact.', {
+      x: CONFIG.margin, y: 0.35, w: 2.5, h: 0.5,
+      fontSize: 20, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
     });
     
     // Contact photo placeholder
-    slide16.addShape('rect', {
-      x: CONFIG.margin, y: 1.2, w: 2.5, h: 2.8,
+    slide12.addShape('roundRect', {
+      x: CONFIG.margin, y: 1.1, w: 2.4, h: 2.7,
       fill: { color: CONFIG.colors.darkGray },
-      line: { color: '555555', width: 1 }
+      line: { color: '555555', width: 1 },
+      rectRadius: 0.1
     });
-    slide16.addText('Foto', {
-      x: CONFIG.margin, y: 2.4, w: 2.5, h: 0.4,
-      fontSize: 12, color: CONFIG.colors.gray, align: 'center', fontFace: CONFIG.fontFamily
+    slide12.addText('Foto', {
+      x: CONFIG.margin, y: 2.3, w: 2.4, h: 0.4,
+      fontSize: 11, color: CONFIG.colors.mediumGray, align: 'center', fontFace: CONFIG.fontFamily
     });
     
     // Contact info
-    slide16.addText(CONFIG.contact.name, {
-      x: CONFIG.margin, y: 4.1, w: 4, h: 0.3,
-      fontSize: 14, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
+    slide12.addText(CONFIG.contact.name, {
+      x: CONFIG.margin, y: 3.95, w: 4, h: 0.3,
+      fontSize: 13, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
     });
-    slide16.addText(CONFIG.contact.title, {
-      x: CONFIG.margin, y: 4.4, w: 4, h: 0.25,
-      fontSize: 11, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
-    });
-    
-    slide16.addText('famefact', {
-      x: CONFIG.margin, y: 4.85, w: 4, h: 0.35,
-      fontSize: 16, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
-    });
-    slide16.addText('FIRST IN SOCIALTAINMENT', {
-      x: CONFIG.margin, y: 5.15, w: 4, h: 0.25,
-      fontSize: 9, color: CONFIG.colors.white, charSpacing: 2, fontFace: CONFIG.fontFamily
+    slide12.addText(CONFIG.contact.title, {
+      x: CONFIG.margin, y: 4.25, w: 4, h: 0.25,
+      fontSize: 10, color: CONFIG.colors.mediumGray, fontFace: CONFIG.fontFamily
     });
     
-    slide16.addText(CONFIG.contact.company, {
-      x: CONFIG.margin, y: 5.55, w: 4, h: 0.2,
-      fontSize: 9, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
+    slide12.addText('famefact', {
+      x: CONFIG.margin, y: 4.7, w: 4, h: 0.35,
+      fontSize: 15, bold: true, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
     });
-    slide16.addText(CONFIG.contact.address, {
-      x: CONFIG.margin, y: 5.75, w: 4, h: 0.2,
-      fontSize: 9, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
+    slide12.addText('FIRST IN SOCIALTAINMENT', {
+      x: CONFIG.margin, y: 5.0, w: 4, h: 0.25,
+      fontSize: 8, color: CONFIG.colors.mediumGray, charSpacing: 2, fontFace: CONFIG.fontFamily
     });
-    slide16.addText(CONFIG.contact.city, {
-      x: CONFIG.margin, y: 5.95, w: 4, h: 0.2,
+    
+    slide12.addText(`${CONFIG.contact.company}\n${CONFIG.contact.address}\n${CONFIG.contact.city}`, {
+      x: CONFIG.margin, y: 5.4, w: 4, h: 0.7,
       fontSize: 9, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
     });
     
-    slide16.addText('E-Mail: ' + CONFIG.contact.email, {
-      x: CONFIG.margin, y: 6.3, w: 4, h: 0.2,
-      fontSize: 9, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
-    });
-    slide16.addText('Tel.: ' + CONFIG.contact.phone, {
-      x: CONFIG.margin, y: 6.5, w: 4, h: 0.2,
+    slide12.addText(`E-Mail: ${CONFIG.contact.email}\nTel.: ${CONFIG.contact.phone}`, {
+      x: CONFIG.margin, y: 6.15, w: 4, h: 0.45,
       fontSize: 9, color: CONFIG.colors.white, fontFace: CONFIG.fontFamily
     });
     
     // famefact graphic (right side)
-    slide16.addShape('rect', {
-      x: 7, y: 0.5, w: 2.5, h: 2.5,
+    slide12.addShape('rect', {
+      x: 6.8, y: 0.4, w: 2.4, h: 2.4,
       fill: { color: CONFIG.colors.primary },
       rotate: 45
     });
-    slide16.addShape('rect', {
-      x: 7.8, y: 1.5, w: 2, h: 2,
+    slide12.addShape('rect', {
+      x: 7.5, y: 1.3, w: 1.9, h: 1.9,
       fill: { color: CONFIG.colors.secondary },
       rotate: 45
     });

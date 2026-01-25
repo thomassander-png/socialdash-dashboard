@@ -116,3 +116,17 @@
 - [x] Executive Summary Slide: 3 große KPI-Boxen + Gesamtfazit
 - [x] Top-Post Galerie: Größere Bilder (1.5 Zoll) mit halbtransparenten Overlays
 - [x] Bessere Abstände: 0.5 Zoll Seitenränder
+
+
+## PowerPoint High-End Agentur-Level Upgrade (Januar 2026)
+
+- [x] Executive Summary: Emojis durch professionelle Shape-Icons ersetzen
+- [x] Executive Summary: Sanfte Schatten und abgerundete Ecken für KPI-Boxen
+- [x] Executive Summary: Trend-Zahlen in kontrastreicherer Pill-Form
+- [x] Top 3 Content Showcase: Bar-Charts durch große Hochformat-Bilder ersetzen
+- [x] Top 3 Content Showcase: Elegante halbtransparente Overlays mit Metriken
+- [x] Top 3 Content Showcase: Datum dezent oben rechts auf Bildern
+- [x] Hintergrund: Hellgrauer Hintergrund (#F9F9F9) statt weiß
+- [x] Hintergrund: Subtiles Wasserzeichen/Design-Linie am oberen Rand
+- [x] Daten-Handling: Null-Zeilen in KPI-Tabellen automatisch ausblenden
+- [x] Typography: Inter Bold für Header, Inter Light für Labels
