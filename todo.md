@@ -130,3 +130,14 @@
 - [x] Hintergrund: Subtiles Wasserzeichen/Design-Linie am oberen Rand
 - [x] Daten-Handling: Null-Zeilen in KPI-Tabellen automatisch ausblenden
 - [x] Typography: Inter Bold für Header, Inter Light für Labels
+
+
+## Dynamische PowerPoint Route für alle Kunden (Januar 2026)
+
+- [x] Dynamische Route: Von /api/reports/andskincare zu /api/reports/[customerId]
+- [x] Kunden-Daten aus DB laden (Name, Logo-URL, Primärfarbe)
+- [x] Logo-Integration: famefact statisch aus /public/assets/
+- [x] Logo-Integration: Kunden-Logo dynamisch mit Text-Fallback
+- [x] Dynamische Branding-Farben aus DB (Default: #84cc16)
+- [x] Dynamischer Dateiname: [Kundenname]_Social_Media_Report_[Monat]_[Jahr].pptx
+- [x] Design-Konsistenz: High-End-Logik für alle Kunden beibehalten
