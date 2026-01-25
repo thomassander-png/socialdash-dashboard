@@ -99,7 +99,8 @@ interface MonthlyKPI {
 // Get customer data from database
 async function getCustomerData(customerId: string): Promise<CustomerData | null> {
   // Try to find by customer_id (UUID) or by slug
-  const result = await query<CustomerData>(`
+  // First try exact UUID match
+  let result = await query<CustomerData>(`
     SELECT 
       customer_id,
       name,
@@ -108,10 +109,25 @@ async function getCustomerData(customerId: string): Promise<CustomerData | null>
       primary_color,
       is_active
     FROM customers
-    WHERE customer_id = $1 
-       OR LOWER(REPLACE(name, ' ', '-')) = LOWER($1)
+    WHERE customer_id::text = $1
     LIMIT 1
   `, [customerId]);
+  
+  // If not found, try by slug
+  if (!result[0]) {
+    result = await query<CustomerData>(`
+      SELECT 
+        customer_id,
+        name,
+        LOWER(REPLACE(name, ' ', '-')) as slug,
+        logo_url,
+        primary_color,
+        is_active
+      FROM customers
+      WHERE LOWER(REPLACE(name, ' ', '-')) = LOWER($1)
+      LIMIT 1
+    `, [customerId]);
+  }
   
   return result[0] || null;
 }
