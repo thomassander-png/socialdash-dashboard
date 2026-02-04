@@ -34,6 +34,7 @@ interface Post {
   permalink: string;
   thumbnail_url?: string;
   media_url?: string;
+  full_picture?: string;
   reactions_total: number;
   comments_total: number;
   shares_total?: number;
@@ -441,7 +442,7 @@ function FacebookContent() {
                   
                   {/* Thumbnail */}
                   <PostImage 
-                    src={post.thumbnail_url || post.media_url}
+                    src={post.thumbnail_url || post.full_picture || post.media_url}
                     alt={`Post ${index + 1}`}
                     className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden"
                   />

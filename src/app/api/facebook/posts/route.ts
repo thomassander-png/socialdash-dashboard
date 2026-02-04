@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
         p.created_time,
         p.permalink,
         p.thumbnail_url,
+        p.full_picture,
+        p.media_url,
         COALESCE(m.reactions_total, 0) as reactions_total,
         COALESCE(m.comments_total, 0) as comments_total,
         m.shares_total,

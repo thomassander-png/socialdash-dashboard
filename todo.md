@@ -141,3 +141,12 @@
 - [x] Dynamische Branding-Farben aus DB (Default: #84cc16)
 - [x] Dynamischer Dateiname: [Kundenname]_Social_Media_Report_[Monat]_[Jahr].pptx
 - [x] Design-Konsistenz: High-End-Logik für alle Kunden beibehalten
+
+
+## Dashboard Verbesserungen (Februar 2026 - Teil 2)
+
+- [x] Follower-Snapshots: Neue Tabelle für tägliche Follower-Historie (bereits vorhanden: fb_follower_history, ig_follower_history)
+- [x] Follower-Snapshots: Collector erweitern um Snapshots zu speichern (bereits implementiert)
+- [x] Post-Bilder: thumbnail_url, full_picture und media_url aus DB laden
+- [x] Kundenspezifische Ansicht: Follower pro Kunde/Page anzeigen
+- [x] Stats API: Vormonatsdaten korrekt berechnen (prevFbFollowers, prevIgFollowers, etc.)
