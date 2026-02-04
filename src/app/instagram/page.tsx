@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Users, UserPlus, FileText, Heart, MessageCircle, Eye, Bookmark, Play, Image as ImageIcon } from 'lucide-react';
 import Top5PostsChart from '@/components/Top5PostsChart';
 import TopPostsList from '@/components/TopPostsList';
 import PostsTable from '@/components/PostsTable';
@@ -35,6 +35,7 @@ interface Post {
   created_time: string;
   permalink: string;
   thumbnail_url?: string;
+  media_url?: string;
   reactions_total: number;
   comments_total: number;
   likes?: number;
@@ -70,15 +71,17 @@ function getMonthOptions() {
   return options;
 }
 
-// KPI Card - mit farbigem linken Rahmen wie im alten Dashboard
-function KPICard({ title, value, emoji, change, accentColor = 'gray' }: { 
+// KPI Card - mit farbigem linken Rahmen und Lucide Icons
+function KPICard({ title, value, icon: Icon, change, changeValue, accentColor = 'gray', showTrend = true }: { 
   title: string; 
-  value: number; 
-  emoji: string;
+  value: number | string; 
+  icon: React.ElementType;
   change?: number;
-  accentColor?: 'gray' | 'yellow' | 'green' | 'red' | 'pink';
+  changeValue?: number;
+  accentColor?: 'gray' | 'yellow' | 'green' | 'red' | 'pink' | 'purple';
+  showTrend?: boolean;
 }) {
-  const hasChange = change !== undefined && change !== null;
+  const hasChange = change !== undefined && change !== null && showTrend;
   const isPositive = hasChange && change >= 0;
   
   const borderColors = {
@@ -86,75 +89,74 @@ function KPICard({ title, value, emoji, change, accentColor = 'gray' }: {
     yellow: 'border-l-yellow-500',
     green: 'border-l-green-500',
     red: 'border-l-red-500',
-    pink: 'border-l-pink-500'
+    pink: 'border-l-pink-500',
+    purple: 'border-l-purple-500'
+  };
+
+  const iconColors = {
+    gray: 'text-gray-400',
+    yellow: 'text-yellow-400',
+    green: 'text-green-400',
+    red: 'text-red-400',
+    pink: 'text-pink-400',
+    purple: 'text-purple-400'
   };
   
   return (
     <div className={`bg-[#141414] border border-[#262626] ${borderColors[accentColor]} border-l-4 rounded-xl p-3 sm:p-4`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider font-medium">{title}</span>
-        <div className="flex items-center gap-1 sm:gap-2">
-          {hasChange && (
-            <span className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded ${isPositive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
-            </span>
-          )}
-          <span className="text-base sm:text-lg">{emoji}</span>
-        </div>
+        <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${iconColors[accentColor]}`} />
       </div>
-      <div className="text-xl sm:text-3xl font-bold text-white mb-1">{formatNumberRaw(value)}</div>
+      <div className="text-xl sm:text-3xl font-bold text-white mb-1">
+        {typeof value === 'number' ? formatNumber(value) : value}
+      </div>
+      {hasChange && (
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] sm:text-xs font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+            {isPositive ? '↑' : '↓'} {changeValue !== undefined ? formatNumberRaw(Math.abs(changeValue)) : ''} ({Math.abs(change).toFixed(1)}%)
+          </span>
+        </div>
+      )}
+      {!hasChange && <p className="text-gray-500 text-[10px] sm:text-xs">-</p>}
+    </div>
+  );
+}
+
+// Neue Follower Card - speziell für die Anzeige der neuen Follower
+function NewFollowersCard({ newFollowers, isPositive }: { newFollowers: number; isPositive: boolean }) {
+  return (
+    <div className={`bg-[#141414] border border-[#262626] ${isPositive ? 'border-l-green-500' : 'border-l-red-500'} border-l-4 rounded-xl p-3 sm:p-4`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider font-medium">Neue Follower</span>
+        <UserPlus className={`w-4 h-4 sm:w-5 sm:h-5 ${isPositive ? 'text-green-400' : 'text-red-400'}`} />
+      </div>
+      <div className={`text-xl sm:text-3xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'} mb-1`}>
+        {isPositive ? '+' : ''}{formatNumberRaw(newFollowers)}
+      </div>
       <p className="text-gray-500 text-[10px] sm:text-xs">vs. Vormonat</p>
     </div>
   );
 }
 
-// Interaction Compare Card - mit farbiger Akzentlinie links wie im alten Dashboard
-function InteractionCompareCard({ title, current, previous, currentLabel, prevLabel }: {
-  title: string;
-  current: number;
-  previous: number;
-  currentLabel: string;
-  prevLabel: string;
-}) {
-  return (
-    <div className="bg-[#141414] border border-[#262626] border-l-green-500 border-l-4 rounded-xl p-4 sm:p-5">
-      <h3 className="text-gray-400 text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4">{title}</h3>
-      <div className="flex justify-between items-end">
-        <div>
-          <p className="text-green-500 text-[10px] sm:text-xs mb-1">{currentLabel}</p>
-          <p className="text-2xl sm:text-3xl font-bold text-pink-400">{formatNumberRaw(current)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-gray-500 text-[10px] sm:text-xs mb-1">{prevLabel}</p>
-          <p className="text-xl sm:text-2xl font-bold text-gray-400">{formatNumberRaw(previous)}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Engagement Rate Card - mit rotem Status wenn niedrig wie im alten Dashboard
+// Engagement Rate Card
 function EngagementRateCard({ interactions, reach }: { interactions: number; reach: number }) {
   const rate = reach > 0 ? (interactions / reach) * 100 : 0;
   const status = rate >= 5 ? 'Hoch' : rate >= 1 ? 'Gut' : 'Niedrig';
   const statusColor = rate >= 5 ? 'text-green-400 bg-green-500/20' : rate >= 1 ? 'text-yellow-400 bg-yellow-500/20' : 'text-red-400 bg-red-500/20';
-  const rateColor = rate >= 5 ? 'text-green-400' : rate >= 1 ? 'text-[#84cc16]' : 'text-red-400';
-  const rateChange = 22.1; // Placeholder
+  const rateColor = rate >= 5 ? 'text-green-400' : rate >= 1 ? 'text-purple-400' : 'text-red-400';
   const gaugePosition = Math.min(rate * 10, 100);
   
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 sm:p-5">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-gray-400 text-xs sm:text-sm flex items-center gap-2">
-          <span className="text-base sm:text-lg">❤️</span>
+          <Heart className="w-4 h-4 text-pink-400" />
           <span className="uppercase tracking-wider">Engagement Rate</span>
         </h3>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <span className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded ${statusColor}`}>
-            {status}
-          </span>
-          <span className="text-green-400 text-[10px] sm:text-xs">↑{rateChange.toFixed(1)}%</span>
-        </div>
+        <span className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded ${statusColor}`}>
+          {status}
+        </span>
       </div>
       
       <div className={`text-3xl sm:text-5xl font-bold ${rateColor} mb-4`}>{rate.toFixed(2)}%</div>
@@ -187,6 +189,40 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
         </div>
       </div>
       <p className="text-gray-600 text-[10px] sm:text-xs mt-3">Berechnung: Interaktionen ÷ Reichweite × 100</p>
+    </div>
+  );
+}
+
+// Post Image Component mit Fallback
+function PostImage({ src, alt, className }: { src?: string; alt: string; className?: string }) {
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  if (!src || error) {
+    return (
+      <div className={`bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center ${className}`}>
+        <ImageIcon className="w-8 h-8 text-white/50" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative ${className}`}>
+      {loading && (
+        <div className="absolute inset-0 bg-[#262626] animate-pulse flex items-center justify-center">
+          <ImageIcon className="w-8 h-8 text-gray-600" />
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={`w-full h-full object-cover ${loading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          setError(true);
+          setLoading(false);
+        }}
+      />
     </div>
   );
 }
@@ -237,15 +273,25 @@ function InstagramContent() {
     ? stats.prevIgLikes + stats.prevIgComments 
     : 0;
 
+  // Berechne neue Follower
+  const newFollowers = stats && stats.prevIgFollowers !== undefined 
+    ? stats.igFollowers - stats.prevIgFollowers 
+    : 0;
+  const isFollowerGrowth = newFollowers >= 0;
+
   return (
     <div>
       {/* Header - Responsive */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 lg:mb-8 gap-4">
         <div className="flex items-center gap-3">
-          <span className="text-2xl lg:text-3xl">📸</span>
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 rounded-xl flex items-center justify-center">
+            <svg className="w-6 h-6 lg:w-7 lg:h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+          </div>
           <div>
             <h1 className="text-xl lg:text-3xl font-bold text-white">Instagram Analytics</h1>
-            <p className="text-gray-500 text-sm mt-1">Performance Metriken und Post-Übersicht</p>
+            <p className="text-gray-500 text-sm mt-1">Detaillierte KPIs und Top Posts für {monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth}</p>
           </div>
         </div>
         
@@ -253,7 +299,7 @@ function InstagramContent() {
           <select
             value={selectedCustomer}
             onChange={(e) => setSelectedCustomer(e.target.value)}
-            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-3 sm:px-4 py-2 text-sm focus:border-[#84cc16] focus:outline-none"
+            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-3 sm:px-4 py-2 text-sm focus:border-purple-500 focus:outline-none"
           >
             <option value="all">Alle Kunden</option>
             {customers.map(c => (
@@ -264,113 +310,153 @@ function InstagramContent() {
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-3 sm:px-4 py-2 text-sm focus:border-[#84cc16] focus:outline-none"
+            className="bg-[#1f1f1f] text-white border border-[#262626] rounded-lg px-3 sm:px-4 py-2 text-sm focus:border-purple-500 focus:outline-none"
           >
             {monthOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          
-          <button className="bg-[#84cc16] hover:bg-[#65a30d] text-black font-medium px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm">
-            <span>📄</span>
-            <span className="hidden sm:inline">Report erstellen</span>
-            <span className="sm:hidden">Report</span>
-          </button>
         </div>
-      </div>
-
-      {/* Management Summary Button */}
-      <div className="mb-6">
-        <button className="bg-[#84cc16]/20 border border-[#84cc16] text-[#84cc16] px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#84cc16]/30 transition-colors text-sm">
-          <span>📄</span>
-          Management Summary
-        </button>
-        <p className="text-gray-500 text-xs sm:text-sm mt-1">Wählen Sie einen Kunden für den Management Report</p>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#84cc16]"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
         </div>
       ) : stats ? (
         <>
-          {/* KPI Cards - Responsive Grid: 2 cols on mobile, 3 on tablet, 5 on desktop */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
+          {/* KPI Cards - 9 Karten in 3 Reihen */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
             <KPICard 
               title="Follower" 
               value={stats.igFollowers} 
-              emoji="👥"
+              icon={Users}
               change={stats.prevIgFollowers ? getPercentChange(stats.igFollowers, stats.prevIgFollowers) : undefined}
-              accentColor="pink"
+              changeValue={newFollowers}
+              accentColor="purple"
+            />
+            <NewFollowersCard 
+              newFollowers={newFollowers}
+              isPositive={isFollowerGrowth}
             />
             <KPICard 
-              title="Posts" 
+              title="Beiträge" 
               value={stats.igPosts} 
-              emoji="📝"
+              icon={FileText}
               change={stats.prevIgPosts ? getPercentChange(stats.igPosts, stats.prevIgPosts) : undefined}
+              changeValue={stats.prevIgPosts ? stats.igPosts - stats.prevIgPosts : undefined}
               accentColor="yellow"
             />
             <KPICard 
               title="Likes" 
               value={stats.igLikes} 
-              emoji="❤️"
+              icon={Heart}
               change={stats.prevIgLikes ? getPercentChange(stats.igLikes, stats.prevIgLikes) : undefined}
-              accentColor="red"
+              changeValue={stats.prevIgLikes ? stats.igLikes - stats.prevIgLikes : undefined}
+              accentColor="pink"
             />
             <KPICard 
-              title="Comments" 
-              value={stats.igComments} 
-              emoji="💬"
-              change={stats.prevIgComments ? getPercentChange(stats.igComments, stats.prevIgComments) : undefined}
-              accentColor="green"
+              title="Interaktionen" 
+              value={interactions} 
+              icon={MessageCircle}
+              change={prevInteractions ? getPercentChange(interactions, prevInteractions) : undefined}
+              changeValue={prevInteractions ? interactions - prevInteractions : undefined}
+              accentColor="purple"
             />
             <KPICard 
-              title="Saves" 
+              title="Gespeichert" 
               value={stats.igSaves} 
-              emoji="🔖"
+              icon={Bookmark}
               change={stats.prevIgSaves ? getPercentChange(stats.igSaves, stats.prevIgSaves) : undefined}
+              changeValue={stats.prevIgSaves ? stats.igSaves - stats.prevIgSaves : undefined}
               accentColor="yellow"
             />
           </div>
 
-          {/* Comparison Cards - Responsive: Stack on mobile, 3 cols on desktop */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <InteractionCompareCard
-              title="Interaktionen"
-              current={interactions}
-              previous={prevInteractions}
-              currentLabel={currentMonthLabel}
-              prevLabel={prevMonthLabel}
+          {/* Zweite Reihe KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+            <KPICard 
+              title="Reichweite" 
+              value={stats.igReach} 
+              icon={Eye}
+              change={stats.prevIgReach ? getPercentChange(stats.igReach, stats.prevIgReach) : undefined}
+              changeValue={stats.prevIgReach ? stats.igReach - stats.prevIgReach : undefined}
+              accentColor="green"
             />
-            <InteractionCompareCard
-              title="Reichweite"
-              current={stats.igReach}
-              previous={stats.prevIgReach || 0}
-              currentLabel={currentMonthLabel}
-              prevLabel={prevMonthLabel}
+            <KPICard 
+              title="Ø Reichweite/Post" 
+              value={stats.igPosts > 0 ? Math.round(stats.igReach / stats.igPosts) : 0} 
+              icon={Eye}
+              showTrend={false}
+              accentColor="green"
             />
-            <EngagementRateCard 
-              interactions={interactions} 
-              reach={stats.igReach} 
-            />
-          </div>
-
-          {/* Top 5 Posts Section - Stack on mobile, 2 cols on desktop */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <Top5PostsChart 
-              posts={posts} 
-              platform="instagram" 
-              totalPosts={posts.length}
-            />
-            <TopPostsList 
-              posts={posts} 
-              platform="instagram"
+            <KPICard 
+              title="Video Plays" 
+              value={0} 
+              icon={Play}
+              showTrend={false}
+              accentColor="pink"
             />
           </div>
 
-          {/* Posts Table - Scrollable on mobile */}
-          <div className="mb-6 overflow-x-auto">
-            <PostsTable posts={posts} platform="instagram" />
+          {/* Top Posts Section */}
+          <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 sm:p-5 mb-6">
+            <h3 className="text-white font-bold mb-2">Top 10 Posts</h3>
+            <p className="text-gray-500 text-sm mb-4">Sortiert nach Interaktionen (Likes + Comments)</p>
+            
+            <div className="space-y-4">
+              {posts.slice(0, 10).map((post, index) => (
+                <div key={post.post_id} className="flex gap-4 p-4 bg-[#1a1a1a] rounded-xl border border-[#262626] hover:border-purple-500/50 transition-colors">
+                  {/* Rang */}
+                  <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {index + 1}
+                  </div>
+                  
+                  {/* Thumbnail */}
+                  <PostImage 
+                    src={post.thumbnail_url || post.media_url}
+                    alt={`Post ${index + 1}`}
+                    className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden"
+                  />
+                  
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm line-clamp-2 mb-2">{post.message || 'Kein Text'}</p>
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-400">
+                      <span>{new Date(post.created_time).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
+                      <span className="flex items-center gap-1">
+                        <Heart className="w-3 h-3 text-pink-400" /> {post.likes || post.reactions_total}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="w-3 h-3" /> {post.comments_total}
+                      </span>
+                      {post.saves && (
+                        <span className="flex items-center gap-1">
+                          <Bookmark className="w-3 h-3" /> {post.saves}
+                        </span>
+                      )}
+                      {post.reach && (
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" /> {formatNumber(post.reach)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Interaktionen Badge */}
+                  <div className="flex-shrink-0 text-right">
+                    <div className="text-purple-400 font-bold text-lg">{(post.likes || post.reactions_total) + post.comments_total}</div>
+                    <div className="text-gray-500 text-xs">Interaktionen</div>
+                  </div>
+                </div>
+              ))}
+              
+              {posts.length === 0 && (
+                <div className="text-center text-gray-500 py-8">
+                  Keine Daten für diesen Monat verfügbar
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Instagram API Notice */}
@@ -390,8 +476,8 @@ function InstagramContent() {
         </>
       ) : (
         <div className="text-center text-gray-500 py-12">
-        Keine Daten verfügbar
-      </div>
+          Keine Daten verfügbar
+        </div>
       )}
     </div>
   );
