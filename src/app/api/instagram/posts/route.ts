@@ -20,7 +20,22 @@ export async function GET(request: NextRequest) {
   const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   
   try {
-    let query = `
+    // Build customer filter
+    let customerFilter = '';
+    const params: (string | number)[] = [startDate, endDate];
+    
+    if (customer && customer !== 'all') {
+      customerFilter = ` AND p.account_id IN (
+        SELECT ca.account_id 
+        FROM customer_accounts ca 
+        JOIN customers c ON ca.customer_id = c.customer_id 
+        WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) 
+        AND ca.platform = 'instagram'
+      )`;
+      params.push(customer);
+    }
+    
+    const query = `
       SELECT 
         p.media_id as post_id,
         p.account_id as page_id,
@@ -28,14 +43,21 @@ export async function GET(request: NextRequest) {
         p.media_type as type,
         p.timestamp as created_time,
         p.permalink,
-        p.thumbnail_url,
+        -- Use COALESCE to get the best available image
+        COALESCE(p.thumbnail_url, p.media_url, p.image_url) as thumbnail_url,
         p.media_url,
+        p.image_url,
+        -- All available metrics from Meta Partner API
         COALESCE(m.likes, 0) as reactions_total,
         COALESCE(m.likes, 0) as likes,
         COALESCE(m.comments, 0) as comments_total,
+        COALESCE(m.comments, 0) as comments,
         COALESCE(m.saves, 0) as saves,
-        m.reach,
-        m.impressions
+        COALESCE(m.shares, 0) as shares,
+        COALESCE(m.reach, 0) as reach,
+        COALESCE(m.impressions, 0) as impressions,
+        COALESCE(m.plays, 0) as plays,
+        COALESCE(m.profile_visits, 0) as profile_visits
       FROM ig_posts p
       LEFT JOIN LATERAL (
         SELECT * FROM ig_post_metrics 
@@ -44,27 +66,29 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) m ON true
       WHERE p.timestamp::date >= $1::date AND p.timestamp::date < $2::date
+      ${customerFilter}
+      ORDER BY (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) DESC 
+      LIMIT 100
     `;
     
-    // Add customer filter if specified
-    if (customer && customer !== 'all') {
-      query += ` AND p.account_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'instagram')`;
-    }
-    
-    query += ` ORDER BY (COALESCE(m.likes, 0) + COALESCE(m.comments, 0)) DESC LIMIT 100`;
-    
-    const params = customer && customer !== 'all' ? [startDate, endDate, customer] : [startDate, endDate];
     const result = await pool.query(query, params);
     
-    // Process posts to use media_url as fallback for thumbnail_url
-    const posts = result.rows.map(post => ({
-      ...post,
-      thumbnail_url: post.thumbnail_url || post.media_url || null
-    }));
-    
-    return NextResponse.json({ posts }, { headers });
+    return NextResponse.json({ 
+      posts: result.rows,
+      meta: {
+        month,
+        startDate,
+        endDate,
+        customer: customer || 'all',
+        count: result.rows.length
+      }
+    }, { headers });
   } catch (error) {
     console.error('Error fetching Instagram posts:', error);
-    return NextResponse.json({ posts: [], error: String(error) }, { status: 500, headers });
+    return NextResponse.json({ 
+      posts: [], 
+      error: String(error),
+      meta: { month, startDate, endDate, customer: customer || 'all' }
+    }, { status: 500, headers });
   }
 }

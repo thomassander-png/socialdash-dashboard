@@ -20,7 +20,22 @@ export async function GET(request: NextRequest) {
   const endDate = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() + 1, 1).toISOString().slice(0, 10);
   
   try {
-    let query = `
+    // Build customer filter
+    let customerFilter = '';
+    const params: (string | number)[] = [startDate, endDate];
+    
+    if (customer && customer !== 'all') {
+      customerFilter = ` AND p.page_id IN (
+        SELECT ca.account_id 
+        FROM customer_accounts ca 
+        JOIN customers c ON ca.customer_id = c.customer_id 
+        WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) 
+        AND ca.platform = 'facebook'
+      )`;
+      params.push(customer);
+    }
+    
+    const query = `
       SELECT 
         p.post_id,
         p.page_id,
@@ -28,14 +43,17 @@ export async function GET(request: NextRequest) {
         p.type,
         p.created_time,
         p.permalink,
-        p.thumbnail_url,
-        p.full_picture,
+        -- Use COALESCE to get the best available image
+        COALESCE(p.thumbnail_url, p.og_image_url, p.media_url, p.image_url) as thumbnail_url,
+        p.og_image_url,
         p.media_url,
+        p.image_url,
         COALESCE(m.reactions_total, 0) as reactions_total,
         COALESCE(m.comments_total, 0) as comments_total,
-        m.shares_total,
-        m.reach,
-        m.impressions
+        COALESCE(m.shares_total, 0) as shares_total,
+        COALESCE(m.reach, 0) as reach,
+        COALESCE(m.impressions, 0) as impressions,
+        COALESCE(m.video_3s_views, 0) as video_views
       FROM fb_posts p
       LEFT JOIN LATERAL (
         SELECT * FROM fb_post_metrics 
@@ -44,21 +62,29 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) m ON true
       WHERE p.created_time::date >= $1::date AND p.created_time::date < $2::date
+      ${customerFilter}
+      ORDER BY (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) DESC 
+      LIMIT 100
     `;
     
-    // Add customer filter if specified
-    if (customer && customer !== 'all') {
-      query += ` AND p.page_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'facebook')`;
-    }
-    
-    query += ` ORDER BY (COALESCE(m.reactions_total, 0) + COALESCE(m.comments_total, 0)) DESC LIMIT 100`;
-    
-    const params = customer && customer !== 'all' ? [startDate, endDate, customer] : [startDate, endDate];
     const result = await pool.query(query, params);
     
-    return NextResponse.json({ posts: result.rows }, { headers });
+    return NextResponse.json({ 
+      posts: result.rows,
+      meta: {
+        month,
+        startDate,
+        endDate,
+        customer: customer || 'all',
+        count: result.rows.length
+      }
+    }, { headers });
   } catch (error) {
     console.error('Error fetching Facebook posts:', error);
-    return NextResponse.json({ posts: [], error: String(error) }, { status: 500, headers });
+    return NextResponse.json({ 
+      posts: [], 
+      error: String(error),
+      meta: { month, startDate, endDate, customer: customer || 'all' }
+    }, { status: 500, headers });
   }
 }
