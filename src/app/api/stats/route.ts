@@ -36,11 +36,13 @@ export async function GET(request: NextRequest) {
     let igAccountIds: string[] = [];
     
     if (customer && customer !== 'all') {
+      // Support both slug format (captrain-deutschland) and full name (Captrain Deutschland)
       const accountsResult = await pool.query(
         `SELECT ca.platform, ca.account_id 
          FROM customer_accounts ca
          JOIN customers c ON ca.customer_id = c.customer_id
-         WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1)`,
+         WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1)
+            OR LOWER(c.name) = LOWER($1)`,
         [customer]
       );
       
