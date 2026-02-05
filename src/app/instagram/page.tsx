@@ -134,17 +134,20 @@ function KPICard({ title, value, icon: Icon, change, changeValue, accentColor = 
 }
 
 // Neue Follower Card
-function NewFollowersCard({ newFollowers, isPositive }: { newFollowers: number; isPositive: boolean }) {
+function NewFollowersCard({ newFollowers, isPositive, hasData }: { newFollowers: number; isPositive: boolean; hasData: boolean }) {
+  // Wenn keine Vormonatsdaten existieren, zeige "-" statt falscher Werte
+  const showNoData = !hasData || (newFollowers > 10000 && isPositive); // Unrealistisch hohe Werte = keine echten Vormonatsdaten
+  
   return (
-    <div className={`bg-[#141414] border border-[#262626] ${isPositive ? 'border-l-green-500' : 'border-l-red-500'} border-l-4 rounded-xl p-3 sm:p-4`}>
+    <div className={`bg-[#141414] border border-[#262626] ${showNoData ? 'border-l-gray-500' : isPositive ? 'border-l-green-500' : 'border-l-red-500'} border-l-4 rounded-xl p-3 sm:p-4`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider font-medium">Neue Follower</span>
-        <UserPlus className={`w-4 h-4 sm:w-5 sm:h-5 ${isPositive ? 'text-green-400' : 'text-red-400'}`} />
+        <UserPlus className={`w-4 h-4 sm:w-5 sm:h-5 ${showNoData ? 'text-gray-400' : isPositive ? 'text-green-400' : 'text-red-400'}`} />
       </div>
-      <div className={`text-xl sm:text-2xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'} mb-1`}>
-        {isPositive ? '+' : ''}{formatNumberRaw(newFollowers)}
+      <div className={`text-xl sm:text-2xl font-bold ${showNoData ? 'text-gray-400' : isPositive ? 'text-green-400' : 'text-red-400'} mb-1`}>
+        {showNoData ? '-' : (isPositive ? '+' : '') + formatNumberRaw(newFollowers)}
       </div>
-      <p className="text-gray-500 text-[10px] sm:text-xs">vs. Vormonat</p>
+      <p className="text-gray-500 text-[10px] sm:text-xs">{showNoData ? 'Keine Vormonatsdaten' : 'vs. Vormonat'}</p>
     </div>
   );
 }
@@ -342,6 +345,7 @@ function InstagramContent() {
             <NewFollowersCard 
               newFollowers={newFollowers}
               isPositive={isFollowerGrowth}
+              hasData={stats.prevIgFollowers !== undefined && stats.prevIgFollowers > 0}
             />
             <KPICard 
               title="Beiträge" 
