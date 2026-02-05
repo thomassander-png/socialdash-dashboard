@@ -30,17 +30,45 @@ export async function GET(request: NextRequest) {
     let fbCustomerFilter = '';
     let igCustomerFilter = '';
     let igAccountCustomerFilter = '';
-    let followerCustomerFilter = '';
+    
+    // Get customer account IDs if customer is specified
+    let fbPageIds: string[] = [];
+    let igAccountIds: string[] = [];
     
     if (customer && customer !== 'all') {
-      fbCustomerFilter = ` AND p.page_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'facebook')`;
-      igCustomerFilter = ` AND p.account_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'instagram')`;
-      igAccountCustomerFilter = ` AND account_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'instagram')`;
-      followerCustomerFilter = ` AND fh.page_id IN (SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($3) AND ca.platform = 'facebook')`;
+      const accountsResult = await pool.query(
+        `SELECT ca.platform, ca.account_id 
+         FROM customer_accounts ca
+         JOIN customers c ON ca.customer_id = c.customer_id
+         WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1)`,
+        [customer]
+      );
+      
+      fbPageIds = accountsResult.rows.filter(r => r.platform === 'facebook').map(r => r.account_id);
+      igAccountIds = accountsResult.rows.filter(r => r.platform === 'instagram').map(r => r.account_id);
+      
+      if (fbPageIds.length > 0) {
+        fbCustomerFilter = ` AND p.page_id = ANY($3::text[])`;
+      }
+      if (igAccountIds.length > 0) {
+        igCustomerFilter = ` AND p.account_id = ANY($3::text[])`;
+        igAccountCustomerFilter = ` AND account_id = ANY($3::text[])`;
+      }
     }
     
-    const params = customer && customer !== 'all' ? [startDate, endDate, customer] : [startDate, endDate];
-    const prevParams = customer && customer !== 'all' ? [prevStartDate, prevEndDate, customer] : [prevStartDate, prevEndDate];
+    const params = customer && customer !== 'all' && fbPageIds.length > 0 
+      ? [startDate, endDate, fbPageIds] 
+      : [startDate, endDate];
+    const prevParams = customer && customer !== 'all' && fbPageIds.length > 0 
+      ? [prevStartDate, prevEndDate, fbPageIds] 
+      : [prevStartDate, prevEndDate];
+    
+    const igParams = customer && customer !== 'all' && igAccountIds.length > 0 
+      ? [startDate, endDate, igAccountIds] 
+      : [startDate, endDate];
+    const igPrevParams = customer && customer !== 'all' && igAccountIds.length > 0 
+      ? [prevStartDate, prevEndDate, igAccountIds] 
+      : [prevStartDate, prevEndDate];
     
     // Facebook query with all metrics - CURRENT MONTH
     const fbQuery = `
@@ -144,53 +172,113 @@ export async function GET(request: NextRequest) {
     `;
     
     // Get Facebook Follower counts from fb_follower_history
-    // Current month (end of month or latest)
-    const fbFollowerQuery = `
-      SELECT COALESCE(SUM(fh.followers_count), 0) as followers
-      FROM (
-        SELECT DISTINCT ON (page_id) page_id, followers_count
-        FROM fb_follower_history
-        WHERE snapshot_date <= $2::date
-        ${followerCustomerFilter.replace('fh.page_id', 'page_id')}
-        ORDER BY page_id, snapshot_date DESC
-      ) fh
-    `;
+    // Use the customer's page IDs directly if available
+    let fbFollowerQuery: string;
+    let fbPrevFollowerQuery: string;
+    let fbFollowerParams: any[];
+    let fbPrevFollowerParams: any[];
     
-    // Previous month follower count
-    const fbPrevFollowerQuery = `
-      SELECT COALESCE(SUM(fh.followers_count), 0) as followers
-      FROM (
-        SELECT DISTINCT ON (page_id) page_id, followers_count
-        FROM fb_follower_history
-        WHERE snapshot_date <= $1::date
-        ${followerCustomerFilter.replace('fh.page_id', 'page_id')}
-        ORDER BY page_id, snapshot_date DESC
-      ) fh
-    `;
+    if (fbPageIds.length > 0) {
+      // Customer-specific query
+      fbFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (page_id) page_id, followers_count
+          FROM fb_follower_history
+          WHERE page_id = ANY($1::text[])
+            AND snapshot_date <= $2::date
+          ORDER BY page_id, snapshot_date DESC
+        ) latest
+      `;
+      fbPrevFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (page_id) page_id, followers_count
+          FROM fb_follower_history
+          WHERE page_id = ANY($1::text[])
+            AND snapshot_date <= $2::date
+          ORDER BY page_id, snapshot_date DESC
+        ) latest
+      `;
+      fbFollowerParams = [fbPageIds, endDate];
+      fbPrevFollowerParams = [fbPageIds, prevStartDate];
+    } else {
+      // All customers query
+      fbFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (page_id) page_id, followers_count
+          FROM fb_follower_history
+          WHERE snapshot_date <= $1::date
+          ORDER BY page_id, snapshot_date DESC
+        ) latest
+      `;
+      fbPrevFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (page_id) page_id, followers_count
+          FROM fb_follower_history
+          WHERE snapshot_date <= $1::date
+          ORDER BY page_id, snapshot_date DESC
+        ) latest
+      `;
+      fbFollowerParams = [endDate];
+      fbPrevFollowerParams = [prevStartDate];
+    }
     
     // Get Instagram Follower counts from ig_follower_history
-    const igFollowerQuery = `
-      SELECT COALESCE(SUM(ih.followers_count), 0) as followers
-      FROM (
-        SELECT DISTINCT ON (account_id) account_id, followers_count
-        FROM ig_follower_history
-        WHERE snapshot_date <= $2::date
-        ${igAccountCustomerFilter.replace('account_id', 'account_id')}
-        ORDER BY account_id, snapshot_date DESC
-      ) ih
-    `;
+    let igFollowerQuery: string;
+    let igPrevFollowerQuery: string;
+    let igFollowerParams: any[];
+    let igPrevFollowerParams: any[];
     
-    // Previous month Instagram follower count
-    const igPrevFollowerQuery = `
-      SELECT COALESCE(SUM(ih.followers_count), 0) as followers
-      FROM (
-        SELECT DISTINCT ON (account_id) account_id, followers_count
-        FROM ig_follower_history
-        WHERE snapshot_date <= $1::date
-        ${igAccountCustomerFilter.replace('account_id', 'account_id')}
-        ORDER BY account_id, snapshot_date DESC
-      ) ih
-    `;
+    if (igAccountIds.length > 0) {
+      // Customer-specific query
+      igFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (account_id) account_id, followers_count
+          FROM ig_follower_history
+          WHERE account_id = ANY($1::text[])
+            AND snapshot_date <= $2::date
+          ORDER BY account_id, snapshot_date DESC
+        ) latest
+      `;
+      igPrevFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (account_id) account_id, followers_count
+          FROM ig_follower_history
+          WHERE account_id = ANY($1::text[])
+            AND snapshot_date <= $2::date
+          ORDER BY account_id, snapshot_date DESC
+        ) latest
+      `;
+      igFollowerParams = [igAccountIds, endDate];
+      igPrevFollowerParams = [igAccountIds, prevStartDate];
+    } else {
+      // All customers query
+      igFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (account_id) account_id, followers_count
+          FROM ig_follower_history
+          WHERE snapshot_date <= $1::date
+          ORDER BY account_id, snapshot_date DESC
+        ) latest
+      `;
+      igPrevFollowerQuery = `
+        SELECT COALESCE(SUM(followers_count), 0) as followers
+        FROM (
+          SELECT DISTINCT ON (account_id) account_id, followers_count
+          FROM ig_follower_history
+          WHERE snapshot_date <= $1::date
+          ORDER BY account_id, snapshot_date DESC
+        ) latest
+      `;
+      igFollowerParams = [endDate];
+      igPrevFollowerParams = [prevStartDate];
+    }
     
     // Execute queries in parallel
     const [
@@ -206,13 +294,13 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       pool.query(fbQuery, params),
       pool.query(fbPrevQuery, prevParams),
-      pool.query(igQuery, params),
-      pool.query(igPrevQuery, prevParams),
-      pool.query(igAccountQuery, params).catch(() => ({ rows: [{}] })),
-      pool.query(fbFollowerQuery, customer && customer !== 'all' ? [endDate, endDate, customer] : [endDate, endDate]).catch(() => ({ rows: [{ followers: 0 }] })),
-      pool.query(fbPrevFollowerQuery, customer && customer !== 'all' ? [prevStartDate, prevStartDate, customer] : [prevStartDate, prevStartDate]).catch(() => ({ rows: [{ followers: 0 }] })),
-      pool.query(igFollowerQuery, customer && customer !== 'all' ? [endDate, endDate, customer] : [endDate, endDate]).catch(() => ({ rows: [{ followers: 0 }] })),
-      pool.query(igPrevFollowerQuery, customer && customer !== 'all' ? [prevStartDate, prevStartDate, customer] : [prevStartDate, prevStartDate]).catch(() => ({ rows: [{ followers: 0 }] })),
+      pool.query(igQuery, igParams),
+      pool.query(igPrevQuery, igPrevParams),
+      pool.query(igAccountQuery, igParams).catch(() => ({ rows: [{}] })),
+      pool.query(fbFollowerQuery, fbFollowerParams).catch((e) => { console.error('FB Follower Error:', e); return { rows: [{ followers: 0 }] }; }),
+      pool.query(fbPrevFollowerQuery, fbPrevFollowerParams).catch((e) => { console.error('FB Prev Follower Error:', e); return { rows: [{ followers: 0 }] }; }),
+      pool.query(igFollowerQuery, igFollowerParams).catch((e) => { console.error('IG Follower Error:', e); return { rows: [{ followers: 0 }] }; }),
+      pool.query(igPrevFollowerQuery, igPrevFollowerParams).catch((e) => { console.error('IG Prev Follower Error:', e); return { rows: [{ followers: 0 }] }; }),
     ]);
     
     const fbStats = fbResult.rows[0] || { posts: 0, reactions: 0, comments: 0, shares: 0, reach: 0, impressions: 0, video_views: 0 };
@@ -267,12 +355,13 @@ export async function GET(request: NextRequest) {
       igLikes: parseInt(igStats.likes),
       igComments: parseInt(igStats.comments),
       igSaves: parseInt(igStats.saves),
+      igShares: parseInt(igStats.shares),
       igReach: parseInt(igStats.reach),
       igImpressions: parseInt(igStats.impressions),
       igPlays: parseInt(igStats.plays),
-      igShares: parseInt(igStats.shares),
       igProfileVisits: parseInt(igStats.profile_visits),
       igInteractions: parseInt(igStats.likes) + parseInt(igStats.comments),
+      igProfileClicks: parseInt(igAccountStats.profile_clicks || 0),
       
       // Instagram metrics - previous month
       prevIgFollowers: igPrevFollowers,
@@ -280,24 +369,27 @@ export async function GET(request: NextRequest) {
       prevIgLikes: parseInt(igPrevStats.likes),
       prevIgComments: parseInt(igPrevStats.comments),
       prevIgSaves: parseInt(igPrevStats.saves),
+      prevIgShares: parseInt(igPrevStats.shares),
       prevIgReach: parseInt(igPrevStats.reach),
       prevIgImpressions: parseInt(igPrevStats.impressions),
       prevIgPlays: parseInt(igPrevStats.plays),
-      prevIgShares: parseInt(igPrevStats.shares),
       prevIgProfileVisits: parseInt(igPrevStats.profile_visits),
       prevIgInteractions: parseInt(igPrevStats.likes) + parseInt(igPrevStats.comments),
       
-      // Instagram Account Insights (Klicks)
-      igProfileClicks: parseInt(igAccountStats.profile_clicks || 0),
-      igEmailClicks: parseInt(igAccountStats.email_clicks || 0),
-      igCallClicks: parseInt(igAccountStats.call_clicks || 0),
-      igAccountInteractions: parseInt(igAccountStats.account_interactions || 0),
-      igAccountViews: parseInt(igAccountStats.account_views || 0),
+      // Debug info
+      _debug: {
+        month,
+        customer,
+        fbPageIds,
+        igAccountIds,
+        endDate,
+        prevStartDate
+      }
     };
     
     return NextResponse.json(stats, { headers });
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    console.error('Stats API Error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500, headers });
   }
 }
