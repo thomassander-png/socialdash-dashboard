@@ -4,54 +4,6 @@ const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const META_API_VERSION = process.env.META_API_VERSION || 'v21.0';
 const META_BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
-interface AdAccount {
-  id: string;
-  name: string;
-  account_id: string;
-  currency: string;
-  account_status: number;
-}
-
-interface Campaign {
-  id: string;
-  name: string;
-  status: string;
-  objective: string;
-  daily_budget?: string;
-  lifetime_budget?: string;
-  insights?: {
-    data: CampaignInsight[];
-  };
-}
-
-interface CampaignInsight {
-  campaign_name: string;
-  impressions: string;
-  reach: string;
-  clicks: string;
-  spend: string;
-  cpc: string;
-  cpm: string;
-  ctr: string;
-  actions?: Array<{ action_type: string; value: string }>;
-  cost_per_action_type?: Array<{ action_type: string; value: string }>;
-  date_start: string;
-  date_stop: string;
-}
-
-interface AccountInsight {
-  impressions: string;
-  reach: string;
-  clicks: string;
-  spend: string;
-  cpc: string;
-  cpm: string;
-  ctr: string;
-  actions?: Array<{ action_type: string; value: string }>;
-  date_start: string;
-  date_stop: string;
-}
-
 async function fetchMeta(endpoint: string, params: Record<string, string> = {}) {
   const url = new URL(`${META_BASE_URL}${endpoint}`);
   url.searchParams.set('access_token', META_ACCESS_TOKEN || '');
@@ -59,23 +11,34 @@ async function fetchMeta(endpoint: string, params: Record<string, string> = {}) 
     url.searchParams.set(key, value);
   });
 
-  const response = await fetch(url.toString(), {
-    next: { revalidate: 300 } // Cache for 5 minutes
-  });
+  const response = await fetch(url.toString());
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    console.error('Meta API Error:', error);
-    throw new Error(`Meta API Error: ${response.status} - ${JSON.stringify(error)}`);
+    console.error('Meta API Error:', JSON.stringify(error));
+    throw new Error(`Meta API Error: ${response.status}`);
   }
 
   return response.json();
 }
 
+function getActionValue(actions: Array<{ action_type: string; value: string }> | undefined, actionType: string): number {
+  if (!actions) return 0;
+  const action = actions.find(a => a.action_type === actionType);
+  return action ? parseInt(action.value) : 0;
+}
+
+function getActionCostValue(costs: Array<{ action_type: string; value: string }> | undefined, actionType: string): number {
+  if (!costs) return 0;
+  const cost = costs.find(c => c.action_type === actionType);
+  return cost ? parseFloat(cost.value) : 0;
+}
+
+export const maxDuration = 60; // Vercel Pro: up to 60s
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
-  const customer = searchParams.get('customer');
 
   if (!META_ACCESS_TOKEN) {
     return NextResponse.json(
@@ -84,12 +47,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Calculate date range for the month
   const startDate = `${month}-01`;
   const endDate = new Date(
     new Date(startDate).getFullYear(),
     new Date(startDate).getMonth() + 1,
-    0 // last day of month
+    0
   ).toISOString().slice(0, 10);
 
   try {
@@ -99,131 +61,118 @@ export async function GET(request: NextRequest) {
       limit: '100'
     });
 
-    const adAccounts: AdAccount[] = adAccountsResponse.data || [];
-    const activeAccounts = adAccounts.filter(a => a.account_status === 1);
+    const adAccounts = (adAccountsResponse.data || []).filter(
+      (a: any) => a.account_status === 1
+    );
 
-    // Step 2: For each active ad account, get campaigns with insights
-    const allCampaigns: any[] = [];
-    const accountSummaries: any[] = [];
+    // Step 2: Fetch account insights + campaigns WITH insights in parallel for all accounts
+    const timeRange = JSON.stringify({ since: startDate, until: endDate });
 
-    for (const account of activeAccounts) {
+    const accountPromises = adAccounts.map(async (account: any) => {
       try {
-        // Get account-level insights for the month
-        const accountInsights = await fetchMeta(`/${account.id}/insights`, {
-          fields: 'impressions,reach,clicks,spend,cpc,cpm,ctr,actions',
-          time_range: JSON.stringify({
-            since: startDate,
-            until: endDate
-          }),
-          level: 'account'
-        });
+        // Parallel: account insights + campaigns with nested insights
+        const [accountInsightsRes, campaignsRes] = await Promise.all([
+          fetchMeta(`/${account.id}/insights`, {
+            fields: 'impressions,reach,clicks,spend,cpc,cpm,ctr,actions',
+            time_range: timeRange,
+            level: 'account'
+          }).catch(() => ({ data: [] })),
+          fetchMeta(`/${account.id}/insights`, {
+            fields: 'campaign_id,campaign_name,impressions,reach,clicks,spend,cpc,cpm,ctr,actions,cost_per_action_type,objective',
+            time_range: timeRange,
+            level: 'campaign',
+            limit: '500'
+          }).catch(() => ({ data: [] }))
+        ]);
 
-        const accountData = accountInsights.data?.[0] || null;
+        const accountData = accountInsightsRes.data?.[0] || null;
+        const campaignInsights = campaignsRes.data || [];
 
-        // Get campaigns with insights
-        const campaignsResponse = await fetchMeta(`/${account.id}/campaigns`, {
-          fields: 'id,name,status,objective,daily_budget,lifetime_budget',
-          limit: '100',
-          filtering: JSON.stringify([{
-            field: 'effective_status',
-            operator: 'IN',
-            value: ['ACTIVE', 'PAUSED', 'COMPLETED']
-          }])
-        });
-
-        const campaigns: Campaign[] = campaignsResponse.data || [];
-
-        // Get insights for each campaign
-        for (const campaign of campaigns) {
-          try {
-            const insightsResponse = await fetchMeta(`/${campaign.id}/insights`, {
-              fields: 'campaign_name,impressions,reach,clicks,spend,cpc,cpm,ctr,actions,cost_per_action_type',
-              time_range: JSON.stringify({
-                since: startDate,
-                until: endDate
-              })
-            });
-
-            const insight = insightsResponse.data?.[0];
-            if (insight) {
-              allCampaigns.push({
-                ...campaign,
-                account_name: account.name,
-                account_id: account.account_id,
-                currency: account.currency,
-                insight: {
-                  impressions: parseInt(insight.impressions || '0'),
-                  reach: parseInt(insight.reach || '0'),
-                  clicks: parseInt(insight.clicks || '0'),
-                  spend: parseFloat(insight.spend || '0'),
-                  cpc: parseFloat(insight.cpc || '0'),
-                  cpm: parseFloat(insight.cpm || '0'),
-                  ctr: parseFloat(insight.ctr || '0'),
-                  conversions: getActionValue(insight.actions, 'offsite_conversion'),
-                  leads: getActionValue(insight.actions, 'lead'),
-                  link_clicks: getActionValue(insight.actions, 'link_click'),
-                  post_engagement: getActionValue(insight.actions, 'post_engagement'),
-                  page_likes: getActionValue(insight.actions, 'like'),
-                  cost_per_lead: getActionCostValue(insight.cost_per_action_type, 'lead'),
-                  cost_per_conversion: getActionCostValue(insight.cost_per_action_type, 'offsite_conversion'),
-                }
-              });
-            }
-          } catch (e) {
-            // Campaign might not have insights for this period
-            console.log(`No insights for campaign ${campaign.id}`);
+        // Map campaign insights
+        const campaigns = campaignInsights.map((insight: any) => ({
+          id: insight.campaign_id,
+          name: insight.campaign_name,
+          status: 'ACTIVE', // from insights = had activity
+          objective: insight.objective || '',
+          account_name: account.name,
+          account_id: account.account_id,
+          currency: account.currency,
+          insight: {
+            impressions: parseInt(insight.impressions || '0'),
+            reach: parseInt(insight.reach || '0'),
+            clicks: parseInt(insight.clicks || '0'),
+            spend: parseFloat(insight.spend || '0'),
+            cpc: parseFloat(insight.cpc || '0'),
+            cpm: parseFloat(insight.cpm || '0'),
+            ctr: parseFloat(insight.ctr || '0'),
+            conversions: getActionValue(insight.actions, 'offsite_conversion'),
+            leads: getActionValue(insight.actions, 'lead'),
+            link_clicks: getActionValue(insight.actions, 'link_click'),
+            post_engagement: getActionValue(insight.actions, 'post_engagement'),
+            page_likes: getActionValue(insight.actions, 'like'),
+            cost_per_lead: getActionCostValue(insight.cost_per_action_type, 'lead'),
+            cost_per_conversion: getActionCostValue(insight.cost_per_action_type, 'offsite_conversion'),
           }
-        }
+        }));
 
-        if (accountData) {
-          accountSummaries.push({
-            account_id: account.account_id,
-            account_name: account.name,
-            currency: account.currency,
-            impressions: parseInt(accountData.impressions || '0'),
-            reach: parseInt(accountData.reach || '0'),
-            clicks: parseInt(accountData.clicks || '0'),
-            spend: parseFloat(accountData.spend || '0'),
-            cpc: parseFloat(accountData.cpc || '0'),
-            cpm: parseFloat(accountData.cpm || '0'),
-            ctr: parseFloat(accountData.ctr || '0'),
-            conversions: getActionValue(accountData.actions, 'offsite_conversion'),
-            leads: getActionValue(accountData.actions, 'lead'),
-            link_clicks: getActionValue(accountData.actions, 'link_click'),
-          });
-        }
+        const accountSummary = accountData ? {
+          account_id: account.account_id,
+          account_name: account.name,
+          currency: account.currency,
+          impressions: parseInt(accountData.impressions || '0'),
+          reach: parseInt(accountData.reach || '0'),
+          clicks: parseInt(accountData.clicks || '0'),
+          spend: parseFloat(accountData.spend || '0'),
+          cpc: parseFloat(accountData.cpc || '0'),
+          cpm: parseFloat(accountData.cpm || '0'),
+          ctr: parseFloat(accountData.ctr || '0'),
+          conversions: getActionValue(accountData.actions, 'offsite_conversion'),
+          leads: getActionValue(accountData.actions, 'lead'),
+          link_clicks: getActionValue(accountData.actions, 'link_click'),
+        } : null;
+
+        return { campaigns, accountSummary };
       } catch (e) {
-        console.error(`Error fetching data for account ${account.id}:`, e);
+        console.error(`Error fetching account ${account.id}:`, e);
+        return { campaigns: [], accountSummary: null };
       }
-    }
+    });
+
+    const results = await Promise.all(accountPromises);
+
+    const allCampaigns = results.flatMap(r => r.campaigns);
+    const accountSummaries = results.map(r => r.accountSummary).filter(Boolean);
 
     // Calculate totals
     const totals = {
-      totalSpend: accountSummaries.reduce((sum, a) => sum + a.spend, 0),
-      totalImpressions: accountSummaries.reduce((sum, a) => sum + a.impressions, 0),
-      totalReach: accountSummaries.reduce((sum, a) => sum + a.reach, 0),
-      totalClicks: accountSummaries.reduce((sum, a) => sum + a.clicks, 0),
-      totalConversions: accountSummaries.reduce((sum, a) => sum + a.conversions, 0),
-      totalLeads: accountSummaries.reduce((sum, a) => sum + a.leads, 0),
+      totalSpend: accountSummaries.reduce((sum: number, a: any) => sum + a.spend, 0),
+      totalImpressions: accountSummaries.reduce((sum: number, a: any) => sum + a.impressions, 0),
+      totalReach: accountSummaries.reduce((sum: number, a: any) => sum + a.reach, 0),
+      totalClicks: accountSummaries.reduce((sum: number, a: any) => sum + a.clicks, 0),
+      totalConversions: accountSummaries.reduce((sum: number, a: any) => sum + a.conversions, 0),
+      totalLeads: accountSummaries.reduce((sum: number, a: any) => sum + a.leads, 0),
       avgCPC: accountSummaries.length > 0
-        ? accountSummaries.reduce((sum, a) => sum + a.cpc, 0) / accountSummaries.length
+        ? accountSummaries.reduce((sum: number, a: any) => sum + a.spend, 0) / 
+          Math.max(accountSummaries.reduce((sum: number, a: any) => sum + a.clicks, 0), 1)
         : 0,
       avgCPM: accountSummaries.length > 0
-        ? accountSummaries.reduce((sum, a) => sum + a.cpm, 0) / accountSummaries.length
+        ? (accountSummaries.reduce((sum: number, a: any) => sum + a.spend, 0) / 
+          Math.max(accountSummaries.reduce((sum: number, a: any) => sum + a.impressions, 0), 1)) * 1000
         : 0,
       avgCTR: accountSummaries.length > 0
-        ? accountSummaries.reduce((sum, a) => sum + a.ctr, 0) / accountSummaries.length
+        ? (accountSummaries.reduce((sum: number, a: any) => sum + a.clicks, 0) / 
+          Math.max(accountSummaries.reduce((sum: number, a: any) => sum + a.impressions, 0), 1)) * 100
         : 0,
     };
 
     // Sort campaigns by spend (highest first)
-    allCampaigns.sort((a, b) => (b.insight?.spend || 0) - (a.insight?.spend || 0));
+    allCampaigns.sort((a: any, b: any) => (b.insight?.spend || 0) - (a.insight?.spend || 0));
 
     return NextResponse.json({
       month,
       startDate,
       endDate,
-      adAccounts: activeAccounts.map(a => ({
+      adAccounts: adAccounts.map((a: any) => ({
         id: a.id,
         name: a.name,
         account_id: a.account_id,
@@ -244,16 +193,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function getActionValue(actions: Array<{ action_type: string; value: string }> | undefined, actionType: string): number {
-  if (!actions) return 0;
-  const action = actions.find(a => a.action_type === actionType);
-  return action ? parseInt(action.value) : 0;
-}
-
-function getActionCostValue(costs: Array<{ action_type: string; value: string }> | undefined, actionType: string): number {
-  if (!costs) return 0;
-  const cost = costs.find(c => c.action_type === actionType);
-  return cost ? parseFloat(cost.value) : 0;
 }
