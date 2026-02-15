@@ -41,6 +41,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/posts', label: 'Alle Posts', icon: '📝' },
     { href: '/reports', label: 'Reports', icon: '📄' },
     { href: '/exports', label: 'Exports', icon: '📊' },
+    { href: '/ads', label: 'Ads', icon: '📣' },
   ];
 
   const adminItems = [
