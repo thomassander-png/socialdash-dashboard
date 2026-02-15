@@ -192,7 +192,7 @@ export default function AdsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/ads?month=${selectedMonth}`);
+      const response = await fetch(`/api/advertising?month=${selectedMonth}`);
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP ${response.status}`);
@@ -213,7 +213,7 @@ export default function AdsPage() {
     setSyncing(true);
     setError(null);
     try {
-      const response = await fetch(`/api/ads/sync?month=${selectedMonth}&manual=true`);
+      const response = await fetch(`/api/advertising/sync?month=${selectedMonth}&manual=true`);
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || `Sync fehlgeschlagen: HTTP ${response.status}`);

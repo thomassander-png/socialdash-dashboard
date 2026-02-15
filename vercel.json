@@ -3,13 +3,13 @@
   "buildCommand": "pnpm build",
   "outputDirectory": ".next",
   "functions": {
-    "src/app/api/ads/sync/route.ts": {
+    "src/app/api/advertising/sync/route.ts": {
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/ads/sync?manual=true&month=current",
+      "path": "/api/advertising/sync?manual=true&month=current",
       "schedule": "0 6 * * *"
     }
   ]
