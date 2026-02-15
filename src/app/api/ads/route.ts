@@ -1,190 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
-const META_API_VERSION = process.env.META_API_VERSION || 'v21.0';
-const META_BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
-
-async function fetchMeta(endpoint: string, params: Record<string, string> = {}) {
-  const url = new URL(`${META_BASE_URL}${endpoint}`);
-  url.searchParams.set('access_token', META_ACCESS_TOKEN || '');
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
-
-  const response = await fetch(url.toString());
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    console.error('Meta API Error:', JSON.stringify(error));
-    throw new Error(`Meta API Error: ${response.status}`);
-  }
-
-  return response.json();
-}
-
-function getActionValue(actions: Array<{ action_type: string; value: string }> | undefined, actionType: string): number {
-  if (!actions) return 0;
-  const action = actions.find(a => a.action_type === actionType);
-  return action ? parseInt(action.value) : 0;
-}
-
-function getActionCostValue(costs: Array<{ action_type: string; value: string }> | undefined, actionType: string): number {
-  if (!costs) return 0;
-  const cost = costs.find(c => c.action_type === actionType);
-  return cost ? parseFloat(cost.value) : 0;
-}
-
-export const maxDuration = 60; // Vercel Pro: up to 60s
+import { query, queryOne } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
-
-  if (!META_ACCESS_TOKEN) {
-    return NextResponse.json(
-      { error: 'META_ACCESS_TOKEN not configured' },
-      { status: 500 }
-    );
-  }
-
-  const startDate = `${month}-01`;
-  const endDate = new Date(
-    new Date(startDate).getFullYear(),
-    new Date(startDate).getMonth() + 1,
-    0
-  ).toISOString().slice(0, 10);
+  const forceSync = searchParams.get('sync') === 'true';
 
   try {
-    // Step 1: Get all ad accounts
-    const adAccountsResponse = await fetchMeta('/me/adaccounts', {
-      fields: 'id,name,account_id,currency,account_status',
-      limit: '100'
-    });
+    // Ensure table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS ads_cache (
+        id SERIAL PRIMARY KEY,
+        month VARCHAR(7) NOT NULL,
+        data JSONB NOT NULL,
+        synced_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(month)
+      )
+    `);
 
-    const adAccounts = (adAccountsResponse.data || []).filter(
-      (a: any) => a.account_status === 1
+    // Read from cache
+    const cached = await queryOne<{ data: any; synced_at: string }>(
+      'SELECT data, synced_at FROM ads_cache WHERE month = $1',
+      [month]
     );
 
-    // Step 2: Fetch account insights + campaigns WITH insights in parallel for all accounts
-    const timeRange = JSON.stringify({ since: startDate, until: endDate });
+    if (cached) {
+      return NextResponse.json({
+        ...cached.data,
+        synced_at: cached.synced_at,
+        cached: true,
+      }, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+        }
+      });
+    }
 
-    const accountPromises = adAccounts.map(async (account: any) => {
+    // If no cache and forceSync requested, trigger sync inline
+    if (forceSync) {
+      const syncUrl = new URL('/api/ads/sync', request.url);
+      syncUrl.searchParams.set('month', month);
+      syncUrl.searchParams.set('manual', 'true');
+      
       try {
-        // Parallel: account insights + campaigns with nested insights
-        const [accountInsightsRes, campaignsRes] = await Promise.all([
-          fetchMeta(`/${account.id}/insights`, {
-            fields: 'impressions,reach,clicks,spend,cpc,cpm,ctr,actions',
-            time_range: timeRange,
-            level: 'account'
-          }).catch(() => ({ data: [] })),
-          fetchMeta(`/${account.id}/insights`, {
-            fields: 'campaign_id,campaign_name,impressions,reach,clicks,spend,cpc,cpm,ctr,actions,cost_per_action_type,objective',
-            time_range: timeRange,
-            level: 'campaign',
-            limit: '500'
-          }).catch(() => ({ data: [] }))
-        ]);
-
-        const accountData = accountInsightsRes.data?.[0] || null;
-        const campaignInsights = campaignsRes.data || [];
-
-        // Map campaign insights
-        const campaigns = campaignInsights.map((insight: any) => ({
-          id: insight.campaign_id,
-          name: insight.campaign_name,
-          status: 'ACTIVE', // from insights = had activity
-          objective: insight.objective || '',
-          account_name: account.name,
-          account_id: account.account_id,
-          currency: account.currency,
-          insight: {
-            impressions: parseInt(insight.impressions || '0'),
-            reach: parseInt(insight.reach || '0'),
-            clicks: parseInt(insight.clicks || '0'),
-            spend: parseFloat(insight.spend || '0'),
-            cpc: parseFloat(insight.cpc || '0'),
-            cpm: parseFloat(insight.cpm || '0'),
-            ctr: parseFloat(insight.ctr || '0'),
-            conversions: getActionValue(insight.actions, 'offsite_conversion'),
-            leads: getActionValue(insight.actions, 'lead'),
-            link_clicks: getActionValue(insight.actions, 'link_click'),
-            post_engagement: getActionValue(insight.actions, 'post_engagement'),
-            page_likes: getActionValue(insight.actions, 'like'),
-            cost_per_lead: getActionCostValue(insight.cost_per_action_type, 'lead'),
-            cost_per_conversion: getActionCostValue(insight.cost_per_action_type, 'offsite_conversion'),
+        const syncResponse = await fetch(syncUrl.toString(), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (syncResponse.ok) {
+          // Re-read from cache
+          const freshCached = await queryOne<{ data: any; synced_at: string }>(
+            'SELECT data, synced_at FROM ads_cache WHERE month = $1',
+            [month]
+          );
+          if (freshCached) {
+            return NextResponse.json({
+              ...freshCached.data,
+              synced_at: freshCached.synced_at,
+              cached: false,
+            });
           }
-        }));
-
-        const accountSummary = accountData ? {
-          account_id: account.account_id,
-          account_name: account.name,
-          currency: account.currency,
-          impressions: parseInt(accountData.impressions || '0'),
-          reach: parseInt(accountData.reach || '0'),
-          clicks: parseInt(accountData.clicks || '0'),
-          spend: parseFloat(accountData.spend || '0'),
-          cpc: parseFloat(accountData.cpc || '0'),
-          cpm: parseFloat(accountData.cpm || '0'),
-          ctr: parseFloat(accountData.ctr || '0'),
-          conversions: getActionValue(accountData.actions, 'offsite_conversion'),
-          leads: getActionValue(accountData.actions, 'lead'),
-          link_clicks: getActionValue(accountData.actions, 'link_click'),
-        } : null;
-
-        return { campaigns, accountSummary };
+        }
       } catch (e) {
-        console.error(`Error fetching account ${account.id}:`, e);
-        return { campaigns: [], accountSummary: null };
+        console.error('Inline sync failed:', e);
       }
-    });
+    }
 
-    const results = await Promise.all(accountPromises);
-
-    const allCampaigns = results.flatMap(r => r.campaigns);
-    const accountSummaries = results.map(r => r.accountSummary).filter(Boolean);
-
-    // Calculate totals
-    const totals = {
-      totalSpend: accountSummaries.reduce((sum: number, a: any) => sum + a.spend, 0),
-      totalImpressions: accountSummaries.reduce((sum: number, a: any) => sum + a.impressions, 0),
-      totalReach: accountSummaries.reduce((sum: number, a: any) => sum + a.reach, 0),
-      totalClicks: accountSummaries.reduce((sum: number, a: any) => sum + a.clicks, 0),
-      totalConversions: accountSummaries.reduce((sum: number, a: any) => sum + a.conversions, 0),
-      totalLeads: accountSummaries.reduce((sum: number, a: any) => sum + a.leads, 0),
-      avgCPC: accountSummaries.length > 0
-        ? accountSummaries.reduce((sum: number, a: any) => sum + a.spend, 0) / 
-          Math.max(accountSummaries.reduce((sum: number, a: any) => sum + a.clicks, 0), 1)
-        : 0,
-      avgCPM: accountSummaries.length > 0
-        ? (accountSummaries.reduce((sum: number, a: any) => sum + a.spend, 0) / 
-          Math.max(accountSummaries.reduce((sum: number, a: any) => sum + a.impressions, 0), 1)) * 1000
-        : 0,
-      avgCTR: accountSummaries.length > 0
-        ? (accountSummaries.reduce((sum: number, a: any) => sum + a.clicks, 0) / 
-          Math.max(accountSummaries.reduce((sum: number, a: any) => sum + a.impressions, 0), 1)) * 100
-        : 0,
-    };
-
-    // Sort campaigns by spend (highest first)
-    allCampaigns.sort((a: any, b: any) => (b.insight?.spend || 0) - (a.insight?.spend || 0));
-
+    // No cached data available
     return NextResponse.json({
       month,
-      startDate,
-      endDate,
-      adAccounts: adAccounts.map((a: any) => ({
-        id: a.id,
-        name: a.name,
-        account_id: a.account_id,
-        currency: a.currency,
-      })),
-      accountSummaries,
-      campaigns: allCampaigns,
-      totals,
-    }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
-      }
+      adAccounts: [],
+      accountSummaries: [],
+      campaigns: [],
+      totals: {
+        totalSpend: 0,
+        totalImpressions: 0,
+        totalReach: 0,
+        totalClicks: 0,
+        totalConversions: 0,
+        totalLeads: 0,
+        avgCPC: 0,
+        avgCPM: 0,
+        avgCTR: 0,
+      },
+      cached: false,
+      needsSync: true,
+      message: 'Keine gecachten Daten vorhanden. Bitte klicke auf "Daten synchronisieren" um die Daten von Meta zu laden.',
     });
   } catch (error: any) {
     console.error('Ads API Error:', error);

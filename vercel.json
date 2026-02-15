@@ -1,5 +1,16 @@
 {
   "framework": "nextjs",
   "buildCommand": "pnpm build",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/ads/sync/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/ads/sync?manual=true&month=current",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

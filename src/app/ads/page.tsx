@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { 
   DollarSign, Eye, MousePointer, Target, TrendingUp, 
   BarChart3, Megaphone, Users, ArrowUpRight, ArrowDownRight,
-  Loader2, AlertCircle, RefreshCw
+  Loader2, AlertCircle, RefreshCw, Download, Clock
 } from 'lucide-react';
 
 interface AdAccount {
@@ -182,7 +182,10 @@ export default function AdsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [data, setData] = useState<AdsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [needsSync, setNeedsSync] = useState(false);
   const monthOptions = getMonthOptions();
 
   const fetchData = useCallback(async () => {
@@ -196,6 +199,8 @@ export default function AdsPage() {
       }
       const result = await response.json();
       setData(result);
+      setSyncedAt(result.synced_at || null);
+      setNeedsSync(result.needsSync || false);
     } catch (err: any) {
       console.error('Error fetching ads data:', err);
       setError(err.message || 'Fehler beim Laden der Ads-Daten');
@@ -203,6 +208,25 @@ export default function AdsPage() {
       setLoading(false);
     }
   }, [selectedMonth]);
+
+  const syncData = useCallback(async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/ads/sync?month=${selectedMonth}&manual=true`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Sync fehlgeschlagen: HTTP ${response.status}`);
+      }
+      // After sync, reload cached data
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error syncing ads data:', err);
+      setError(err.message || 'Fehler beim Synchronisieren der Ads-Daten');
+    } finally {
+      setSyncing(false);
+    }
+  }, [selectedMonth, fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -222,10 +246,19 @@ export default function AdsPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={syncData}
+              disabled={loading || syncing}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 hover:text-purple-300 transition-colors disabled:opacity-50 text-sm"
+              title="Daten von Meta synchronisieren"
+            >
+              <Download className={`w-4 h-4 ${syncing ? 'animate-bounce' : ''}`} />
+              {syncing ? 'Synchronisiere...' : 'Sync'}
+            </button>
+            <button
               onClick={fetchData}
               disabled={loading}
               className="p-2 rounded-lg bg-[#1a1a1a] border border-[#262626] text-gray-400 hover:text-white hover:border-purple-500/50 transition-colors disabled:opacity-50"
-              title="Daten aktualisieren"
+              title="Cache neu laden"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -246,8 +279,8 @@ export default function AdsPage() {
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <Loader2 className="w-10 h-10 text-purple-400 animate-spin mx-auto mb-4" />
-              <p className="text-gray-400">Lade Ads-Daten von Meta...</p>
-              <p className="text-gray-500 text-sm mt-1">Dies kann einige Sekunden dauern</p>
+              <p className="text-gray-400">{syncing ? 'Synchronisiere Ads-Daten von Meta...' : 'Lade gecachte Ads-Daten...'}</p>
+              <p className="text-gray-500 text-sm mt-1">{syncing ? 'Dies kann bis zu 60 Sekunden dauern' : 'Einen Moment bitte'}</p>
             </div>
           </div>
         )}
@@ -274,8 +307,37 @@ export default function AdsPage() {
           </div>
         )}
 
+        {/* Needs Sync State */}
+        {needsSync && !loading && !error && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6 mb-6">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-yellow-400 font-medium mb-1">Keine Daten für diesen Monat</h3>
+                <p className="text-gray-400 text-sm">Klicke auf "Sync" um die Ads-Daten von Meta zu laden.</p>
+                <button
+                  onClick={syncData}
+                  disabled={syncing}
+                  className="mt-3 px-4 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-sm hover:bg-purple-500/30 transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Jetzt synchronisieren
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Synced At Info */}
+        {syncedAt && !loading && (
+          <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            Zuletzt synchronisiert: {new Date(syncedAt).toLocaleString('de-DE')}
+          </div>
+        )}
+
         {/* Data Display */}
-        {data && !loading && (
+        {data && !loading && !needsSync && (
           <>
             {/* Ad Accounts Info */}
             {data.adAccounts.length > 0 && (
