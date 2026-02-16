@@ -1058,25 +1058,171 @@ export async function GET(
       return AD_ACCOUNT_MAP[campaign.account_id] || 'unknown';
     }
 
-    // Fetch all data including ads
-    const [fbPosts, fbKpis, igPosts, igKpis, adsResult] = await Promise.all([
+    // Fetch all data including ads for 3 months
+    const [fbPosts, fbKpis, igPosts, igKpis, ...adsResults] = await Promise.all([
       getFacebookPosts(month, fbPageIds),
       getMonthlyKPIs(months, fbPageIds, 'facebook'),
       getInstagramPosts(month, igPageIds),
       getMonthlyKPIs(months, igPageIds, 'instagram'),
-      query<{ data: any }>('SELECT data FROM ads_cache WHERE month = $1', [month]).catch(() => []),
+      ...months.map(m => query<{ data: any }>('SELECT data FROM ads_cache WHERE month = $1', [m]).catch(() => [])),
     ]);
 
-    // Get ads campaigns for this customer (campaign-level matching)
-    const adsData = adsResult[0]?.data || { accountSummaries: [], campaigns: [] };
-    const customerAdCampaigns = (adsData.campaigns || []).filter((c: any) => {
+    // Helper to extract campaign metrics from insight object
+    function getCampaignMetric(campaign: any, metric: string): number {
+      // Try insight object first (new format), then direct property (old format)
+      const insight = campaign.insight || {};
+      return parseFloat(insight[metric]) || parseFloat(campaign[metric]) || 0;
+    }
+
+    // Determine platform from campaign name (FB_ or IG_ prefix)
+    function getCampaignPlatform(campaign: any): 'facebook' | 'instagram' | 'unknown' {
+      const name = (campaign.name || campaign.campaign_name || '').toUpperCase();
+      if (name.startsWith('FB_') || name.includes('FACEBOOK')) return 'facebook';
+      if (name.startsWith('IG_') || name.includes('INSTAGRAM')) return 'instagram';
+      return 'unknown';
+    }
+
+    // Extract the month a campaign belongs to from its name
+    // Patterns: "FB_27.01.26_Video Views" -> 01/2026, "Oxford_Interaktionen_01/26" -> 01/2026, "Pelikan BTS 01/26" -> 01/2026
+    // A campaign belongs to the month in its name, even if it runs a few days into the next month
+    function getCampaignMonth(campaign: any): string | null {
+      const name = campaign.name || campaign.campaign_name || '';
+      // Pattern 1: DD.MM.YY (e.g. "FB_27.01.26_Video Views")
+      const dateMatch = name.match(/(\d{2})\.(\d{2})\.(\d{2})/);
+      if (dateMatch) {
+        const [, , monthNum, yearShort] = dateMatch;
+        return `20${yearShort}-${monthNum}`; // e.g. "2026-01"
+      }
+      // Pattern 2: MM/YY (e.g. "Oxford_Interaktionen_01/26" or "Pelikan BTS 01/26")
+      const monthMatch = name.match(/(\d{2})\/(\d{2,4})/);
+      if (monthMatch) {
+        const [, monthNum, yearPart] = monthMatch;
+        const year = yearPart.length === 2 ? `20${yearPart}` : yearPart;
+        return `${year}-${monthNum}`; // e.g. "2026-01"
+      }
+      // No date pattern found - campaign has no month assignment from name
+      return null;
+    }
+
+    // Filter campaigns that belong to a specific report month
+    function filterCampaignsByMonth(campaigns: any[], reportMonth: string): any[] {
+      return campaigns.filter(c => {
+        const campaignMonth = getCampaignMonth(c);
+        if (campaignMonth) {
+          // Campaign has a date in name -> only include if it matches the report month
+          return campaignMonth === reportMonth;
+        }
+        // No date in name -> include always (ongoing campaigns like "PPAs Interaktionen")
+        return true;
+      });
+    }
+
+    // Process ads data for all 3 months
+    interface MonthlyAdData {
+      month: string;
+      campaigns: any[];
+      fbCampaigns: any[];
+      igCampaigns: any[];
+      totalSpend: number;
+      fbSpend: number;
+      igSpend: number;
+      totalImpressions: number;
+      fbImpressions: number;
+      igImpressions: number;
+      totalReach: number;
+      fbReach: number;
+      igReach: number;
+      totalClicks: number;
+      fbClicks: number;
+      igClicks: number;
+      totalEngagement: number;
+      fbEngagement: number;
+      igEngagement: number;
+      totalVideoViews: number;
+      fbVideoViews: number;
+      igVideoViews: number;
+      totalLinkClicks: number;
+      fbLinkClicks: number;
+      igLinkClicks: number;
+    }
+
+    // For the report, we load ALL months from ads_cache but then filter campaigns
+    // by the month encoded in their NAME (not by when spend occurred).
+    // This means a campaign "FB_27.01.26_Video Views" that runs until 07.02 is still
+    // assigned to January, with ALL its accumulated spend.
+    // We use the LATEST ads_cache entry (current month) which has the most complete data
+    // for campaigns that ran in previous months too.
+    const latestAdsData = (adsResults[2] as any[])?.[0]?.data || (adsResults[1] as any[])?.[0]?.data || (adsResults[0] as any[])?.[0]?.data || { campaigns: [] };
+    const allCustomerCampaigns = (latestAdsData.campaigns || []).filter((c: any) => {
       return getCampaignCustomer(c) === customer.slug;
     });
-    // Calculate totals from campaigns (not account-level, to handle shared accounts)
-    const totalAdSpend = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseFloat(c.spend) || 0), 0);
-    const totalAdImpressions = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseInt(c.impressions) || 0), 0);
-    const totalAdClicks = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseInt(c.clicks) || 0), 0);
-    const totalAdReach = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseInt(c.reach) || 0), 0);
+
+    const monthlyAdsData: MonthlyAdData[] = months.map((m, idx) => {
+      // Filter campaigns by the month in their name
+      const customerCampaigns = filterCampaignsByMonth(allCustomerCampaigns, m);
+      // Also check the month-specific cache for campaigns without date in name
+      const monthAdsData = (adsResults[idx] as any[])?.[0]?.data || { campaigns: [] };
+      const monthSpecificCampaigns = (monthAdsData.campaigns || []).filter((c: any) => {
+        return getCampaignCustomer(c) === customer.slug && getCampaignMonth(c) === null;
+      });
+      // Merge: date-named campaigns from latest cache + undated campaigns from month-specific cache
+      const mergedCampaigns = [
+        ...customerCampaigns.filter((c: any) => getCampaignMonth(c) !== null),
+        ...monthSpecificCampaigns,
+      ];
+      // Deduplicate by campaign id
+      const seen = new Set<string>();
+      const dedupedCampaigns = mergedCampaigns.filter((c: any) => {
+        const id = c.id || c.campaign_id || c.name;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      const fbCampaigns = dedupedCampaigns.filter((c: any) => getCampaignPlatform(c) === 'facebook');
+      const igCampaigns = dedupedCampaigns.filter((c: any) => getCampaignPlatform(c) === 'instagram');
+      // For unknown platform campaigns, assign to FB by default
+      const unknownCampaigns = dedupedCampaigns.filter((c: any) => getCampaignPlatform(c) === 'unknown');
+
+      const calcTotal = (camps: any[], metric: string) => camps.reduce((sum: number, c: any) => sum + getCampaignMetric(c, metric), 0);
+
+      return {
+        month: m,
+        campaigns: customerCampaigns,
+        fbCampaigns: [...fbCampaigns, ...unknownCampaigns],
+        igCampaigns,
+        totalSpend: calcTotal(customerCampaigns, 'spend'),
+        fbSpend: calcTotal([...fbCampaigns, ...unknownCampaigns], 'spend'),
+        igSpend: calcTotal(igCampaigns, 'spend'),
+        totalImpressions: calcTotal(customerCampaigns, 'impressions'),
+        fbImpressions: calcTotal([...fbCampaigns, ...unknownCampaigns], 'impressions'),
+        igImpressions: calcTotal(igCampaigns, 'impressions'),
+        totalReach: calcTotal(customerCampaigns, 'reach'),
+        fbReach: calcTotal([...fbCampaigns, ...unknownCampaigns], 'reach'),
+        igReach: calcTotal(igCampaigns, 'reach'),
+        totalClicks: calcTotal(customerCampaigns, 'clicks'),
+        fbClicks: calcTotal([...fbCampaigns, ...unknownCampaigns], 'clicks'),
+        igClicks: calcTotal(igCampaigns, 'clicks'),
+        totalEngagement: calcTotal(customerCampaigns, 'post_engagement'),
+        fbEngagement: calcTotal([...fbCampaigns, ...unknownCampaigns], 'post_engagement'),
+        igEngagement: calcTotal(igCampaigns, 'post_engagement'),
+        totalVideoViews: calcTotal(customerCampaigns, 'video_views'),
+        fbVideoViews: calcTotal([...fbCampaigns, ...unknownCampaigns], 'video_views'),
+        igVideoViews: calcTotal(igCampaigns, 'video_views'),
+        totalLinkClicks: calcTotal(customerCampaigns, 'link_clicks'),
+        fbLinkClicks: calcTotal([...fbCampaigns, ...unknownCampaigns], 'link_clicks'),
+        igLinkClicks: calcTotal(igCampaigns, 'link_clicks'),
+      };
+    });
+
+    // Current month ads data (last in array = report month)
+    const currentAds = monthlyAdsData[2];
+    const customerAdCampaigns = currentAds.campaigns;
+    const fbAdCampaigns = currentAds.fbCampaigns;
+    const igAdCampaigns = currentAds.igCampaigns;
+    const totalAdSpend = currentAds.totalSpend;
+    const totalAdImpressions = currentAds.totalImpressions;
+    const totalAdClicks = currentAds.totalClicks;
+    const totalAdReach = currentAds.totalReach;
     
     console.log(`FB Posts: ${fbPosts.length}, IG Posts: ${igPosts.length}, Ads Campaigns: ${customerAdCampaigns.length}`);
     
@@ -1218,6 +1364,119 @@ export async function GET(
     addFamefactIcon(slide5, 5, primaryColor);
     
     // ========================================
+    // SLIDE 5b: Facebook Beitragsbewerbungen (PPAs)
+    // ========================================
+    if (currentAds.fbCampaigns.length > 0) {
+      const slideFbPpa = pptx.addSlide();
+      slideFbPpa.background = { color: DESIGN.colors.background };
+      addBrandingLine(slideFbPpa, primaryColor);
+      addSubtleWatermark(slideFbPpa, secondaryColor);
+      addCustomerLogo(slideFbPpa, customer, 7.5, 0.15, 2, 0.5);
+      
+      slideFbPpa.addText('Facebook', {
+        x: DESIGN.margin, y: 0.2, w: 7, h: 0.45,
+        fontSize: 26, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily
+      });
+      slideFbPpa.addText('Beitragsbewerbungen (PPAs)', {
+        x: DESIGN.margin, y: 0.6, w: 7, h: 0.3,
+        fontSize: 14, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily
+      });
+      
+      // 3-Monate-Vergleichstabelle für FB PPAs
+      const fbPpaTableY = 1.1;
+      const fbPpaColWidths = [3.0, 2.0, 2.0, 2.0];
+      const fbPpaTableW = 9.0;
+      
+      // Header
+      slideFbPpa.addShape('roundRect', {
+        x: DESIGN.margin + 0.02, y: fbPpaTableY + 0.02, w: fbPpaTableW, h: 0.4,
+        fill: { color: DESIGN.colors.shadow }, rectRadius: 0.08
+      });
+      slideFbPpa.addShape('roundRect', {
+        x: DESIGN.margin, y: fbPpaTableY, w: fbPpaTableW, h: 0.4,
+        fill: { color: primaryColor }, rectRadius: 0.08
+      });
+      
+      const fbPpaHeaders = ['Kennzahl', ...months.map(m => getShortMonthName(m))];
+      let fbPpaHdrX = DESIGN.margin;
+      fbPpaHeaders.forEach((h, i) => {
+        slideFbPpa.addText(h, {
+          x: fbPpaHdrX + 0.1, y: fbPpaTableY, w: fbPpaColWidths[i] - 0.2, h: 0.4,
+          fontSize: 9, bold: true, color: DESIGN.colors.white,
+          fontFace: DESIGN.fontFamily, align: i === 0 ? 'left' : 'center', valign: 'middle'
+        });
+        fbPpaHdrX += fbPpaColWidths[i];
+      });
+      
+      // KPI rows for FB PPAs
+      const fbPpaKpis = [
+        { label: 'Reichweite', values: monthlyAdsData.map(d => formatNumber(d.fbReach)) },
+        { label: 'Impressionen', values: monthlyAdsData.map(d => formatNumber(d.fbImpressions)) },
+        { label: 'CPM', values: monthlyAdsData.map(d => d.fbImpressions > 0 ? formatCurrency((d.fbSpend / d.fbImpressions) * 1000) : '–') },
+        { label: 'Interaktionen', values: monthlyAdsData.map(d => formatNumber(d.fbEngagement)) },
+        { label: 'Video Views', values: monthlyAdsData.map(d => formatNumber(d.fbVideoViews)) },
+        { label: 'Link-Klicks', values: monthlyAdsData.map(d => formatNumber(d.fbLinkClicks)) },
+        { label: 'Kosten/Interaktion', values: monthlyAdsData.map(d => d.fbEngagement > 0 ? formatCurrency(d.fbSpend / d.fbEngagement) : '–') },
+        { label: 'Budget', values: monthlyAdsData.map(d => formatCurrency(d.fbSpend)) },
+      ];
+      
+      let fbPpaRowY = fbPpaTableY + 0.45;
+      fbPpaKpis.forEach((kpi, idx) => {
+        const isAlt = idx % 2 === 0;
+        const bgColor = isAlt ? DESIGN.colors.lightGray : DESIGN.colors.white;
+        slideFbPpa.addShape('rect', {
+          x: DESIGN.margin, y: fbPpaRowY, w: fbPpaTableW, h: 0.35,
+          fill: { color: bgColor }
+        });
+        // Label
+        slideFbPpa.addText(kpi.label, {
+          x: DESIGN.margin + 0.1, y: fbPpaRowY, w: fbPpaColWidths[0] - 0.2, h: 0.35,
+          fontSize: 9, bold: true, color: DESIGN.colors.darkGray,
+          fontFace: DESIGN.fontFamily, valign: 'middle'
+        });
+        // Values for each month
+        let cellX = DESIGN.margin + fbPpaColWidths[0];
+        kpi.values.forEach((val, i) => {
+          const isCurrentMonth = i === 2;
+          slideFbPpa.addText(val, {
+            x: cellX + 0.1, y: fbPpaRowY, w: fbPpaColWidths[i + 1] - 0.2, h: 0.35,
+            fontSize: 9, color: isCurrentMonth ? DESIGN.colors.black : DESIGN.colors.mediumGray,
+            fontFace: DESIGN.fontFamily, align: 'center', valign: 'middle',
+            bold: isCurrentMonth
+          });
+          cellX += fbPpaColWidths[i + 1];
+        });
+        fbPpaRowY += 0.35;
+      });
+      
+      // Campaign detail list below table
+      const fbCampDetailY = fbPpaRowY + 0.3;
+      slideFbPpa.addText('Einzelne Kampagnen', {
+        x: DESIGN.margin, y: fbCampDetailY, w: 4, h: 0.3,
+        fontSize: 10, bold: true, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
+      });
+      
+      let fbCampY = fbCampDetailY + 0.35;
+      currentAds.fbCampaigns.forEach((c: any, idx: number) => {
+        if (fbCampY > 4.8) return; // Don't overflow
+        const spend = getCampaignMetric(c, 'spend');
+        const reach = getCampaignMetric(c, 'reach');
+        const impr = getCampaignMetric(c, 'impressions');
+        slideFbPpa.addText(`• ${c.name || 'Unbekannt'}`, {
+          x: DESIGN.margin + 0.1, y: fbCampY, w: 5, h: 0.22,
+          fontSize: 8, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
+        });
+        slideFbPpa.addText(`${formatCurrency(spend)} | ${formatNumber(reach)} Reichw. | ${formatNumber(impr)} Impr.`, {
+          x: 5.2, y: fbCampY, w: 4.3, h: 0.22,
+          fontSize: 8, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily, align: 'right'
+        });
+        fbCampY += 0.25;
+      });
+      
+      addFamefactIcon(slideFbPpa, 0, primaryColor);
+    }
+    
+    // ========================================
     // SLIDE 6: Facebook Demographie
     // ========================================
     const slide6 = pptx.addSlide();
@@ -1343,6 +1602,119 @@ export async function GET(
       fontSize: 12, color: DESIGN.colors.mediumGray, align: 'center', fontFace: DESIGN.fontFamily
     });
     addFamefactIcon(slide10, 10, primaryColor);
+    
+    // ========================================
+    // SLIDE 10b: Instagram Beitragsbewerbungen (PPAs)
+    // ========================================
+    if (currentAds.igCampaigns.length > 0) {
+      const slideIgPpa = pptx.addSlide();
+      slideIgPpa.background = { color: DESIGN.colors.background };
+      addBrandingLine(slideIgPpa, secondaryColor);
+      addSubtleWatermark(slideIgPpa, secondaryColor);
+      addCustomerLogo(slideIgPpa, customer, 7.5, 0.15, 2, 0.5);
+      
+      slideIgPpa.addText('Instagram', {
+        x: DESIGN.margin, y: 0.2, w: 7, h: 0.45,
+        fontSize: 26, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily
+      });
+      slideIgPpa.addText('Beitragsbewerbungen (PPAs)', {
+        x: DESIGN.margin, y: 0.6, w: 7, h: 0.3,
+        fontSize: 14, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily
+      });
+      
+      // 3-Monate-Vergleichstabelle für IG PPAs
+      const igPpaTableY = 1.1;
+      const igPpaColWidths = [3.0, 2.0, 2.0, 2.0];
+      const igPpaTableW = 9.0;
+      
+      // Header
+      slideIgPpa.addShape('roundRect', {
+        x: DESIGN.margin + 0.02, y: igPpaTableY + 0.02, w: igPpaTableW, h: 0.4,
+        fill: { color: DESIGN.colors.shadow }, rectRadius: 0.08
+      });
+      slideIgPpa.addShape('roundRect', {
+        x: DESIGN.margin, y: igPpaTableY, w: igPpaTableW, h: 0.4,
+        fill: { color: secondaryColor }, rectRadius: 0.08
+      });
+      
+      const igPpaHeaders = ['Kennzahl', ...months.map(m => getShortMonthName(m))];
+      let igPpaHdrX = DESIGN.margin;
+      igPpaHeaders.forEach((h, i) => {
+        slideIgPpa.addText(h, {
+          x: igPpaHdrX + 0.1, y: igPpaTableY, w: igPpaColWidths[i] - 0.2, h: 0.4,
+          fontSize: 9, bold: true, color: DESIGN.colors.white,
+          fontFace: DESIGN.fontFamily, align: i === 0 ? 'left' : 'center', valign: 'middle'
+        });
+        igPpaHdrX += igPpaColWidths[i];
+      });
+      
+      // KPI rows for IG PPAs
+      const igPpaKpis = [
+        { label: 'Reichweite', values: monthlyAdsData.map(d => formatNumber(d.igReach)) },
+        { label: 'Impressionen', values: monthlyAdsData.map(d => formatNumber(d.igImpressions)) },
+        { label: 'CPM', values: monthlyAdsData.map(d => d.igImpressions > 0 ? formatCurrency((d.igSpend / d.igImpressions) * 1000) : '–') },
+        { label: 'Interaktionen', values: monthlyAdsData.map(d => formatNumber(d.igEngagement)) },
+        { label: 'Video Views', values: monthlyAdsData.map(d => formatNumber(d.igVideoViews)) },
+        { label: 'Link-Klicks', values: monthlyAdsData.map(d => formatNumber(d.igLinkClicks)) },
+        { label: 'Kosten/Interaktion', values: monthlyAdsData.map(d => d.igEngagement > 0 ? formatCurrency(d.igSpend / d.igEngagement) : '–') },
+        { label: 'Budget', values: monthlyAdsData.map(d => formatCurrency(d.igSpend)) },
+      ];
+      
+      let igPpaRowY = igPpaTableY + 0.45;
+      igPpaKpis.forEach((kpi, idx) => {
+        const isAlt = idx % 2 === 0;
+        const bgColor = isAlt ? DESIGN.colors.lightGray : DESIGN.colors.white;
+        slideIgPpa.addShape('rect', {
+          x: DESIGN.margin, y: igPpaRowY, w: igPpaTableW, h: 0.35,
+          fill: { color: bgColor }
+        });
+        // Label
+        slideIgPpa.addText(kpi.label, {
+          x: DESIGN.margin + 0.1, y: igPpaRowY, w: igPpaColWidths[0] - 0.2, h: 0.35,
+          fontSize: 9, bold: true, color: DESIGN.colors.darkGray,
+          fontFace: DESIGN.fontFamily, valign: 'middle'
+        });
+        // Values for each month
+        let cellX = DESIGN.margin + igPpaColWidths[0];
+        kpi.values.forEach((val, i) => {
+          const isCurrentMonth = i === 2;
+          slideIgPpa.addText(val, {
+            x: cellX + 0.1, y: igPpaRowY, w: igPpaColWidths[i + 1] - 0.2, h: 0.35,
+            fontSize: 9, color: isCurrentMonth ? DESIGN.colors.black : DESIGN.colors.mediumGray,
+            fontFace: DESIGN.fontFamily, align: 'center', valign: 'middle',
+            bold: isCurrentMonth
+          });
+          cellX += igPpaColWidths[i + 1];
+        });
+        igPpaRowY += 0.35;
+      });
+      
+      // Campaign detail list below table
+      const igCampDetailY = igPpaRowY + 0.3;
+      slideIgPpa.addText('Einzelne Kampagnen', {
+        x: DESIGN.margin, y: igCampDetailY, w: 4, h: 0.3,
+        fontSize: 10, bold: true, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
+      });
+      
+      let igCampY = igCampDetailY + 0.35;
+      currentAds.igCampaigns.forEach((c: any, idx: number) => {
+        if (igCampY > 4.8) return; // Don't overflow
+        const spend = getCampaignMetric(c, 'spend');
+        const reach = getCampaignMetric(c, 'reach');
+        const impr = getCampaignMetric(c, 'impressions');
+        slideIgPpa.addText(`• ${c.name || 'Unbekannt'}`, {
+          x: DESIGN.margin + 0.1, y: igCampY, w: 5, h: 0.22,
+          fontSize: 8, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
+        });
+        slideIgPpa.addText(`${formatCurrency(spend)} | ${formatNumber(reach)} Reichw. | ${formatNumber(impr)} Impr.`, {
+          x: 5.2, y: igCampY, w: 4.3, h: 0.22,
+          fontSize: 8, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily, align: 'right'
+        });
+        igCampY += 0.25;
+      });
+      
+      addFamefactIcon(slideIgPpa, 0, secondaryColor);
+    }
     
     // ========================================
     // SLIDE 11: Zusammenfassung
