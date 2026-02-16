@@ -53,11 +53,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const exportNavItems = [
     { href: '/reports', label: 'Reports', icon: '📄' },
     { href: '/exports', label: 'Daten Export', icon: '📥' },
+    { href: '/guide', label: 'Guide & Glossar', icon: '📖' },
   ];
 
   const adminItems = [
     { href: '/admin/customers', label: 'Kunden', icon: '👥' },
     { href: '/admin/accounts', label: 'Accounts', icon: '⚙️' },
+    { href: '/admin/report-config', label: 'Report-Konfig', icon: '🛠️' },
   ];
 
   const handleNavClick = () => {
