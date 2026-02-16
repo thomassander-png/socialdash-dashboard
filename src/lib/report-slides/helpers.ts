@@ -364,7 +364,7 @@ export function createPremiumKPITable(
 // Get campaign metric helper
 export function getCampaignMetric(campaign: any, metric: string): number {
   if (!campaign) return 0;
-  // Check insights array first
+  // Check insights array first (Graph API format)
   if (campaign.insights?.data?.[0]) {
     const insights = campaign.insights.data[0];
     if (metric === 'spend') return parseFloat(insights.spend || '0');
@@ -380,6 +380,13 @@ export function getCampaignMetric(campaign: any, metric: string): number {
       const actions = insights.actions || [];
       const action = actions.find((a: any) => a.action_type === metric);
       return action ? parseInt(action.value || '0') : 0;
+    }
+  }
+  // Check insight object (singular - our ads_cache format)
+  if (campaign.insight && typeof campaign.insight === 'object') {
+    const ins = campaign.insight;
+    if (ins[metric] !== undefined && ins[metric] !== null) {
+      return parseFloat(ins[metric]) || 0;
     }
   }
   // Direct properties
