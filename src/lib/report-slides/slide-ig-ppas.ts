@@ -16,7 +16,10 @@ function generate(ctx: SlideContext): void {
     fill: { color: secondaryColor }, rectRadius: 0.08
   });
 
-  const headers = ['Kennzahl', ...months.map(m => getShortMonthName(m))];
+  // Reverse: aktueller Monat links, ältester rechts
+  const reversedMonths = [...months].reverse();
+  const reversedAds = [...monthlyAdsData].reverse();
+  const headers = ['Kennzahl', ...reversedMonths.map(m => getShortMonthName(m))];
   let hdrX = tableX;
   headers.forEach((h, i) => {
     slide.addText(h, {
@@ -28,14 +31,14 @@ function generate(ctx: SlideContext): void {
   });
 
   const kpis = [
-    { label: 'Reichweite', values: monthlyAdsData.map(d => formatNumber(d.igReach)) },
-    { label: 'Impressionen', values: monthlyAdsData.map(d => formatNumber(d.igImpressions)) },
-    { label: 'CPM', values: monthlyAdsData.map(d => d.igImpressions > 0 ? formatCurrency((d.igSpend / d.igImpressions) * 1000) : '–') },
-    { label: 'Interaktionen', values: monthlyAdsData.map(d => formatNumber(d.igEngagement)) },
-    { label: 'Video Views', values: monthlyAdsData.map(d => formatNumber(d.igVideoViews)) },
-    { label: 'Link-Klicks', values: monthlyAdsData.map(d => formatNumber(d.igLinkClicks)) },
-    { label: 'Kosten/Interaktion', values: monthlyAdsData.map(d => d.igEngagement > 0 ? formatCurrency(d.igSpend / d.igEngagement) : '–') },
-    { label: 'Budget', values: monthlyAdsData.map(d => formatCurrency(d.igSpend)) },
+    { label: 'Reichweite', values: reversedAds.map(d => formatNumber(d.igReach)) },
+    { label: 'Impressionen', values: reversedAds.map(d => formatNumber(d.igImpressions)) },
+    { label: 'CPM', values: reversedAds.map(d => d.igImpressions > 0 ? formatCurrency((d.igSpend / d.igImpressions) * 1000) : '–') },
+    { label: 'Interaktionen', values: reversedAds.map(d => formatNumber(d.igEngagement)) },
+    { label: 'Video Views', values: reversedAds.map(d => formatNumber(d.igVideoViews)) },
+    { label: 'Link-Klicks', values: reversedAds.map(d => formatNumber(d.igLinkClicks)) },
+    { label: 'Kosten/Interaktion', values: reversedAds.map(d => d.igEngagement > 0 ? formatCurrency(d.igSpend / d.igEngagement) : '–') },
+    { label: 'Budget', values: reversedAds.map(d => formatCurrency(d.igSpend)) },
   ];
 
   let rowY = tableY + 0.45;
@@ -54,7 +57,7 @@ function generate(ctx: SlideContext): void {
 
     let cellX = tableX + colWidths[0];
     kpi.values.forEach((val, i) => {
-      const isCurrentMonth = i === 2;
+      const isCurrentMonth = i === 0; // Aktueller Monat ist jetzt links
       slide.addText(val, {
         x: cellX + 0.1, y: rowY, w: colWidths[i + 1] - 0.2, h: 0.35,
         fontSize: 9, color: isCurrentMonth ? DESIGN.colors.black : DESIGN.colors.mediumGray,
@@ -73,7 +76,7 @@ function generate(ctx: SlideContext): void {
     fontSize: 10, bold: true, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
   });
 
-  const currentAds = monthlyAdsData[2] || monthlyAdsData[monthlyAdsData.length - 1];
+  const currentAds = reversedAds[0] || monthlyAdsData[monthlyAdsData.length - 1];
   let campY = campDetailY + 0.35;
   (currentAds?.igCampaigns || []).forEach((c: any) => {
     if (campY > 4.8) return;

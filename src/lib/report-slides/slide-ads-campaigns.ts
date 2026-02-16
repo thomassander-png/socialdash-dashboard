@@ -3,7 +3,7 @@ import { addSlideHeader, addFamefactIcon, formatNumber, formatCurrency, getCampa
 
 function generate(ctx: SlideContext): void {
   const { pptx, customer, monthlyAdsData, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
-  const currentAds = monthlyAdsData[2] || monthlyAdsData[monthlyAdsData.length - 1];
+  const currentAds = monthlyAdsData[monthlyAdsData.length - 1] || monthlyAdsData[2];
   const campaigns = currentAds?.campaigns || [];
 
   const slide = pptx.addSlide();

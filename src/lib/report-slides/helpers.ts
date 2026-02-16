@@ -268,6 +268,8 @@ export function createPremiumKPITable(
   primaryColor: string,
   secondaryColor: string
 ): void {
+  // Reverse KPIs: aktueller Monat links, ältester rechts
+  const reversedKpis = [...kpis].reverse();
   const tableX = DESIGN.margin;
   const tableW = 10 - (DESIGN.margin * 2);
   const colW = [2.8, 2.1, 2.1, 2.2];
@@ -301,7 +303,7 @@ export function createPremiumKPITable(
     fill: { color: headerColor }
   });
 
-  const headers = ['Kennzahl', ...kpis.map(k => getShortMonthName(k.month))];
+  const headers = ['Kennzahl', ...reversedKpis.map(k => getShortMonthName(k.month))];
   let hdrX = tableX;
   headers.forEach((h, i) => {
     slide.addText(h, {
@@ -314,14 +316,14 @@ export function createPremiumKPITable(
 
   // KPI rows
   const kpiRows = [
-    { label: 'Beiträge', values: kpis.map(k => formatNumber(k.posts_count)) },
-    { label: 'Reichweite Gesamt', values: kpis.map(k => formatNumber(k.total_reach)) },
-    { label: 'Impressionen', values: kpis.map(k => formatNumber(k.total_impressions)) },
-    { label: 'Reaktionen', values: kpis.map(k => formatNumber(k.total_reactions)) },
-    { label: 'Kommentare', values: kpis.map(k => formatNumber(k.total_comments)) },
-    { label: platform === 'facebook' ? 'Shares' : 'Saves', values: kpis.map(k => formatNumber(platform === 'facebook' ? k.total_shares : k.total_saves)) },
-    { label: 'Engagement-Rate', values: kpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + '%') },
-    { label: 'Follower', values: kpis.map(k => formatNumber(k.followers)) },
+    { label: 'Beiträge', values: reversedKpis.map(k => formatNumber(k.posts_count)) },
+    { label: 'Reichweite Gesamt', values: reversedKpis.map(k => formatNumber(k.total_reach)) },
+    { label: 'Impressionen', values: reversedKpis.map(k => formatNumber(k.total_impressions)) },
+    { label: 'Reaktionen', values: reversedKpis.map(k => formatNumber(k.total_reactions)) },
+    { label: 'Kommentare', values: reversedKpis.map(k => formatNumber(k.total_comments)) },
+    { label: platform === 'facebook' ? 'Shares' : 'Saves', values: reversedKpis.map(k => formatNumber(platform === 'facebook' ? k.total_shares : k.total_saves)) },
+    { label: 'Engagement-Rate', values: reversedKpis.map(k => k.engagement_rate.toFixed(2).replace('.', ',') + '%') },
+    { label: 'Follower', values: reversedKpis.map(k => formatNumber(k.followers)) },
   ];
 
   let rowY = startY + headerH + 0.05;
@@ -345,7 +347,7 @@ export function createPremiumKPITable(
 
     // Values
     row.values.forEach((val, i) => {
-      const isCurrentMonth = i === kpis.length - 1;
+      const isCurrentMonth = i === 0; // Aktueller Monat ist jetzt der erste (links)
       slide.addText(val, {
         x: cellX + 0.1, y: rowY, w: colW[i + 1] - 0.2, h: rowH,
         fontSize: 10, color: isCurrentMonth ? DESIGN.colors.black : DESIGN.colors.mediumGray,

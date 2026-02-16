@@ -18,7 +18,10 @@ function generate(ctx: SlideContext): void {
     fill: { color: primaryColor }, rectRadius: 0.08
   });
 
-  const headers = ['Kennzahl', ...months.map(m => getShortMonthName(m))];
+  // Reverse: aktueller Monat links, ältester rechts
+  const reversedMonths = [...months].reverse();
+  const reversedAds = [...monthlyAdsData].reverse();
+  const headers = ['Kennzahl', ...reversedMonths.map(m => getShortMonthName(m))];
   let hdrX = tableX;
   headers.forEach((h, i) => {
     slide.addText(h, {
@@ -31,14 +34,14 @@ function generate(ctx: SlideContext): void {
 
   // KPI rows
   const kpis = [
-    { label: 'Reichweite', values: monthlyAdsData.map(d => formatNumber(d.fbReach)) },
-    { label: 'Impressionen', values: monthlyAdsData.map(d => formatNumber(d.fbImpressions)) },
-    { label: 'CPM', values: monthlyAdsData.map(d => d.fbImpressions > 0 ? formatCurrency((d.fbSpend / d.fbImpressions) * 1000) : '–') },
-    { label: 'Interaktionen', values: monthlyAdsData.map(d => formatNumber(d.fbEngagement)) },
-    { label: 'Video Views', values: monthlyAdsData.map(d => formatNumber(d.fbVideoViews)) },
-    { label: 'Link-Klicks', values: monthlyAdsData.map(d => formatNumber(d.fbLinkClicks)) },
-    { label: 'Kosten/Interaktion', values: monthlyAdsData.map(d => d.fbEngagement > 0 ? formatCurrency(d.fbSpend / d.fbEngagement) : '–') },
-    { label: 'Budget', values: monthlyAdsData.map(d => formatCurrency(d.fbSpend)) },
+    { label: 'Reichweite', values: reversedAds.map(d => formatNumber(d.fbReach)) },
+    { label: 'Impressionen', values: reversedAds.map(d => formatNumber(d.fbImpressions)) },
+    { label: 'CPM', values: reversedAds.map(d => d.fbImpressions > 0 ? formatCurrency((d.fbSpend / d.fbImpressions) * 1000) : '–') },
+    { label: 'Interaktionen', values: reversedAds.map(d => formatNumber(d.fbEngagement)) },
+    { label: 'Video Views', values: reversedAds.map(d => formatNumber(d.fbVideoViews)) },
+    { label: 'Link-Klicks', values: reversedAds.map(d => formatNumber(d.fbLinkClicks)) },
+    { label: 'Kosten/Interaktion', values: reversedAds.map(d => d.fbEngagement > 0 ? formatCurrency(d.fbSpend / d.fbEngagement) : '–') },
+    { label: 'Budget', values: reversedAds.map(d => formatCurrency(d.fbSpend)) },
   ];
 
   let rowY = tableY + 0.45;
@@ -58,7 +61,7 @@ function generate(ctx: SlideContext): void {
 
     let cellX = tableX + colWidths[0];
     kpi.values.forEach((val, i) => {
-      const isCurrentMonth = i === 2;
+      const isCurrentMonth = i === 0; // Aktueller Monat ist jetzt links
       slide.addText(val, {
         x: cellX + 0.1, y: rowY, w: colWidths[i + 1] - 0.2, h: 0.35,
         fontSize: 9, color: isCurrentMonth ? DESIGN.colors.black : DESIGN.colors.mediumGray,
@@ -77,7 +80,7 @@ function generate(ctx: SlideContext): void {
     fontSize: 10, bold: true, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
   });
 
-  const currentAds = monthlyAdsData[2] || monthlyAdsData[monthlyAdsData.length - 1];
+  const currentAds = reversedAds[0] || monthlyAdsData[monthlyAdsData.length - 1];
   let campY = campDetailY + 0.35;
   (currentAds?.fbCampaigns || []).forEach((c: any) => {
     if (campY > 4.8) return;
