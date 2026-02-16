@@ -38,7 +38,8 @@ function ExportsContent() {
         const response = await fetch('/api/customers');
         if (response.ok) {
           const data = await response.json();
-          setCustomers(data.customers || []);
+          const list = Array.isArray(data) ? data : (data.customers || []);
+          setCustomers(list.filter((c: any) => c.is_active !== false));
         }
       } catch (err) {
         console.error('Failed to fetch customers:', err);

@@ -121,7 +121,8 @@ function ReportConfigContent() {
         const response = await fetch('/api/customers');
         if (response.ok) {
           const data = await response.json();
-          const active = (data.customers || []).filter((c: Customer) => c.is_active !== false);
+          const list = Array.isArray(data) ? data : (data.customers || []);
+          const active = list.filter((c: Customer) => c.is_active !== false);
           setCustomers(active);
         }
       } catch (err) {

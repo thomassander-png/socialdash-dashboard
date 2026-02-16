@@ -41,7 +41,8 @@ function ReportsContent() {
         const response = await fetch('/api/customers');
         if (response.ok) {
           const data = await response.json();
-          setCustomers((data.customers || []).filter((c: Customer) => c.is_active !== false));
+          const list = Array.isArray(data) ? data : (data.customers || []);
+          setCustomers(list.filter((c: Customer) => c.is_active !== false));
         }
       } catch (err) {
         console.error('Failed to fetch customers:', err);
