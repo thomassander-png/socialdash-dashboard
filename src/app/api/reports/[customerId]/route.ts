@@ -452,15 +452,14 @@ export async function GET(
         proxyUrlMap.set(proxyUrl, post.thumbnail_url);
       }
     }
-    // For IG post images, try thumbnail_url and media_url directly (avoid self-call proxy on serverless)
+    // For IG post images, use the image-proxy too (same approach as FB - handles expired CDN URLs)
     for (const post of (igPosts as any[])) {
-      if (post.thumbnail_url) {
-        imageUrls.push(post.thumbnail_url);
-      }
-      // Also try media_url as fallback (different URL, might still be valid)
-      if (post.media_url && post.media_url !== post.thumbnail_url) {
-        imageUrls.push(post.media_url);
-        proxyUrlMap.set(post.media_url, post.thumbnail_url || post.media_url);
+      if (post.post_id) {
+        const proxyUrl = `${baseUrl}/api/image-proxy?id=${encodeURIComponent(post.post_id)}&platform=instagram`;
+        imageUrls.push(proxyUrl);
+        if (post.thumbnail_url) {
+          proxyUrlMap.set(proxyUrl, post.thumbnail_url);
+        }
       }
     }
     
@@ -475,13 +474,6 @@ export async function GET(
       const originalUrl = proxyUrlMap.get(url);
       if (originalUrl && !imageCache.has(originalUrl)) {
         imageCache.set(originalUrl, data);
-      }
-    }
-    // For IG posts: if thumbnail_url didn't work but media_url did, map it
-    for (const post of (igPosts as any[])) {
-      const thumbUrl = post.thumbnail_url;
-      if (thumbUrl && !imageCache.has(thumbUrl) && post.media_url && imageCache.has(post.media_url)) {
-        imageCache.set(thumbUrl, imageCache.get(post.media_url)!);
       }
     }
     // Also add logo if it was fetched
