@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 
 interface Customer {
@@ -10,92 +10,95 @@ interface Customer {
   is_active: boolean;
 }
 
+interface SlideInfo {
+  id: string;
+  name: string;
+  description: string;
+  platform: string;
+  category: string;
+  order: number;
+}
+
 interface ReportConfig {
   platforms: {
     facebook: boolean;
     instagram: boolean;
     ads: boolean;
     tiktok: boolean;
+    linkedin: boolean;
   };
-  slides: {
-    cover: boolean;
-    fbOverview: boolean;
-    fbTopPosts: boolean;
-    fbAllPosts: boolean;
-    fbFollower: boolean;
-    igOverview: boolean;
-    igTopPosts: boolean;
-    igAllPosts: boolean;
-    igFollower: boolean;
-    igStories: boolean;
-    igReels: boolean;
-    adsOverview: boolean;
-    adsCampaigns: boolean;
-    summary: boolean;
-  };
-  kpis: {
-    reach: boolean;
-    impressions: boolean;
-    engagement: boolean;
-    engagementRate: boolean;
-    followerGrowth: boolean;
-    videoViews: boolean;
-    linkClicks: boolean;
-    saves: boolean;
-    shares: boolean;
-    adSpend: boolean;
-    cpc: boolean;
-    cpm: boolean;
-    ctr: boolean;
-    frequency: boolean;
-  };
+  slides: Record<string, boolean>;
+  kpis: Record<string, boolean>;
   notes: string;
 }
 
 const DEFAULT_CONFIG: ReportConfig = {
-  platforms: { facebook: true, instagram: true, ads: true, tiktok: false },
+  platforms: { facebook: true, instagram: true, ads: true, tiktok: false, linkedin: false },
   slides: {
     cover: true,
-    fbOverview: true,
+    executiveSummary: true,
+    fbDivider: false,
+    fbKennzahlen: true,
     fbTopPosts: true,
-    fbAllPosts: true,
-    fbFollower: true,
-    igOverview: true,
+    fbVideos: true,
+    fbPpas: true,
+    fbEinzelkampagnen: false,
+    fbDemographie: true,
+    igDivider: false,
+    igKennzahlen: true,
     igTopPosts: true,
-    igAllPosts: true,
-    igFollower: true,
-    igStories: false,
-    igReels: false,
-    adsOverview: true,
+    igReels: true,
+    igPpas: true,
     adsCampaigns: true,
-    summary: true,
+    zusammenfassung: true,
+    glossar: false,
+    kontakt: true,
+    tiktokDivider: false,
+    tiktokKennzahlen: false,
+    linkedinDivider: false,
+    linkedinKennzahlen: false,
   },
   kpis: {
-    reach: true,
-    impressions: true,
-    engagement: true,
-    engagementRate: true,
-    followerGrowth: true,
-    videoViews: false,
-    linkClicks: false,
-    saves: true,
-    shares: true,
-    adSpend: true,
-    cpc: true,
-    cpm: true,
-    ctr: true,
-    frequency: false,
+    reach: true, impressions: true, engagement: true, engagementRate: true,
+    followerGrowth: true, videoViews: false, linkClicks: false,
+    saves: true, shares: true, adSpend: true, cpc: true, cpm: true, ctr: true, frequency: false,
   },
   notes: '',
 };
 
-// Store configs in localStorage (later: DB)
+// Platform colors & icons
+const PLATFORM_META: Record<string, { label: string; icon: string; color: string; borderClass: string; bgClass: string; textClass: string }> = {
+  general: { label: 'Allgemein', icon: '📋', color: 'gray', borderClass: 'border-gray-500/30', bgClass: 'bg-gray-500/10', textClass: 'text-gray-400' },
+  facebook: { label: 'Facebook', icon: '📘', color: 'blue', borderClass: 'border-blue-500/30', bgClass: 'bg-blue-500/10', textClass: 'text-blue-400' },
+  instagram: { label: 'Instagram', icon: '📸', color: 'pink', borderClass: 'border-pink-500/30', bgClass: 'bg-pink-500/10', textClass: 'text-pink-400' },
+  ads: { label: 'Paid Ads', icon: '📣', color: 'amber', borderClass: 'border-amber-500/30', bgClass: 'bg-amber-500/10', textClass: 'text-amber-400' },
+  tiktok: { label: 'TikTok', icon: '🎵', color: 'cyan', borderClass: 'border-cyan-500/30', bgClass: 'bg-cyan-500/10', textClass: 'text-cyan-400' },
+  linkedin: { label: 'LinkedIn', icon: '💼', color: 'sky', borderClass: 'border-sky-500/30', bgClass: 'bg-sky-500/10', textClass: 'text-sky-400' },
+  'cross-platform': { label: 'Cross-Platform', icon: '🔗', color: 'purple', borderClass: 'border-purple-500/30', bgClass: 'bg-purple-500/10', textClass: 'text-purple-400' },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  cover: 'Cover',
+  divider: 'Trenner',
+  kpi: 'Kennzahlen',
+  content: 'Content',
+  ads: 'Werbung',
+  summary: 'Zusammenfassung',
+  contact: 'Kontakt',
+};
+
 function getConfig(slug: string): ReportConfig {
   if (typeof window === 'undefined') return DEFAULT_CONFIG;
   const stored = localStorage.getItem(`report-config-${slug}`);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      return {
+        platforms: { ...DEFAULT_CONFIG.platforms, ...parsed.platforms },
+        slides: { ...DEFAULT_CONFIG.slides, ...parsed.slides },
+        kpis: { ...DEFAULT_CONFIG.kpis, ...parsed.kpis },
+        notes: parsed.notes || '',
+      };
     } catch {
       return DEFAULT_CONFIG;
     }
@@ -111,10 +114,12 @@ function ReportConfigContent() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [config, setConfig] = useState<ReportConfig>(DEFAULT_CONFIG);
+  const [slideRegistry, setSlideRegistry] = useState<SlideInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Fetch customers
   useEffect(() => {
     async function fetchCustomers() {
       try {
@@ -122,8 +127,7 @@ function ReportConfigContent() {
         if (response.ok) {
           const data = await response.json();
           const list = Array.isArray(data) ? data : (data.customers || []);
-          const active = list.filter((c: Customer) => c.is_active !== false);
-          setCustomers(active);
+          setCustomers(list.filter((c: Customer) => c.is_active !== false));
         }
       } catch (err) {
         console.error('Failed to fetch customers:', err);
@@ -133,6 +137,58 @@ function ReportConfigContent() {
     }
     fetchCustomers();
   }, []);
+
+  // Fetch slide registry from API
+  useEffect(() => {
+    async function fetchSlides() {
+      try {
+        // Use any customer slug to get the slide list (it's the same for all)
+        const response = await fetch('/api/reports/list-slides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list-slides' }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSlideRegistry(data.slides || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch slide registry:', err);
+        // Fallback: build from DEFAULT_CONFIG keys
+        setSlideRegistry(Object.keys(DEFAULT_CONFIG.slides).map((id, i) => ({
+          id, name: id, description: '', platform: 'general', category: 'kpi', order: i * 10,
+        })));
+      }
+    }
+    fetchSlides();
+  }, []);
+
+  // Group slides by platform
+  const slidesByPlatform = useMemo(() => {
+    const groups: Record<string, SlideInfo[]> = {};
+    for (const slide of slideRegistry) {
+      if (!groups[slide.platform]) groups[slide.platform] = [];
+      groups[slide.platform].push(slide);
+    }
+    // Sort within each group
+    for (const key of Object.keys(groups)) {
+      groups[key].sort((a, b) => a.order - b.order);
+    }
+    return groups;
+  }, [slideRegistry]);
+
+  // Compute active slides for preview
+  const activeSlides = useMemo(() => {
+    return slideRegistry
+      .filter(s => {
+        if (!config.slides[s.id]) return false;
+        // Check platform
+        const platformKey = s.platform as keyof ReportConfig['platforms'];
+        if (platformKey !== 'general' && platformKey !== 'cross-platform' && !config.platforms[platformKey]) return false;
+        return true;
+      })
+      .sort((a, b) => a.order - b.order);
+  }, [config, slideRegistry]);
 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -162,17 +218,31 @@ function ReportConfigContent() {
     setConfig((prev) => ({ ...prev, platforms: { ...prev.platforms, [key]: value } }));
   };
 
-  const updateSlide = (key: keyof ReportConfig['slides'], value: boolean) => {
-    setConfig((prev) => ({ ...prev, slides: { ...prev.slides, [key]: value } }));
+  const updateSlide = (id: string, value: boolean) => {
+    setConfig((prev) => ({ ...prev, slides: { ...prev.slides, [id]: value } }));
   };
 
-  const updateKpi = (key: keyof ReportConfig['kpis'], value: boolean) => {
+  const updateKpi = (key: string, value: boolean) => {
     setConfig((prev) => ({ ...prev, kpis: { ...prev.kpis, [key]: value } }));
+  };
+
+  const toggleAllSlidesForPlatform = (platform: string, value: boolean) => {
+    const platformSlides = slidesByPlatform[platform] || [];
+    setConfig((prev) => {
+      const newSlides = { ...prev.slides };
+      for (const s of platformSlides) {
+        newSlides[s.id] = value;
+      }
+      return { ...prev, slides: newSlides };
+    });
   };
 
   const filteredCustomers = customers.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Platform order for display
+  const platformOrder = ['general', 'facebook', 'instagram', 'ads', 'tiktok', 'linkedin', 'cross-platform'];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -183,6 +253,7 @@ function ReportConfigContent() {
         </h1>
         <p className="text-gray-400 mt-1 text-sm">
           Lege pro Kunde fest, welche Plattformen, Folien und KPIs im monatlichen Report erscheinen.
+          Jede Folie kann individuell aktiviert/deaktiviert werden.
         </p>
       </div>
 
@@ -229,8 +300,8 @@ function ReportConfigContent() {
           {!selectedCustomer ? (
             <div className="bg-[#1e1e2e] rounded-xl border border-gray-700 p-12 text-center">
               <div className="text-4xl mb-4">👈</div>
-              <h3 className="text-white font-semibold text-lg mb-2">Kunde ausw&auml;hlen</h3>
-              <p className="text-gray-400 text-sm">W&auml;hle links einen Kunden aus, um dessen Report-Konfiguration zu bearbeiten.</p>
+              <h3 className="text-white font-semibold text-lg mb-2">Kunde auswählen</h3>
+              <p className="text-gray-400 text-sm">Wähle links einen Kunden aus, um dessen Report-Konfiguration zu bearbeiten.</p>
             </div>
           ) : (
             <div className="space-y-5">
@@ -265,138 +336,118 @@ function ReportConfigContent() {
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                   <span>🌐</span> Plattformen im Report
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { key: 'facebook' as const, label: 'Facebook', icon: '📘', color: 'blue' },
-                    { key: 'instagram' as const, label: 'Instagram', icon: '📸', color: 'pink' },
-                    { key: 'ads' as const, label: 'Paid Ads', icon: '📣', color: 'amber' },
-                    { key: 'tiktok' as const, label: 'TikTok', icon: '🎵', color: 'cyan' },
-                  ].map((platform) => (
-                    <button
-                      key={platform.key}
-                      onClick={() => updatePlatform(platform.key, !config.platforms[platform.key])}
-                      className={`p-4 rounded-xl border-2 transition-all text-center ${
-                        config.platforms[platform.key]
-                          ? `border-${platform.color}-500/50 bg-${platform.color}-500/10`
-                          : 'border-gray-700 bg-[#2d2d44] opacity-50'
-                      }`}
-                    >
-                      <div className="text-2xl mb-1">{platform.icon}</div>
-                      <p className={`text-sm font-medium ${config.platforms[platform.key] ? 'text-white' : 'text-gray-500'}`}>
-                        {platform.label}
-                      </p>
-                      <p className={`text-[10px] mt-1 ${config.platforms[platform.key] ? 'text-green-400' : 'text-gray-600'}`}>
-                        {config.platforms[platform.key] ? 'Aktiv' : 'Deaktiviert'}
-                      </p>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {(['facebook', 'instagram', 'ads', 'tiktok', 'linkedin'] as const).map((key) => {
+                    const meta = PLATFORM_META[key];
+                    const isActive = config.platforms[key];
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => updatePlatform(key, !isActive)}
+                        className={`p-4 rounded-xl border-2 transition-all text-center ${
+                          isActive
+                            ? `${meta.borderClass} ${meta.bgClass}`
+                            : 'border-gray-700 bg-[#2d2d44] opacity-50'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{meta.icon}</div>
+                        <p className={`text-sm font-medium ${isActive ? 'text-white' : 'text-gray-500'}`}>
+                          {meta.label}
+                        </p>
+                        <p className={`text-[10px] mt-0.5 ${isActive ? meta.textClass : 'text-gray-600'}`}>
+                          {isActive ? 'Aktiv' : 'Deaktiviert'}
+                        </p>
+                        {(key === 'tiktok' || key === 'linkedin') && (
+                          <span className="text-[9px] text-gray-500 mt-1 block">Bald verfügbar</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Slides */}
+              {/* Modular Slides */}
               <div className="bg-[#1e1e2e] rounded-xl border border-gray-700 p-5">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                   <span>📑</span> Folien im Report
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* General */}
-                  <div>
-                    <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider mb-2">Allgemein</p>
-                    <div className="space-y-2">
-                      {[
-                        { key: 'cover' as const, label: 'Cover-Folie' },
-                        { key: 'summary' as const, label: 'Zusammenfassung' },
-                      ].map((slide) => (
-                        <label key={slide.key} className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={config.slides[slide.key]}
-                            onChange={(e) => updateSlide(slide.key, e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-600 bg-[#2d2d44] text-[#84cc16] focus:ring-[#84cc16]"
-                          />
-                          <span className="text-sm text-gray-300 group-hover:text-white transition-colors">{slide.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                <p className="text-gray-500 text-xs mb-4">
+                  Aktiviere oder deaktiviere einzelne Folien. Deaktivierte Plattformen werden automatisch ausgeblendet.
+                </p>
 
-                  {/* Facebook */}
-                  <div>
-                    <p className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Facebook</p>
-                    <div className="space-y-2">
-                      {[
-                        { key: 'fbOverview' as const, label: 'FB &Uuml;bersicht KPIs' },
-                        { key: 'fbTopPosts' as const, label: 'FB Top Posts' },
-                        { key: 'fbAllPosts' as const, label: 'FB Alle Posts' },
-                        { key: 'fbFollower' as const, label: 'FB Follower-Entwicklung' },
-                      ].map((slide) => (
-                        <label key={slide.key} className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={config.slides[slide.key]}
-                            onChange={(e) => updateSlide(slide.key, e.target.checked)}
-                            disabled={!config.platforms.facebook}
-                            className="w-4 h-4 rounded border-gray-600 bg-[#2d2d44] text-[#84cc16] focus:ring-[#84cc16] disabled:opacity-30"
-                          />
-                          <span className={`text-sm transition-colors ${!config.platforms.facebook ? 'text-gray-600' : 'text-gray-300 group-hover:text-white'}`}>
-                            {slide.label}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                <div className="space-y-4">
+                  {platformOrder.map((platform) => {
+                    const slides = slidesByPlatform[platform];
+                    if (!slides || slides.length === 0) return null;
+                    const meta = PLATFORM_META[platform] || PLATFORM_META.general;
+                    const platformKey = platform as keyof ReportConfig['platforms'];
+                    const isPlatformDisabled = platform !== 'general' && platform !== 'cross-platform' && !config.platforms[platformKey];
+                    const allEnabled = slides.every(s => config.slides[s.id]);
+                    const someEnabled = slides.some(s => config.slides[s.id]);
 
-                  {/* Instagram */}
-                  <div>
-                    <p className="text-pink-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Instagram</p>
-                    <div className="space-y-2">
-                      {[
-                        { key: 'igOverview' as const, label: 'IG &Uuml;bersicht KPIs' },
-                        { key: 'igTopPosts' as const, label: 'IG Top Posts' },
-                        { key: 'igAllPosts' as const, label: 'IG Alle Posts' },
-                        { key: 'igFollower' as const, label: 'IG Follower-Entwicklung' },
-                        { key: 'igStories' as const, label: 'IG Stories' },
-                        { key: 'igReels' as const, label: 'IG Reels' },
-                      ].map((slide) => (
-                        <label key={slide.key} className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={config.slides[slide.key]}
-                            onChange={(e) => updateSlide(slide.key, e.target.checked)}
-                            disabled={!config.platforms.instagram}
-                            className="w-4 h-4 rounded border-gray-600 bg-[#2d2d44] text-[#84cc16] focus:ring-[#84cc16] disabled:opacity-30"
-                          />
-                          <span className={`text-sm transition-colors ${!config.platforms.instagram ? 'text-gray-600' : 'text-gray-300 group-hover:text-white'}`}>
-                            {slide.label}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                    return (
+                      <div key={platform} className={`rounded-lg border ${isPlatformDisabled ? 'border-gray-800 opacity-40' : 'border-gray-700'} overflow-hidden`}>
+                        {/* Platform header */}
+                        <div className={`px-4 py-2.5 flex items-center justify-between ${isPlatformDisabled ? 'bg-[#1a1a28]' : 'bg-[#252538]'}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{meta.icon}</span>
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${meta.textClass}`}>
+                              {meta.label}
+                            </span>
+                            <span className="text-gray-600 text-[10px]">
+                              ({slides.filter(s => config.slides[s.id]).length}/{slides.length} aktiv)
+                            </span>
+                          </div>
+                          {!isPlatformDisabled && (
+                            <button
+                              onClick={() => toggleAllSlidesForPlatform(platform, !allEnabled)}
+                              className="text-[10px] text-gray-400 hover:text-white transition-colors px-2 py-1 rounded bg-[#2d2d44]"
+                            >
+                              {allEnabled ? 'Alle deaktivieren' : someEnabled ? 'Alle aktivieren' : 'Alle aktivieren'}
+                            </button>
+                          )}
+                        </div>
 
-                {/* Ads Slides */}
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <p className="text-amber-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Paid Ads</p>
-                  <div className="flex gap-6">
-                    {[
-                      { key: 'adsOverview' as const, label: 'Ads &Uuml;bersicht' },
-                      { key: 'adsCampaigns' as const, label: 'Kampagnen-Details' },
-                    ].map((slide) => (
-                      <label key={slide.key} className="flex items-center gap-2 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={config.slides[slide.key]}
-                          onChange={(e) => updateSlide(slide.key, e.target.checked)}
-                          disabled={!config.platforms.ads}
-                          className="w-4 h-4 rounded border-gray-600 bg-[#2d2d44] text-[#84cc16] focus:ring-[#84cc16] disabled:opacity-30"
-                        />
-                        <span className={`text-sm transition-colors ${!config.platforms.ads ? 'text-gray-600' : 'text-gray-300 group-hover:text-white'}`}>
-                          {slide.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                        {/* Slides grid */}
+                        <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {slides.map((slide) => {
+                            const isEnabled = config.slides[slide.id] && !isPlatformDisabled;
+                            return (
+                              <label
+                                key={slide.id}
+                                className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                                  isPlatformDisabled
+                                    ? 'opacity-30 cursor-not-allowed'
+                                    : isEnabled
+                                    ? `${meta.bgClass} border ${meta.borderClass}`
+                                    : 'bg-[#2d2d44] border border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={config.slides[slide.id] || false}
+                                  onChange={(e) => updateSlide(slide.id, e.target.checked)}
+                                  disabled={isPlatformDisabled}
+                                  className="w-4 h-4 mt-0.5 rounded border-gray-600 bg-[#2d2d44] text-[#84cc16] focus:ring-[#84cc16] disabled:opacity-30 flex-shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <span className={`text-sm font-medium block ${isEnabled ? 'text-white' : 'text-gray-400'}`}>
+                                    {slide.name}
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 block mt-0.5 leading-tight">
+                                    {slide.description}
+                                  </span>
+                                  <span className={`text-[9px] mt-1 inline-block px-1.5 py-0.5 rounded ${meta.bgClass} ${meta.textClass}`}>
+                                    {CATEGORY_LABELS[slide.category] || slide.category}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -407,20 +458,20 @@ function ReportConfigContent() {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
-                    { key: 'reach' as const, label: 'Reichweite', group: 'organic' },
-                    { key: 'impressions' as const, label: 'Impressionen', group: 'organic' },
-                    { key: 'engagement' as const, label: 'Interaktionen', group: 'organic' },
-                    { key: 'engagementRate' as const, label: 'Engagement Rate', group: 'organic' },
-                    { key: 'followerGrowth' as const, label: 'Follower-Wachstum', group: 'organic' },
-                    { key: 'videoViews' as const, label: 'Videoaufrufe', group: 'organic' },
-                    { key: 'linkClicks' as const, label: 'Link-Klicks', group: 'organic' },
-                    { key: 'saves' as const, label: 'Saves (IG)', group: 'organic' },
-                    { key: 'shares' as const, label: 'Shares', group: 'organic' },
-                    { key: 'adSpend' as const, label: 'Ad Spend', group: 'paid' },
-                    { key: 'cpc' as const, label: 'CPC', group: 'paid' },
-                    { key: 'cpm' as const, label: 'CPM', group: 'paid' },
-                    { key: 'ctr' as const, label: 'CTR', group: 'paid' },
-                    { key: 'frequency' as const, label: 'Frequenz', group: 'paid' },
+                    { key: 'reach', label: 'Reichweite', group: 'organic' },
+                    { key: 'impressions', label: 'Impressionen', group: 'organic' },
+                    { key: 'engagement', label: 'Interaktionen', group: 'organic' },
+                    { key: 'engagementRate', label: 'Engagement Rate', group: 'organic' },
+                    { key: 'followerGrowth', label: 'Follower-Wachstum', group: 'organic' },
+                    { key: 'videoViews', label: 'Videoaufrufe', group: 'organic' },
+                    { key: 'linkClicks', label: 'Link-Klicks', group: 'organic' },
+                    { key: 'saves', label: 'Saves (IG)', group: 'organic' },
+                    { key: 'shares', label: 'Shares', group: 'organic' },
+                    { key: 'adSpend', label: 'Ad Spend', group: 'paid' },
+                    { key: 'cpc', label: 'CPC', group: 'paid' },
+                    { key: 'cpm', label: 'CPM', group: 'paid' },
+                    { key: 'ctr', label: 'CTR', group: 'paid' },
+                    { key: 'frequency', label: 'Frequenz', group: 'paid' },
                   ].map((kpi) => (
                     <label
                       key={kpi.key}
@@ -432,7 +483,7 @@ function ReportConfigContent() {
                     >
                       <input
                         type="checkbox"
-                        checked={config.kpis[kpi.key]}
+                        checked={config.kpis[kpi.key] || false}
                         onChange={(e) => updateKpi(kpi.key, e.target.checked)}
                         className="w-4 h-4 rounded border-gray-600 bg-[#2d2d44] text-[#84cc16] focus:ring-[#84cc16]"
                       />
@@ -460,67 +511,28 @@ function ReportConfigContent() {
                 />
               </div>
 
-              {/* Preview */}
+              {/* Preview: Active slides in order */}
               <div className="bg-[#1e1e2e] rounded-xl border border-gray-700 p-5">
                 <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  <span>👁️</span> Report-Vorschau (Folien-Reihenfolge)
+                  <span>👁️</span> Report-Vorschau ({activeSlides.length} Folien)
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    config.slides.cover && { label: 'Cover', color: 'gray' },
-                    config.platforms.facebook && config.slides.fbOverview && { label: 'FB Übersicht', color: 'blue' },
-                    config.platforms.facebook && config.slides.fbTopPosts && { label: 'FB Top Posts', color: 'blue' },
-                    config.platforms.facebook && config.slides.fbAllPosts && { label: 'FB Alle Posts', color: 'blue' },
-                    config.platforms.facebook && config.slides.fbFollower && { label: 'FB Follower', color: 'blue' },
-                    config.platforms.instagram && config.slides.igOverview && { label: 'IG Übersicht', color: 'pink' },
-                    config.platforms.instagram && config.slides.igTopPosts && { label: 'IG Top Posts', color: 'pink' },
-                    config.platforms.instagram && config.slides.igAllPosts && { label: 'IG Alle Posts', color: 'pink' },
-                    config.platforms.instagram && config.slides.igFollower && { label: 'IG Follower', color: 'pink' },
-                    config.platforms.instagram && config.slides.igStories && { label: 'IG Stories', color: 'pink' },
-                    config.platforms.instagram && config.slides.igReels && { label: 'IG Reels', color: 'pink' },
-                    config.platforms.ads && config.slides.adsOverview && { label: 'Ads Übersicht', color: 'amber' },
-                    config.platforms.ads && config.slides.adsCampaigns && { label: 'Ads Kampagnen', color: 'amber' },
-                    config.slides.summary && { label: 'Zusammenfassung', color: 'gray' },
-                  ]
-                    .filter(Boolean)
-                    .map((slide, i) => {
-                      const s = slide as { label: string; color: string };
-                      const colorMap: Record<string, string> = {
-                        blue: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-                        pink: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
-                        amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-                        gray: 'bg-gray-500/15 text-gray-400 border-gray-500/30',
-                      };
-                      return (
-                        <div
-                          key={i}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${colorMap[s.color] || colorMap.gray} flex items-center gap-1.5`}
-                        >
-                          <span className="text-gray-500 text-[10px]">{i + 1}.</span>
-                          {s.label}
-                        </div>
-                      );
-                    })}
+                  {activeSlides.map((slide, i) => {
+                    const meta = PLATFORM_META[slide.platform] || PLATFORM_META.general;
+                    return (
+                      <div
+                        key={slide.id}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${meta.borderClass} ${meta.bgClass} ${meta.textClass}`}
+                      >
+                        <span className="text-gray-500 text-[10px]">{i + 1}.</span>
+                        {slide.name}
+                      </div>
+                    );
+                  })}
                 </div>
-                <p className="text-gray-500 text-xs mt-3">
-                  {[
-                    config.slides.cover,
-                    config.platforms.facebook && config.slides.fbOverview,
-                    config.platforms.facebook && config.slides.fbTopPosts,
-                    config.platforms.facebook && config.slides.fbAllPosts,
-                    config.platforms.facebook && config.slides.fbFollower,
-                    config.platforms.instagram && config.slides.igOverview,
-                    config.platforms.instagram && config.slides.igTopPosts,
-                    config.platforms.instagram && config.slides.igAllPosts,
-                    config.platforms.instagram && config.slides.igFollower,
-                    config.platforms.instagram && config.slides.igStories,
-                    config.platforms.instagram && config.slides.igReels,
-                    config.platforms.ads && config.slides.adsOverview,
-                    config.platforms.ads && config.slides.adsCampaigns,
-                    config.slides.summary,
-                  ].filter(Boolean).length}{' '}
-                  Folien im Report
-                </p>
+                {activeSlides.length === 0 && (
+                  <p className="text-gray-500 text-sm">Keine Folien aktiviert.</p>
+                )}
               </div>
             </div>
           )}

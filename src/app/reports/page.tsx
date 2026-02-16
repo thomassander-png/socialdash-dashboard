@@ -13,7 +13,6 @@ interface Customer {
 function ReportsContent() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    // Default to previous month (most common use case for monthly reporting)
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
   });
@@ -25,7 +24,6 @@ function ReportsContent() {
   const [success, setSuccess] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Generate month options (last 12 months)
   const monthOptions = Array.from({ length: 12 }, (_, i) => {
     const date = new Date();
     date.setMonth(date.getMonth() - i);
@@ -34,7 +32,6 @@ function ReportsContent() {
     return { value, label };
   });
 
-  // Fetch customers
   useEffect(() => {
     async function fetchCustomers() {
       try {
@@ -63,31 +60,55 @@ function ReportsContent() {
     return date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   };
 
+  // Get stored config for a customer
+  const getStoredConfig = (slug: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`report-config-${slug}`);
+  };
+
+  // Count active slides for a customer
+  const getActiveSlideCount = (slug: string): number => {
+    const stored = getStoredConfig(slug);
+    if (!stored) return 0;
+    try {
+      const config = JSON.parse(stored);
+      return Object.values(config.slides || {}).filter(Boolean).length;
+    } catch {
+      return 0;
+    }
+  };
+
   const handleGenerateReport = async (customerSlug: string, customerName: string) => {
     setGeneratingFor(customerSlug);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/reports/${customerSlug}?month=${selectedMonth}`);
-      
+      // Build URL with config parameter
+      let url = `/api/reports/${customerSlug}?month=${selectedMonth}`;
+      const storedConfig = getStoredConfig(customerSlug);
+      if (storedConfig) {
+        url += `&config=${encodeURIComponent(storedConfig)}`;
+      }
+
+      const response = await fetch(url);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Report konnte nicht generiert werden');
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
       const monthLabel = getMonthLabel(selectedMonth).replace(' ', '_');
       a.download = `${customerName.replace(/\s+/g, '_')}_Report_${monthLabel}.pptx`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       document.body.removeChild(a);
 
-      setSuccess(`Report f\u00fcr ${customerName} erfolgreich generiert!`);
+      setSuccess(`Report für ${customerName} erfolgreich generiert!`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
     } finally {
@@ -106,24 +127,28 @@ function ReportsContent() {
       const slug = customer.slug || customer.name.toLowerCase().replace(/\s+/g, '-');
       try {
         setGeneratingFor(slug);
-        const response = await fetch(`/api/reports/${slug}?month=${selectedMonth}`);
-        
+        let url = `/api/reports/${slug}?month=${selectedMonth}`;
+        const storedConfig = getStoredConfig(slug);
+        if (storedConfig) {
+          url += `&config=${encodeURIComponent(storedConfig)}`;
+        }
+
+        const response = await fetch(url);
         if (response.ok) {
           const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
+          const blobUrl = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
-          a.href = url;
+          a.href = blobUrl;
           const monthLabel = getMonthLabel(selectedMonth).replace(' ', '_');
           a.download = `${customer.name.replace(/\s+/g, '_')}_Report_${monthLabel}.pptx`;
           document.body.appendChild(a);
           a.click();
-          window.URL.revokeObjectURL(url);
+          window.URL.revokeObjectURL(blobUrl);
           document.body.removeChild(a);
           successCount++;
         } else {
           failCount++;
         }
-        // Small delay between downloads
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch {
         failCount++;
@@ -135,7 +160,6 @@ function ReportsContent() {
     setSuccess(`${successCount} Reports generiert${failCount > 0 ? `, ${failCount} fehlgeschlagen` : ''}`);
   };
 
-  // Customer brand colors (fallback)
   const brandColors: Record<string, string> = {
     'andskincare': '#A8D65C',
     'contipark': '#0066CC',
@@ -159,14 +183,14 @@ function ReportsContent() {
             <span className="text-2xl">📄</span> Monatliche Reports
           </h1>
           <p className="text-gray-400 mt-1">
-            Generiere kundenspezifische PowerPoint-Reports im famefact-Design inkl. Facebook, Instagram & Paid Ads.
+            Generiere kundenspezifische PowerPoint-Reports im famefact-Design.
+            Jeder Report wird anhand der individuellen Konfiguration zusammengestellt.
           </p>
         </div>
       </div>
 
       {/* Controls Bar */}
       <div className="bg-[#1e1e2e] rounded-xl p-4 border border-gray-700 flex flex-col md:flex-row gap-4 items-start md:items-end">
-        {/* Month Selector */}
         <div className="flex-1 min-w-[200px]">
           <label className="block text-sm font-medium text-gray-400 mb-1.5">Berichtsmonat</label>
           <select
@@ -182,7 +206,6 @@ function ReportsContent() {
           </select>
         </div>
 
-        {/* Search */}
         <div className="flex-1 min-w-[200px]">
           <label className="block text-sm font-medium text-gray-400 mb-1.5">Kunde suchen</label>
           <input
@@ -194,7 +217,6 @@ function ReportsContent() {
           />
         </div>
 
-        {/* Generate All Button */}
         <button
           onClick={handleGenerateAll}
           disabled={generatingAll || filteredCustomers.length === 0}
@@ -243,13 +265,14 @@ function ReportsContent() {
             const slug = customer.slug || customer.name.toLowerCase().replace(/\s+/g, '-');
             const color = getColor(slug);
             const isGenerating = generatingFor === slug;
+            const slideCount = getActiveSlideCount(slug);
+            const hasConfig = slideCount > 0;
 
             return (
               <div
                 key={customer.customer_id}
                 className="bg-[#1e1e2e] rounded-xl p-5 border border-gray-700 hover:border-gray-500 transition-all group"
               >
-                {/* Customer Name with Color Accent */}
                 <div className="flex items-center gap-3 mb-3">
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
@@ -260,15 +283,22 @@ function ReportsContent() {
                   </h3>
                 </div>
 
-                {/* Platform Tags */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
+                <div className="flex flex-wrap gap-1.5 mb-2">
                   <span className="px-2 py-0.5 bg-blue-500/15 text-blue-400 rounded text-[10px] font-medium">FB</span>
                   <span className="px-2 py-0.5 bg-pink-500/15 text-pink-400 rounded text-[10px] font-medium">IG</span>
                   <span className="px-2 py-0.5 bg-amber-500/15 text-amber-400 rounded text-[10px] font-medium">Ads</span>
                   <span className="px-2 py-0.5 bg-gray-500/15 text-gray-400 rounded text-[10px] font-medium">PPTX</span>
                 </div>
 
-                {/* Generate Button */}
+                {/* Config status */}
+                <div className="mb-3">
+                  {hasConfig ? (
+                    <span className="text-[10px] text-green-400">{slideCount} Folien konfiguriert</span>
+                  ) : (
+                    <span className="text-[10px] text-gray-500">Standard-Konfiguration</span>
+                  )}
+                </div>
+
                 <button
                   onClick={() => handleGenerateReport(slug, customer.name)}
                   disabled={isGenerating || generatingAll}
@@ -303,10 +333,11 @@ function ReportsContent() {
           <span>ℹ️</span> Hinweise
         </h4>
         <ul className="text-gray-400 text-xs space-y-1">
-          <li>Jeder Report enth\u00e4lt automatisch: Facebook KPIs, Instagram KPIs, Top Posts und Paid Ads Performance (sofern vorhanden)</li>
+          <li>Jeder Report wird anhand der individuellen Konfiguration zusammengestellt (Report-Konfiguration im Admin-Bereich)</li>
+          <li>Ohne individuelle Konfiguration wird der Standard-Report mit allen Folien generiert</li>
           <li>Reports werden im famefact-Design als PowerPoint (.pptx) generiert</li>
           <li>Die Herlitz-Kampagnen werden korrekt aus dem Pelikan-Konto zugeordnet</li>
-          <li>F\u00fcr Daten-Exports (Excel, JSON) nutzen Sie die Export-Seite</li>
+          <li>Vorbereitet für TikTok und LinkedIn (Module werden in Kürze freigeschaltet)</li>
         </ul>
       </div>
     </div>
