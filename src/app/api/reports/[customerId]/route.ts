@@ -1029,7 +1029,7 @@ export async function GET(
       month
     ];
     
-    // Ad account to customer slug mapping
+    // Ad account to customer slug mapping (default account-level)
     const AD_ACCOUNT_MAP: Record<string, string> = {
       '64446085': 'andskincare',
       '289778171212746': 'contipark',
@@ -1037,10 +1037,26 @@ export async function GET(
       '589986474813245': 'pelikan',
       '456263405094069': 'famefact-gmbh',
       '969976773634901': 'asphericon',
-      '594963889574701': 'pelikan',
+      '594963889574701': 'pelikan',  // Shared: Pelikan + Herlitz
       '1812018146005238': 'fensterart',
       '778746264991304': 'vergleich.org',
     };
+
+    // Campaign-level overrides: campaigns matching these patterns belong to a different customer
+    const CAMPAIGN_CUSTOMER_OVERRIDES: { pattern: RegExp; customerSlug: string }[] = [
+      { pattern: /herlitz/i, customerSlug: 'herlitz' },
+      { pattern: /famefact.*reach.*herlitz|herlitz.*schulranzen/i, customerSlug: 'herlitz' },
+    ];
+
+    // Determine which customer a campaign belongs to
+    function getCampaignCustomer(campaign: any): string {
+      for (const override of CAMPAIGN_CUSTOMER_OVERRIDES) {
+        if (override.pattern.test(campaign.name || '')) {
+          return override.customerSlug;
+        }
+      }
+      return AD_ACCOUNT_MAP[campaign.account_id] || 'unknown';
+    }
 
     // Fetch all data including ads
     const [fbPosts, fbKpis, igPosts, igKpis, adsResult] = await Promise.all([
@@ -1051,18 +1067,16 @@ export async function GET(
       query<{ data: any }>('SELECT data FROM ads_cache WHERE month = $1', [month]).catch(() => []),
     ]);
 
-    // Get ads campaigns for this customer
+    // Get ads campaigns for this customer (campaign-level matching)
     const adsData = adsResult[0]?.data || { accountSummaries: [], campaigns: [] };
     const customerAdCampaigns = (adsData.campaigns || []).filter((c: any) => {
-      return AD_ACCOUNT_MAP[c.account_id] === customer.slug;
+      return getCampaignCustomer(c) === customer.slug;
     });
-    const customerAdAccounts = (adsData.accountSummaries || []).filter((a: any) => {
-      return AD_ACCOUNT_MAP[a.account_id] === customer.slug;
-    });
-    const totalAdSpend = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.spend || 0), 0);
-    const totalAdImpressions = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.impressions || 0), 0);
-    const totalAdClicks = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
-    const totalAdReach = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.reach || 0), 0);
+    // Calculate totals from campaigns (not account-level, to handle shared accounts)
+    const totalAdSpend = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseFloat(c.spend) || 0), 0);
+    const totalAdImpressions = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseInt(c.impressions) || 0), 0);
+    const totalAdClicks = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseInt(c.clicks) || 0), 0);
+    const totalAdReach = customerAdCampaigns.reduce((sum: number, c: any) => sum + (parseInt(c.reach) || 0), 0);
     
     console.log(`FB Posts: ${fbPosts.length}, IG Posts: ${igPosts.length}, Ads Campaigns: ${customerAdCampaigns.length}`);
     

@@ -33,16 +33,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return null;
   }
 
-  const navItems = [
-    { href: '/', label: 'Overview', icon: '📊' },
+  // Grouped navigation for better UX
+  const mainNavItems = [
+    { href: '/', label: 'Dashboard', icon: '📊' },
     { href: '/clients', label: 'Kunden', icon: '👤' },
+  ];
+
+  const platformNavItems = [
     { href: '/facebook', label: 'Facebook', icon: '📘' },
     { href: '/instagram', label: 'Instagram', icon: '📸' },
-    { href: '/ads', label: 'Ads', icon: '📣' },
+    { href: '/ads', label: 'Paid Ads', icon: '📣' },
+  ];
+
+  const analyticsNavItems = [
     { href: '/followers', label: 'Follower', icon: '📈' },
     { href: '/posts', label: 'Alle Posts', icon: '📝' },
+  ];
+
+  const exportNavItems = [
     { href: '/reports', label: 'Reports', icon: '📄' },
-    { href: '/exports', label: 'Exports', icon: '📊' },
+    { href: '/exports', label: 'Daten Export', icon: '📥' },
   ];
 
   const adminItems = [
@@ -53,6 +63,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const handleNavClick = () => {
     setIsMobileMenuOpen(false);
   };
+
+  const renderNavGroup = (label: string, items: typeof mainNavItems) => (
+    <div className="mb-4">
+      <p className="px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+        {label}
+      </p>
+      <nav className="space-y-0.5">
+        {items.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={handleNavClick}
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                isActive
+                  ? 'bg-[#84cc16]/20 text-[#84cc16]'
+                  : 'text-gray-400 hover:bg-[#1a1a1a] hover:text-white'
+              }`}
+            >
+              <span className="text-base">{item.icon}</span>
+              <span className="font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
 
   return (
     <div className="flex h-screen bg-[#0a0a0a]">
@@ -89,88 +127,50 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       )}
 
-      {/* Sidebar - Desktop always visible, Mobile slide-in */}
+      {/* Sidebar */}
       <div className={`
         fixed lg:relative inset-y-0 left-0 z-40
-        w-64 bg-[#141414] border-r border-[#262626] p-6 overflow-y-auto flex flex-col
+        w-56 bg-[#141414] border-r border-[#262626] p-4 overflow-y-auto flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         lg:transform-none
-        pt-16 lg:pt-6
+        pt-16 lg:pt-4
       `}>
-        {/* Logo - Hidden on mobile (shown in header) */}
-        <div className="mb-8 hidden lg:block">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-[#84cc16] rounded-lg flex items-center justify-center">
-              <span className="text-black font-bold">S</span>
+        {/* Logo */}
+        <div className="mb-5 hidden lg:block">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-9 h-9 bg-[#84cc16] rounded-lg flex items-center justify-center">
+              <span className="text-black font-bold text-sm">S</span>
             </div>
             <div>
-              <h1 className="text-white font-bold">SocialDash</h1>
-              <p className="text-gray-500 text-xs">Reporting Dashboard</p>
+              <h1 className="text-white font-bold text-sm">SocialDash</h1>
+              <p className="text-gray-500 text-[10px]">Reporting Dashboard</p>
             </div>
           </div>
         </div>
 
-        {/* Main Navigation */}
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleNavClick}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-[#84cc16]/20 text-[#84cc16]'
-                    : 'text-gray-400 hover:bg-[#1a1a1a] hover:text-white'
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Navigation Groups */}
+        {renderNavGroup('Übersicht', mainNavItems)}
+        {renderNavGroup('Plattformen', platformNavItems)}
+        {renderNavGroup('Analyse', analyticsNavItems)}
+        {renderNavGroup('Export', exportNavItems)}
 
         {/* Admin Section */}
-        <div className="mt-8 pt-6 border-t border-[#262626]">
-          <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Admin
-          </p>
-          <nav className="space-y-1">
-            {adminItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={handleNavClick}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-[#84cc16]/20 text-[#84cc16]'
-                      : 'text-gray-400 hover:bg-[#1a1a1a] hover:text-white'
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+        <div className="mt-2 pt-3 border-t border-[#262626]">
+          {renderNavGroup('Admin', adminItems)}
         </div>
 
         {/* User Section */}
-        <div className="mt-auto pt-6 border-t border-[#262626]">
+        <div className="mt-auto pt-4 border-t border-[#262626]">
           {user && (
-            <div className="px-4 py-2 mb-2">
-              <p className="text-sm text-white font-medium truncate">{user.email}</p>
-              <p className="text-xs text-gray-500">Angemeldet</p>
+            <div className="px-3 py-1.5 mb-1">
+              <p className="text-xs text-white font-medium truncate">{user.email}</p>
+              <p className="text-[10px] text-gray-500">Angemeldet</p>
             </div>
           )}
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2 text-gray-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-sm"
           >
             <span>🚪</span>
             <span className="font-medium">Abmelden</span>
