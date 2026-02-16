@@ -13,6 +13,7 @@ import fs from 'fs';
 const AGENCY = {
   name: 'famefact',
   tagline: 'FIRST IN SOCIALTAINMENT',
+  metaPartner: 'Offizieller Meta Business Partner',
   // Logo will be loaded from /public/assets/
   logoPath: '/assets/famefact-logo.png',
   colors: {
@@ -335,6 +336,10 @@ function formatNumber(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.', ',') + ' Mio.';
   if (num >= 1000) return num.toLocaleString('de-DE');
   return num.toString();
+}
+
+function formatCurrency(num: number): string {
+  return num.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(date: Date): string {
@@ -1024,15 +1029,42 @@ export async function GET(
       month
     ];
     
-    // Fetch all data
-    const [fbPosts, fbKpis, igPosts, igKpis] = await Promise.all([
+    // Ad account to customer slug mapping
+    const AD_ACCOUNT_MAP: Record<string, string> = {
+      '64446085': 'andskincare',
+      '289778171212746': 'contipark',
+      '1908114009405295': 'captrain-deutschland',
+      '589986474813245': 'pelikan',
+      '456263405094069': 'famefact-gmbh',
+      '969976773634901': 'asphericon',
+      '594963889574701': 'pelikan',
+      '1812018146005238': 'fensterart',
+      '778746264991304': 'vergleich.org',
+    };
+
+    // Fetch all data including ads
+    const [fbPosts, fbKpis, igPosts, igKpis, adsResult] = await Promise.all([
       getFacebookPosts(month, fbPageIds),
       getMonthlyKPIs(months, fbPageIds, 'facebook'),
       getInstagramPosts(month, igPageIds),
       getMonthlyKPIs(months, igPageIds, 'instagram'),
+      query<{ data: any }>('SELECT data FROM ads_cache WHERE month = $1', [month]).catch(() => []),
     ]);
+
+    // Get ads campaigns for this customer
+    const adsData = adsResult[0]?.data || { accountSummaries: [], campaigns: [] };
+    const customerAdCampaigns = (adsData.campaigns || []).filter((c: any) => {
+      return AD_ACCOUNT_MAP[c.account_id] === customer.slug;
+    });
+    const customerAdAccounts = (adsData.accountSummaries || []).filter((a: any) => {
+      return AD_ACCOUNT_MAP[a.account_id] === customer.slug;
+    });
+    const totalAdSpend = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.spend || 0), 0);
+    const totalAdImpressions = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.impressions || 0), 0);
+    const totalAdClicks = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
+    const totalAdReach = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.reach || 0), 0);
     
-    console.log(`FB Posts: ${fbPosts.length}, IG Posts: ${igPosts.length}`);
+    console.log(`FB Posts: ${fbPosts.length}, IG Posts: ${igPosts.length}, Ads Campaigns: ${customerAdCampaigns.length}`);
     
     // Create PowerPoint
     const pptx = new PptxGenJS();
@@ -1052,6 +1084,16 @@ export async function GET(
     slide1.addText('famefact.', {
       x: DESIGN.margin, y: 0.25, w: 2, h: 0.4,
       fontSize: 18, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily
+    });
+    // Meta Business Partner badge
+    slide1.addShape('roundRect', {
+      x: DESIGN.margin, y: 0.7, w: 2.2, h: 0.25,
+      fill: { color: '1877F2' },
+      rectRadius: 0.04
+    });
+    slide1.addText(AGENCY.metaPartner, {
+      x: DESIGN.margin + 0.05, y: 0.7, w: 2.1, h: 0.25,
+      fontSize: 7, bold: true, color: DESIGN.colors.white, fontFace: DESIGN.fontFamily, valign: 'middle'
     });
     
     // Decorative shapes
@@ -1419,7 +1461,145 @@ export async function GET(
     addFamefactIcon(slide11, 11, primaryColor);
     
     // ========================================
-    // SLIDE 12: Outro
+    // SLIDE 12: Paid Ads Performance (PPA)
+    // ========================================
+    if (customerAdCampaigns.length > 0) {
+      const slideAds = pptx.addSlide();
+      slideAds.background = { color: DESIGN.colors.background };
+      addBrandingLine(slideAds, primaryColor);
+      addSubtleWatermark(slideAds, secondaryColor);
+      addCustomerLogo(slideAds, customer, 7.5, 0.15, 2, 0.5);
+      
+      slideAds.addText('Paid Ads Performance', {
+        x: DESIGN.margin, y: 0.2, w: 7, h: 0.45,
+        fontSize: 26, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily
+      });
+      slideAds.addText(`PPA Ausgaben ${getShortMonthName(month)} | ${formatCurrency(totalAdSpend)} gesamt`, {
+        x: DESIGN.margin, y: 0.6, w: 7, h: 0.3,
+        fontSize: 14, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily
+      });
+      
+      // Gesamt-KPI Karten
+      const adsKpis = [
+        { label: 'Gesamtausgaben', value: formatCurrency(totalAdSpend), color: primaryColor },
+        { label: 'Impressionen', value: formatNumber(totalAdImpressions), color: '3B82F6' },
+        { label: 'Reichweite', value: formatNumber(totalAdReach), color: '8B5CF6' },
+        { label: 'Klicks', value: formatNumber(totalAdClicks), color: '10B981' },
+      ];
+      
+      adsKpis.forEach((kpi, idx) => {
+        const kpiX = DESIGN.margin + idx * 2.25;
+        slideAds.addShape('roundRect', {
+          x: kpiX + 0.02, y: 1.12, w: 2.05, h: 0.75,
+          fill: { color: DESIGN.colors.shadow }, rectRadius: 0.08
+        });
+        slideAds.addShape('roundRect', {
+          x: kpiX, y: 1.1, w: 2.05, h: 0.75,
+          fill: { color: DESIGN.colors.white }, line: { color: kpi.color, width: 1 }, rectRadius: 0.08
+        });
+        slideAds.addShape('rect', {
+          x: kpiX, y: 1.1, w: 2.05, h: 0.06,
+          fill: { color: kpi.color }
+        });
+        slideAds.addText(kpi.value, {
+          x: kpiX + 0.1, y: 1.2, w: 1.85, h: 0.35,
+          fontSize: 16, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily
+        });
+        slideAds.addText(kpi.label, {
+          x: kpiX + 0.1, y: 1.5, w: 1.85, h: 0.25,
+          fontSize: 8, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily
+        });
+      });
+      
+      // Kampagnen-Tabelle
+      const tableStartY = 2.1;
+      const adsColWidths = [4.5, 1.5, 1.5, 1.5];
+      const adsTableW = 9.0;
+      
+      slideAds.addShape('roundRect', {
+        x: DESIGN.margin + 0.02, y: tableStartY + 0.02, w: adsTableW, h: 0.4,
+        fill: { color: DESIGN.colors.shadow }, rectRadius: 0.08
+      });
+      slideAds.addShape('roundRect', {
+        x: DESIGN.margin, y: tableStartY, w: adsTableW, h: 0.4,
+        fill: { color: primaryColor }, rectRadius: 0.08
+      });
+      
+      const adsHeaders = ['Kampagne', 'Ausgaben', 'Impressionen', 'Klicks'];
+      let hdrX = DESIGN.margin;
+      adsHeaders.forEach((h, i) => {
+        slideAds.addText(h, {
+          x: hdrX + 0.1, y: tableStartY, w: adsColWidths[i] - 0.2, h: 0.4,
+          fontSize: 9, bold: true, color: DESIGN.colors.white,
+          fontFace: DESIGN.fontFamily, align: i === 0 ? 'left' : 'center', valign: 'middle'
+        });
+        hdrX += adsColWidths[i];
+      });
+      
+      const sortedCampaigns = [...customerAdCampaigns]
+        .sort((a: any, b: any) => (b.spend || 0) - (a.spend || 0))
+        .slice(0, 10);
+      
+      let rowY = tableStartY + 0.45;
+      sortedCampaigns.forEach((campaign: any, idx: number) => {
+        const isAlt = idx % 2 === 0;
+        const bgColor = isAlt ? DESIGN.colors.lightGray : DESIGN.colors.white;
+        
+        slideAds.addShape('rect', {
+          x: DESIGN.margin, y: rowY, w: adsTableW, h: 0.32,
+          fill: { color: bgColor }
+        });
+        
+        const rowData = [
+          campaign.campaign_name || 'Unbekannt',
+          formatCurrency(campaign.spend || 0),
+          formatNumber(campaign.impressions || 0),
+          formatNumber(campaign.clicks || 0),
+        ];
+        
+        let cellX = DESIGN.margin;
+        rowData.forEach((val: string, i: number) => {
+          slideAds.addText(val, {
+            x: cellX + 0.1, y: rowY, w: adsColWidths[i] - 0.2, h: 0.32,
+            fontSize: 8, color: i === 1 ? primaryColor : DESIGN.colors.darkGray,
+            fontFace: DESIGN.fontFamily, align: i === 0 ? 'left' : 'center', valign: 'middle',
+            bold: i === 1
+          });
+          cellX += adsColWidths[i];
+        });
+        
+        rowY += 0.32;
+      });
+      
+      // CPC / CPM / CTR footer
+      const footerY = Math.min(rowY + 0.2, 4.8);
+      const avgCpc = totalAdClicks > 0 ? totalAdSpend / totalAdClicks : 0;
+      const avgCpm = totalAdImpressions > 0 ? (totalAdSpend / totalAdImpressions) * 1000 : 0;
+      const avgCtr = totalAdImpressions > 0 ? (totalAdClicks / totalAdImpressions) * 100 : 0;
+      
+      const footerKpis = [
+        { label: '\u00d8 CPC', value: formatCurrency(avgCpc) },
+        { label: '\u00d8 CPM', value: formatCurrency(avgCpm) },
+        { label: '\u00d8 CTR', value: avgCtr.toFixed(2).replace('.', ',') + '%' },
+      ];
+      
+      footerKpis.forEach((kpi, idx) => {
+        const fX = DESIGN.margin + idx * 3;
+        slideAds.addText(kpi.label + ': ', {
+          x: fX, y: footerY, w: 1, h: 0.3,
+          fontSize: 9, color: DESIGN.colors.mediumGray, fontFace: DESIGN.fontFamily, align: 'right'
+        });
+        slideAds.addText(kpi.value, {
+          x: fX + 1, y: footerY, w: 1.5, h: 0.3,
+          fontSize: 11, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily
+        });
+      });
+      
+      addFamefactIcon(slideAds, 12, primaryColor);
+    }
+    
+    // ========================================
+    // SLIDE 13: Outro
     // ========================================
     const slide12 = pptx.addSlide();
     slide12.background = { color: DESIGN.colors.black };

@@ -35,13 +35,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navItems = [
     { href: '/', label: 'Overview', icon: '📊' },
+    { href: '/clients', label: 'Kunden', icon: '👤' },
     { href: '/facebook', label: 'Facebook', icon: '📘' },
     { href: '/instagram', label: 'Instagram', icon: '📸' },
+    { href: '/ads', label: 'Ads', icon: '📣' },
     { href: '/followers', label: 'Follower', icon: '📈' },
     { href: '/posts', label: 'Alle Posts', icon: '📝' },
     { href: '/reports', label: 'Reports', icon: '📄' },
     { href: '/exports', label: 'Exports', icon: '📊' },
-    { href: '/ads', label: 'Ads', icon: '📣' },
   ];
 
   const adminItems = [
