@@ -142,5 +142,5 @@ export function generateReport(ctx: SlideContext): number {
 }
 
 // Re-export types
-export { SlideModule, SlideContext, ReportConfig, DEFAULT_REPORT_CONFIG } from './types';
-export { AGENCY, DESIGN } from './types';
+export type { SlideModule, SlideContext, ReportConfig } from './types';
+export { DEFAULT_REPORT_CONFIG, AGENCY, DESIGN } from './types';
