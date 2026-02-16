@@ -183,8 +183,11 @@ function ReportConfigContent() {
       .filter(s => {
         if (!config.slides[s.id]) return false;
         // Check platform
-        const platformKey = s.platform as keyof ReportConfig['platforms'];
-        if (platformKey !== 'general' && platformKey !== 'cross-platform' && !config.platforms[platformKey]) return false;
+        const platform = s.platform;
+        if (platform !== 'general' && platform !== 'cross-platform') {
+          const platformKey = platform as keyof ReportConfig['platforms'];
+          if (!config.platforms[platformKey]) return false;
+        }
         return true;
       })
       .sort((a, b) => a.order - b.order);
