@@ -79,6 +79,7 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
         NULL as shares_total, m.reach, m.impressions,
         NULL as video_3s_views,
         COALESCE(p.thumbnail_url, p.media_url) as thumbnail_url,
+        p.media_url as media_url,
         COALESCE(m.saves, 0) as saves
       FROM ig_posts p
       LEFT JOIN LATERAL (
@@ -443,7 +444,7 @@ export async function GET(
     
     if (customer.logo_url) imageUrls.push(customer.logo_url);
     
-    // For post images, use the image-proxy which handles expired CDN URLs
+    // For FB post images, use the image-proxy which handles expired CDN URLs
     for (const post of (fbPosts as PostData[])) {
       if (post.thumbnail_url && post.post_id) {
         const proxyUrl = `${baseUrl}/api/image-proxy?id=${encodeURIComponent(post.post_id)}&platform=facebook`;
@@ -451,11 +452,15 @@ export async function GET(
         proxyUrlMap.set(proxyUrl, post.thumbnail_url);
       }
     }
-    for (const post of (igPosts as PostData[])) {
-      if (post.thumbnail_url && post.post_id) {
-        const proxyUrl = `${baseUrl}/api/image-proxy?id=${encodeURIComponent(post.post_id)}&platform=instagram`;
-        imageUrls.push(proxyUrl);
-        proxyUrlMap.set(proxyUrl, post.thumbnail_url);
+    // For IG post images, try thumbnail_url and media_url directly (avoid self-call proxy on serverless)
+    for (const post of (igPosts as any[])) {
+      if (post.thumbnail_url) {
+        imageUrls.push(post.thumbnail_url);
+      }
+      // Also try media_url as fallback (different URL, might still be valid)
+      if (post.media_url && post.media_url !== post.thumbnail_url) {
+        imageUrls.push(post.media_url);
+        proxyUrlMap.set(post.media_url, post.thumbnail_url || post.media_url);
       }
     }
     
@@ -468,8 +473,15 @@ export async function GET(
       imageCache.set(url, data);
       // Also map the original thumbnail_url to the same data
       const originalUrl = proxyUrlMap.get(url);
-      if (originalUrl) {
+      if (originalUrl && !imageCache.has(originalUrl)) {
         imageCache.set(originalUrl, data);
+      }
+    }
+    // For IG posts: if thumbnail_url didn't work but media_url did, map it
+    for (const post of (igPosts as any[])) {
+      const thumbUrl = post.thumbnail_url;
+      if (thumbUrl && !imageCache.has(thumbUrl) && post.media_url && imageCache.has(post.media_url)) {
+        imageCache.set(thumbUrl, imageCache.get(post.media_url)!);
       }
     }
     // Also add logo if it was fetched

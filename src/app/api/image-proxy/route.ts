@@ -51,11 +51,19 @@ export async function GET(request: NextRequest) {
     let permalink: string | null = null;
 
     if (platform === 'instagram') {
-      const result = await pool.query(
+      // Try media_id first (primary key), then post_id as fallback
+      let result = await pool.query(
         `SELECT media_url, thumbnail_url, og_image_url, permalink 
-         FROM ig_posts WHERE post_id = $1 LIMIT 1`,
+         FROM ig_posts WHERE media_id = $1 LIMIT 1`,
         [postId]
       );
+      if (result.rows.length === 0) {
+        result = await pool.query(
+          `SELECT media_url, thumbnail_url, og_image_url, permalink 
+           FROM ig_posts WHERE post_id = $1 LIMIT 1`,
+          [postId]
+        );
+      }
       if (result.rows.length > 0) {
         const row = result.rows[0];
         imageUrl = row.media_url || row.thumbnail_url || row.og_image_url;
@@ -99,8 +107,9 @@ export async function GET(request: NextRequest) {
       if (freshUrl) {
         // Update the DB with the fresh URL
         const table = platform === 'instagram' ? 'ig_posts' : 'fb_posts';
+        const idCol = platform === 'instagram' ? 'media_id' : 'post_id';
         await pool.query(
-          `UPDATE ${table} SET thumbnail_url = $1 WHERE post_id = $2`,
+          `UPDATE ${table} SET thumbnail_url = $1 WHERE ${idCol} = $2`,
           [freshUrl, postId]
         ).catch(() => {}); // Don't fail if update fails
 

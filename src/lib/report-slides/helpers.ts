@@ -270,7 +270,7 @@ export function createPremiumKPITable(
 ): void {
   const tableX = DESIGN.margin;
   const tableW = 10 - (DESIGN.margin * 2);
-  const colW = [3.2, 2.2, 2.2, 2.2];
+  const colW = [2.8, 2.1, 2.1, 2.2];
   const rowH = 0.38;
   const headerH = 0.48;
   const headerColor = platform === 'facebook' ? primaryColor : secondaryColor;
