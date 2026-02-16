@@ -138,6 +138,7 @@ export interface SlideContext {
   monthlyAdsData: MonthlyAdData[];
   pageNumber: number; // auto-incremented
   config: ReportConfig;
+  imageCache: Map<string, string>; // URL -> base64 data URI cache
 }
 
 // Report Configuration (matches the UI config)

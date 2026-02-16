@@ -2,9 +2,9 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Glossar', 'KPI-Definitionen');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Glossar', 'KPI-Definitionen', imageCache);
 
   const definitions = [
     { term: 'Reichweite', desc: 'Anzahl der Personen, die einen Beitrag mindestens einmal gesehen haben (dedupliziert).' },

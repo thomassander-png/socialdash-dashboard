@@ -2,9 +2,9 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, fbKpis, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, fbKpis, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Facebook', 'Fans (Demographie)');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Facebook', 'Fans (Demographie)', imageCache);
 
   // Placeholder for demographic data
   slide.addShape('roundRect', {

@@ -2,9 +2,9 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber, formatDate } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, igPosts, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, igPosts, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Reels & Videos');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Reels & Videos', imageCache);
 
   const igReels = igPosts.filter(p => p.type === 'VIDEO' || p.type === 'REEL');
 

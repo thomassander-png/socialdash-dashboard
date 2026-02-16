@@ -2,14 +2,14 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber, formatCurrency, getCampaignMetric } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, monthlyAdsData, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, monthlyAdsData, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const currentAds = monthlyAdsData[2] || monthlyAdsData[monthlyAdsData.length - 1];
   const campaigns = currentAds?.fbCampaigns || [];
 
   if (campaigns.length === 0) return; // Skip if no campaigns
 
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Facebook', 'Einzelkampagnen');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Facebook', 'Einzelkampagnen', imageCache);
 
   const cardW = 4.2;
   const cardH = 1.6;

@@ -2,9 +2,9 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber, formatCurrency, getShortMonthName, getCampaignMetric } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, months, monthlyAdsData, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, months, monthlyAdsData, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Beitragsbewerbungen (PPAs)');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Beitragsbewerbungen (PPAs)', imageCache);
 
   const tableX = DESIGN.margin;
   const tableW = 10 - DESIGN.margin * 2;

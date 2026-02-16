@@ -2,12 +2,12 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber, formatCurrency, getCampaignMetric } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, monthlyAdsData, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, monthlyAdsData, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const currentAds = monthlyAdsData[2] || monthlyAdsData[monthlyAdsData.length - 1];
   const campaigns = currentAds?.campaigns || [];
 
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Paid Ads', 'Kampagnenübersicht');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Paid Ads', 'Kampagnenübersicht', imageCache);
 
   const totalSpend = currentAds?.totalSpend || 0;
   const totalImpressions = currentAds?.totalImpressions || 0;

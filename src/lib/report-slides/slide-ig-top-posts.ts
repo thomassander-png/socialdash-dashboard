@@ -2,9 +2,9 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber, formatDate } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, month, igPosts, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, month, igPosts, primaryColor, secondaryColor, pageNumber, imageCache } = ctx;
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Top Beiträge nach Interaktionen');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Top Beiträge nach Interaktionen', imageCache);
 
   const posts = igPosts.filter(p => p.type !== 'VIDEO' && p.type !== 'REEL');
   const topPosts = [...posts]
@@ -34,19 +34,30 @@ function generate(ctx: SlideContext): void {
   topPosts.forEach((post, idx) => {
     const xPos = startX + idx * (imgW + gap);
 
+    // Shadow
     slide.addShape('rect', {
       x: xPos + 0.05, y: startY + 0.05, w: imgW, h: imgH,
       fill: { color: DESIGN.colors.shadow }
     });
 
-    if (post.thumbnail_url) {
+    // Try to get image from cache (base64) or fallback to URL
+    const imageData = post.thumbnail_url ? imageCache.get(post.thumbnail_url) : null;
+    const hasImage = !!imageData || !!post.thumbnail_url;
+
+    if (hasImage) {
       try {
-        slide.addImage({
-          path: post.thumbnail_url,
+        const imgOpts: any = {
           x: xPos, y: startY, w: imgW, h: imgH,
           sizing: { type: 'cover', w: imgW, h: imgH }
-        });
+        };
+        if (imageData) {
+          imgOpts.data = imageData;
+        } else {
+          imgOpts.path = post.thumbnail_url;
+        }
+        slide.addImage(imgOpts);
 
+        // Date badge
         const dateW = 0.9;
         const dateH = 0.28;
         slide.addShape('roundRect', {
@@ -59,6 +70,7 @@ function generate(ctx: SlideContext): void {
           fontSize: 8, color: DESIGN.colors.white, fontFace: DESIGN.fontFamily, align: 'center', valign: 'middle'
         });
 
+        // Dark overlay for metrics
         const overlayH = imgH * 0.35;
         const overlayY = startY + imgH - overlayH;
         slide.addShape('rect', {
@@ -72,6 +84,7 @@ function generate(ctx: SlideContext): void {
         slide.addText('Interaktionen', { x: xPos + 0.1, y: metricsY + 0.52, w: imgW - 0.2, h: 0.2, fontSize: 8, color: 'CCCCCC', fontFace: DESIGN.fontFamily });
         slide.addText(formatNumber(post.interactions), { x: xPos + 0.1, y: metricsY + 0.7, w: imgW - 0.2, h: 0.28, fontSize: 14, bold: true, color: DESIGN.colors.white, fontFace: DESIGN.fontFamily });
 
+        // Engagement pill
         const engPillW = 0.9;
         const engPillH = 0.25;
         slide.addShape('roundRect', {

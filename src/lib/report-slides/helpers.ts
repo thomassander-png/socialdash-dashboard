@@ -2,6 +2,55 @@ import PptxGenJS from 'pptxgenjs';
 import { DESIGN, AGENCY, CustomerData, MonthlyKPI } from './types';
 
 // ============================================
+// IMAGE FETCHING (Base64 for Vercel Serverless)
+// ============================================
+
+/**
+ * Fetch an image URL and return as base64 data URI.
+ * PptxGenJS needs `data` (base64) instead of `path` (URL) on Vercel Serverless
+ * because serverless functions can't always resolve external URLs.
+ */
+export async function fetchImageAsBase64(url: string): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.warn(`[Report] Failed to fetch image: ${url}`, error);
+    return null;
+  }
+}
+
+/**
+ * Pre-fetch multiple images in parallel.
+ * Returns a Map of URL -> base64 data URI.
+ */
+export async function prefetchImages(urls: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const validUrls = urls.filter(u => u && u.startsWith('http'));
+  if (validUrls.length === 0) return map;
+  
+  const results = await Promise.allSettled(
+    validUrls.map(async (url) => {
+      const data = await fetchImageAsBase64(url);
+      return { url, data };
+    })
+  );
+  
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value.data) {
+      map.set(result.value.url, result.value.data);
+    }
+  }
+  
+  return map;
+}
+
+// ============================================
 // SHARED HELPER FUNCTIONS
 // Used by all slide modules
 // ============================================
@@ -137,14 +186,20 @@ export function drawChatIcon(slide: PptxGenJS.Slide, x: number, y: number, size:
 }
 
 // Add customer logo or fallback text
-export function addCustomerLogo(slide: PptxGenJS.Slide, customer: CustomerData, x: number, y: number, maxW: number, maxH: number) {
+export function addCustomerLogo(slide: PptxGenJS.Slide, customer: CustomerData, x: number, y: number, maxW: number, maxH: number, imageCache?: Map<string, string>) {
   if (customer.logo_url) {
+    const logoData = imageCache?.get(customer.logo_url);
     try {
-      slide.addImage({
-        path: customer.logo_url,
+      const imgOpts: any = {
         x: x, y: y, w: maxW, h: maxH,
         sizing: { type: 'contain', w: maxW, h: maxH }
-      });
+      };
+      if (logoData) {
+        imgOpts.data = logoData;
+      } else {
+        imgOpts.path = customer.logo_url;
+      }
+      slide.addImage(imgOpts);
     } catch {
       slide.addText(customer.name, {
         x: x, y: y, w: maxW, h: maxH,
@@ -168,12 +223,13 @@ export function addSlideHeader(
   primaryColor: string,
   secondaryColor: string,
   title: string,
-  subtitle: string
+  subtitle: string,
+  imageCache?: Map<string, string>
 ) {
   slide.background = { color: DESIGN.colors.background };
   addBrandingLine(slide, primaryColor);
   addSubtleWatermark(slide, secondaryColor);
-  addCustomerLogo(slide, customer, 7.5, 0.15, 2, 0.5);
+  addCustomerLogo(slide, customer, 7.5, 0.15, 2, 0.5, imageCache);
   
   slide.addText(title, {
     x: DESIGN.margin, y: 0.2, w: 7, h: 0.45,

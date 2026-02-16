@@ -2,7 +2,7 @@ import { SlideModule, SlideContext, DESIGN, AGENCY } from './types';
 import { addBrandingLine, getMonthName } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, month, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, month, primaryColor, secondaryColor, pageNumber, imageCache } = ctx;
   const slide = pptx.addSlide();
   slide.background = { color: DESIGN.colors.background };
   addBrandingLine(slide, primaryColor);
@@ -36,14 +36,20 @@ function generate(ctx: SlideContext): void {
     rotate: 45
   });
 
-  // Customer logo or name
+  // Customer logo or name (use imageCache for base64)
   if (customer.logo_url) {
+    const logoData = imageCache.get(customer.logo_url);
     try {
-      slide.addImage({
-        path: customer.logo_url,
+      const imgOpts: any = {
         x: 3, y: 1.5, w: 4, h: 1.5,
         sizing: { type: 'contain', w: 4, h: 1.5 }
-      });
+      };
+      if (logoData) {
+        imgOpts.data = logoData;
+      } else {
+        imgOpts.path = customer.logo_url;
+      }
+      slide.addImage(imgOpts);
     } catch {
       slide.addText(customer.name, {
         x: 0, y: 1.8, w: '100%', h: 0.8,

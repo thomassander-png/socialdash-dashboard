@@ -2,9 +2,9 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, formatNumber, formatDate } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, month, fbPosts, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, month, fbPosts, primaryColor, secondaryColor, pageNumber, imageCache } = ctx;
   const slide = pptx.addSlide();
-  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Facebook', 'Top Beiträge nach Interaktionen');
+  addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Facebook', 'Top Beiträge nach Interaktionen', imageCache);
 
   const posts = fbPosts.filter(p => p.type !== 'video' && p.type !== 'VIDEO');
   const topPosts = [...posts]
@@ -34,18 +34,28 @@ function generate(ctx: SlideContext): void {
   topPosts.forEach((post, idx) => {
     const xPos = startX + idx * (imgW + gap);
 
+    // Shadow
     slide.addShape('rect', {
       x: xPos + 0.05, y: startY + 0.05, w: imgW, h: imgH,
       fill: { color: DESIGN.colors.shadow }
     });
 
-    if (post.thumbnail_url) {
+    // Try to get image from cache (base64) or fallback to URL
+    const imageData = post.thumbnail_url ? imageCache.get(post.thumbnail_url) : null;
+    const hasImage = !!imageData || !!post.thumbnail_url;
+
+    if (hasImage) {
       try {
-        slide.addImage({
-          path: post.thumbnail_url,
+        const imgOpts: any = {
           x: xPos, y: startY, w: imgW, h: imgH,
           sizing: { type: 'cover', w: imgW, h: imgH }
-        });
+        };
+        if (imageData) {
+          imgOpts.data = imageData;
+        } else {
+          imgOpts.path = post.thumbnail_url;
+        }
+        slide.addImage(imgOpts);
 
         // Date badge
         const dateW = 0.9;
@@ -60,7 +70,7 @@ function generate(ctx: SlideContext): void {
           fontSize: 8, color: DESIGN.colors.white, fontFace: DESIGN.fontFamily, align: 'center', valign: 'middle'
         });
 
-        // Overlay
+        // Dark overlay for metrics
         const overlayH = imgH * 0.35;
         const overlayY = startY + imgH - overlayH;
         slide.addShape('rect', {

@@ -15,7 +15,7 @@ import type {
   SlideContext,
   ReportConfig,
 } from '@/lib/report-slides/types';
-import { sanitizeFilename, getMonthName } from '@/lib/report-slides/helpers';
+import { sanitizeFilename, getMonthName, prefetchImages } from '@/lib/report-slides/helpers';
 
 // ============================================
 // DATA FETCHING FUNCTIONS
@@ -435,6 +435,19 @@ export async function GET(
     pptx.company = 'famefact GmbH';
     pptx.layout = 'LAYOUT_16x9';
 
+    // Pre-fetch all images as base64 for reliable embedding
+    const imageUrls: string[] = [];
+    if (customer.logo_url) imageUrls.push(customer.logo_url);
+    for (const post of (fbPosts as PostData[])) {
+      if (post.thumbnail_url) imageUrls.push(post.thumbnail_url);
+    }
+    for (const post of (igPosts as PostData[])) {
+      if (post.thumbnail_url) imageUrls.push(post.thumbnail_url);
+    }
+    console.log(`[Report] Pre-fetching ${imageUrls.length} images...`);
+    const imageCache = await prefetchImages(imageUrls);
+    console.log(`[Report] Successfully cached ${imageCache.size}/${imageUrls.length} images`);
+
     // Build slide context
     const ctx: SlideContext = {
       pptx, customer, month, months,
@@ -446,6 +459,7 @@ export async function GET(
       monthlyAdsData: monthlyAdsData as MonthlyAdData[],
       pageNumber: 1,
       config,
+      imageCache,
     };
 
     // Generate all slides based on config

@@ -6,12 +6,12 @@ import {
 } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, month, fbKpis, igKpis, primaryColor, secondaryColor, pageNumber } = ctx;
+  const { pptx, customer, month, fbKpis, igKpis, primaryColor, secondaryColor, pageNumber, imageCache } = ctx;
   const slide = pptx.addSlide();
   slide.background = { color: DESIGN.colors.background };
   addBrandingLine(slide, primaryColor);
   addSubtleWatermark(slide, secondaryColor);
-  addCustomerLogo(slide, customer, 7.5, 0.15, 2, 0.5);
+  addCustomerLogo(slide, customer, 7.5, 0.15, 2, 0.5, imageCache);
 
   slide.addText('Executive Summary', {
     x: DESIGN.margin, y: 0.2, w: 7, h: 0.45,
