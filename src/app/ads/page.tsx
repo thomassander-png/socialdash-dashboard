@@ -6,7 +6,7 @@ import {
   DollarSign, Eye, MousePointer, Target, TrendingUp, 
   BarChart3, Megaphone, Users, ArrowLeft,
   Loader2, AlertCircle, RefreshCw, Download, Clock,
-  Building2, ChevronRight, Filter
+  Building2, ChevronRight
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -37,26 +37,25 @@ interface Campaign {
   insight: CampaignInsight;
 }
 
-interface AccountSummary {
-  account_id: string;
-  account_name: string;
-  currency: string;
+interface CustomerSummary {
+  customer_name: string;
+  campaigns: Campaign[];
+  spend: number;
   impressions: number;
   reach: number;
   clicks: number;
-  spend: number;
-  cpc: number;
-  cpm: number;
-  ctr: number;
   conversions: number;
   leads: number;
   link_clicks: number;
+  cpc: number;
+  cpm: number;
+  ctr: number;
+  campaign_count: number;
 }
 
 interface AdsData {
   month: string;
-  adAccounts: { id: string; name: string; account_id: string; currency: string }[];
-  accountSummaries: AccountSummary[];
+  customerSummaries: CustomerSummary[];
   campaigns: Campaign[];
   totals: {
     totalSpend: number;
@@ -146,11 +145,10 @@ function KPICard({ title, value, subtitle, icon: Icon, borderColor }: {
   );
 }
 
-/** Customer card in the overview grid */
-function CustomerCard({ account, campaigns, color, onClick }: {
-  account: AccountSummary; campaigns: Campaign[]; color: typeof ACCENT_COLORS[0]; onClick: () => void;
+/** Customer card in the overview grid - now grouped by customer, not account */
+function CustomerCard({ customer, color, onClick }: {
+  customer: CustomerSummary; color: typeof ACCENT_COLORS[0]; onClick: () => void;
 }) {
-  const campaignCount = campaigns.length;
   return (
     <button
       onClick={onClick}
@@ -162,8 +160,8 @@ function CustomerCard({ account, campaigns, color, onClick }: {
             <Building2 className={`w-5 h-5 ${color.text}`} />
           </div>
           <div>
-            <h3 className="text-white font-semibold text-sm">{account.account_name}</h3>
-            <p className="text-gray-500 text-xs">{campaignCount} Kampagne{campaignCount !== 1 ? 'n' : ''}</p>
+            <h3 className="text-white font-semibold text-sm">{customer.customer_name}</h3>
+            <p className="text-gray-500 text-xs">{customer.campaign_count} Kampagne{customer.campaign_count !== 1 ? 'n' : ''}</p>
           </div>
         </div>
         <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" />
@@ -173,27 +171,27 @@ function CustomerCard({ account, campaigns, color, onClick }: {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Ausgaben</p>
-          <p className={`text-lg font-bold ${color.text}`}>{fmt(account.spend, account.currency)}</p>
+          <p className={`text-lg font-bold ${color.text}`}>{fmt(customer.spend)}</p>
         </div>
         <div>
           <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Impressionen</p>
-          <p className="text-lg font-bold text-white">{fmtNum(account.impressions)}</p>
+          <p className="text-lg font-bold text-white">{fmtNum(customer.impressions)}</p>
         </div>
         <div>
           <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">Klicks</p>
-          <p className="text-sm font-semibold text-gray-300">{fmtRaw(account.clicks)}</p>
+          <p className="text-sm font-semibold text-gray-300">{fmtRaw(customer.clicks)}</p>
         </div>
         <div>
           <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-0.5">CTR</p>
-          <p className="text-sm font-semibold text-gray-300">{fmtPct(account.ctr)}</p>
+          <p className="text-sm font-semibold text-gray-300">{fmtPct(customer.ctr)}</p>
         </div>
       </div>
 
       {/* Top campaigns preview */}
-      {campaigns.length > 0 && (
+      {customer.campaigns.length > 0 && (
         <div className="mt-4 pt-3 border-t border-[#262626]">
           <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-2">Top Kampagnen</p>
-          {campaigns.slice(0, 3).map((c) => (
+          {customer.campaigns.slice(0, 3).map((c) => (
             <div key={c.id} className="flex justify-between items-center py-1">
               <span className="text-gray-400 text-xs truncate max-w-[65%]">{c.name}</span>
               <span className={`text-xs font-medium ${color.text}`}>{fmt(c.insight.spend, c.currency)}</span>
@@ -207,16 +205,22 @@ function CustomerCard({ account, campaigns, color, onClick }: {
 
 /** Campaign card showing individual PPA spend as a KPI */
 function CampaignKPICard({ campaign, color }: { campaign: Campaign; color: typeof ACCENT_COLORS[0] }) {
+  const statusColor = campaign.status === 'ACTIVE' ? 'text-green-400 bg-green-500/10' : 'text-gray-500 bg-[#1a1a1a]';
+  const statusLabel = campaign.status === 'ACTIVE' ? 'Aktiv' : campaign.status === 'PAUSED' ? 'Pausiert' : 'Abgeschlossen';
+  
   return (
     <div className={`bg-[#141414] border border-[#262626] border-l-4 ${color.border} rounded-xl p-4`}>
       <div className="flex items-start justify-between mb-2">
-        <h4 className="text-white font-medium text-sm truncate max-w-[80%]" title={campaign.name}>
+        <h4 className="text-white font-medium text-sm truncate max-w-[70%]" title={campaign.name}>
           {campaign.name}
         </h4>
-        <span className="text-[10px] text-gray-500 bg-[#1a1a1a] px-1.5 py-0.5 rounded">
-          {getObjectiveLabel(campaign.objective)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusColor}`}>
+            {statusLabel}
+          </span>
+        </div>
       </div>
+      <div className="text-[10px] text-gray-500 mb-2">{getObjectiveLabel(campaign.objective)}</div>
       <div className={`text-2xl font-bold ${color.text} mb-3`}>
         {fmt(campaign.insight.spend, campaign.currency)}
       </div>
@@ -256,7 +260,7 @@ function CampaignKPICard({ campaign, color }: { campaign: Campaign; color: typeo
 
 export default function AdsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [data, setData] = useState<AdsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -292,35 +296,21 @@ export default function AdsPage() {
   }, [selectedMonth, fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  // Reset account selection when month changes
-  useEffect(() => { setSelectedAccount(null); }, [selectedMonth]);
+  useEffect(() => { setSelectedCustomer(null); }, [selectedMonth]);
 
   // Derived data
-  const accountCampaigns = useMemo(() => {
-    if (!data) return new Map<string, Campaign[]>();
-    const map = new Map<string, Campaign[]>();
-    for (const c of data.campaigns) {
-      const key = c.account_id;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(c);
-    }
-    // Sort campaigns within each account by spend desc
-    for (const [, camps] of map) camps.sort((a, b) => b.insight.spend - a.insight.spend);
-    return map;
+  const customerSummaries = useMemo(() => {
+    return data?.customerSummaries || [];
   }, [data]);
 
-  const selectedAccountData = useMemo(() => {
-    if (!data || !selectedAccount) return null;
-    const summary = data.accountSummaries.find(a => a.account_id === selectedAccount);
-    const campaigns = accountCampaigns.get(selectedAccount) || [];
-    return { summary, campaigns };
-  }, [data, selectedAccount, accountCampaigns]);
+  const selectedCustomerData = useMemo(() => {
+    if (!selectedCustomer || !customerSummaries.length) return null;
+    return customerSummaries.find(c => c.customer_name === selectedCustomer) || null;
+  }, [selectedCustomer, customerSummaries]);
 
-  const sortedAccounts = useMemo(() => {
-    if (!data) return [];
-    return [...data.accountSummaries].sort((a, b) => b.spend - a.spend);
-  }, [data]);
+  const totalCampaigns = useMemo(() => {
+    return customerSummaries.reduce((sum, c) => sum + c.campaign_count, 0);
+  }, [customerSummaries]);
 
   return (
     <DashboardLayout>
@@ -328,9 +318,9 @@ export default function AdsPage() {
         {/* ─── Header ─── */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            {selectedAccount ? (
+            {selectedCustomer ? (
               <button
-                onClick={() => setSelectedAccount(null)}
+                onClick={() => setSelectedCustomer(null)}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-2 text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -339,14 +329,12 @@ export default function AdsPage() {
             ) : null}
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               <Megaphone className="w-8 h-8 text-purple-400" />
-              {selectedAccount
-                ? selectedAccountData?.summary?.account_name || 'Kunde'
-                : 'Ads Performance'}
+              {selectedCustomer || 'Ads Performance'}
             </h1>
             <p className="text-gray-400 mt-1">
-              {selectedAccount
-                ? 'Kampagnen-Details & PPA-Ausgaben'
-                : `${sortedAccounts.length} Kunden · ${data?.campaigns.length || 0} Kampagnen`}
+              {selectedCustomer
+                ? `${selectedCustomerData?.campaign_count || 0} Kampagnen · PPA-Ausgaben im Detail`
+                : `${customerSummaries.length} Kunden · ${totalCampaigns} Kampagnen`}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -428,7 +416,7 @@ export default function AdsPage() {
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* ─── ALL CUSTOMERS OVERVIEW ─── */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        {data && !loading && !data.needsSync && !selectedAccount && (
+        {data && !loading && !data.needsSync && !selectedCustomer && (
           <>
             {/* Global KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -441,22 +429,21 @@ export default function AdsPage() {
             {/* Customer Grid */}
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-purple-400" />
-              Kunden ({sortedAccounts.length})
+              Kunden ({customerSummaries.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-              {sortedAccounts.map((account, i) => (
+              {customerSummaries.map((customer, i) => (
                 <CustomerCard
-                  key={account.account_id}
-                  account={account}
-                  campaigns={accountCampaigns.get(account.account_id) || []}
+                  key={customer.customer_name}
+                  customer={customer}
                   color={ACCENT_COLORS[i % ACCENT_COLORS.length]}
-                  onClick={() => setSelectedAccount(account.account_id)}
+                  onClick={() => setSelectedCustomer(customer.customer_name)}
                 />
               ))}
             </div>
 
             {/* Spend Distribution */}
-            {sortedAccounts.length > 1 && (
+            {customerSummaries.length > 1 && (
               <div className="mb-8">
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-purple-400" />
@@ -464,19 +451,19 @@ export default function AdsPage() {
                 </h2>
                 <div className="bg-[#141414] border border-[#262626] rounded-xl p-6">
                   <div className="space-y-4">
-                    {sortedAccounts.map((account, i) => {
-                      const maxSpend = sortedAccounts[0]?.spend || 1;
-                      const pct = (account.spend / maxSpend) * 100;
+                    {customerSummaries.map((customer, i) => {
+                      const maxSpend = customerSummaries[0]?.spend || 1;
+                      const pct = (customer.spend / maxSpend) * 100;
                       const color = ACCENT_COLORS[i % ACCENT_COLORS.length];
                       return (
                         <button
-                          key={account.account_id}
-                          onClick={() => setSelectedAccount(account.account_id)}
+                          key={customer.customer_name}
+                          onClick={() => setSelectedCustomer(customer.customer_name)}
                           className="w-full text-left hover:bg-[#1a1a1a] rounded-lg p-2 -m-2 transition-colors"
                         >
                           <div className="flex justify-between items-center mb-1.5">
-                            <span className="text-sm text-gray-300 truncate max-w-[60%]">{account.account_name}</span>
-                            <span className={`text-sm font-medium ${color.text}`}>{fmt(account.spend, account.currency)}</span>
+                            <span className="text-sm text-gray-300 truncate max-w-[60%]">{customer.customer_name}</span>
+                            <span className={`text-sm font-medium ${color.text}`}>{fmt(customer.spend)}</span>
                           </div>
                           <div className="h-3 bg-[#1a1a1a] rounded-full overflow-hidden">
                             <div className={`h-full rounded-full bg-gradient-to-r ${color.bar}`} style={{ width: `${Math.max(pct, 2)}%` }} />
@@ -494,68 +481,64 @@ export default function AdsPage() {
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* ─── SINGLE CUSTOMER DETAIL VIEW ─── */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        {data && !loading && !data.needsSync && selectedAccount && selectedAccountData && (
+        {data && !loading && !data.needsSync && selectedCustomer && selectedCustomerData && (
           <>
             {/* Customer KPIs */}
-            {selectedAccountData.summary && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <KPICard
-                  title="Ausgaben"
-                  value={fmt(selectedAccountData.summary.spend, selectedAccountData.summary.currency)}
-                  subtitle="Gesamtausgaben"
-                  icon={DollarSign}
-                  borderColor="border-l-purple-500"
-                />
-                <KPICard
-                  title="Impressionen"
-                  value={fmtNum(selectedAccountData.summary.impressions)}
-                  subtitle={`CPM: ${fmt(selectedAccountData.summary.cpm, selectedAccountData.summary.currency)}`}
-                  icon={Eye}
-                  borderColor="border-l-blue-500"
-                />
-                <KPICard
-                  title="Reichweite"
-                  value={fmtNum(selectedAccountData.summary.reach)}
-                  subtitle="Unique Users"
-                  icon={Users}
-                  borderColor="border-l-green-500"
-                />
-                <KPICard
-                  title="Klicks"
-                  value={fmtRaw(selectedAccountData.summary.clicks)}
-                  subtitle={`CPC: ${fmt(selectedAccountData.summary.cpc, selectedAccountData.summary.currency)} · CTR: ${fmtPct(selectedAccountData.summary.ctr)}`}
-                  icon={MousePointer}
-                  borderColor="border-l-yellow-500"
-                />
-              </div>
-            )}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <KPICard
+                title="Ausgaben"
+                value={fmt(selectedCustomerData.spend)}
+                subtitle="Gesamtausgaben"
+                icon={DollarSign}
+                borderColor="border-l-purple-500"
+              />
+              <KPICard
+                title="Impressionen"
+                value={fmtNum(selectedCustomerData.impressions)}
+                subtitle={`CPM: ${fmt(selectedCustomerData.cpm)}`}
+                icon={Eye}
+                borderColor="border-l-blue-500"
+              />
+              <KPICard
+                title="Reichweite"
+                value={fmtNum(selectedCustomerData.reach)}
+                subtitle="Unique Users"
+                icon={Users}
+                borderColor="border-l-green-500"
+              />
+              <KPICard
+                title="Klicks"
+                value={fmtRaw(selectedCustomerData.clicks)}
+                subtitle={`CPC: ${fmt(selectedCustomerData.cpc)} · CTR: ${fmtPct(selectedCustomerData.ctr)}`}
+                icon={MousePointer}
+                borderColor="border-l-yellow-500"
+              />
+            </div>
 
             {/* Secondary KPIs */}
-            {selectedAccountData.summary && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target className="w-4 h-4 text-orange-400" />
-                    <span className="text-gray-400 text-xs uppercase tracking-wider">Conversions</span>
-                  </div>
-                  <div className="text-2xl font-bold text-white">{fmtRaw(selectedAccountData.summary.conversions)}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="w-4 h-4 text-orange-400" />
+                  <span className="text-gray-400 text-xs uppercase tracking-wider">Conversions</span>
                 </div>
-                <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="w-4 h-4 text-cyan-400" />
-                    <span className="text-gray-400 text-xs uppercase tracking-wider">Leads</span>
-                  </div>
-                  <div className="text-2xl font-bold text-white">{fmtRaw(selectedAccountData.summary.leads)}</div>
-                </div>
-                <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BarChart3 className="w-4 h-4 text-pink-400" />
-                    <span className="text-gray-400 text-xs uppercase tracking-wider">Kampagnen</span>
-                  </div>
-                  <div className="text-2xl font-bold text-white">{selectedAccountData.campaigns.length}</div>
-                </div>
+                <div className="text-2xl font-bold text-white">{fmtRaw(selectedCustomerData.conversions)}</div>
               </div>
-            )}
+              <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+                  <span className="text-gray-400 text-xs uppercase tracking-wider">Leads</span>
+                </div>
+                <div className="text-2xl font-bold text-white">{fmtRaw(selectedCustomerData.leads)}</div>
+              </div>
+              <div className="bg-[#141414] border border-[#262626] rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="w-4 h-4 text-pink-400" />
+                  <span className="text-gray-400 text-xs uppercase tracking-wider">Kampagnen</span>
+                </div>
+                <div className="text-2xl font-bold text-white">{selectedCustomerData.campaign_count}</div>
+              </div>
+            </div>
 
             {/* ─── PPA Kampagnen als Einzelkennzahlen ─── */}
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -566,15 +549,15 @@ export default function AdsPage() {
               Jede Kampagne als einzelne Kennzahl mit Ausgaben und Performance-Metriken
             </p>
 
-            {selectedAccountData.campaigns.length === 0 ? (
+            {selectedCustomerData.campaigns.length === 0 ? (
               <div className="bg-[#141414] border border-[#262626] rounded-xl p-8 text-center mb-8">
                 <Megaphone className="w-10 h-10 text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-400">Keine Kampagnen in diesem Zeitraum</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-                {selectedAccountData.campaigns.map((campaign) => {
-                  const idx = sortedAccounts.findIndex(a => a.account_id === selectedAccount);
+                {selectedCustomerData.campaigns.map((campaign) => {
+                  const idx = customerSummaries.findIndex(c => c.customer_name === selectedCustomer);
                   const color = ACCENT_COLORS[idx >= 0 ? idx % ACCENT_COLORS.length : 0];
                   return (
                     <CampaignKPICard key={campaign.id} campaign={campaign} color={color} />
@@ -584,7 +567,7 @@ export default function AdsPage() {
             )}
 
             {/* Spend Distribution within customer */}
-            {selectedAccountData.campaigns.length > 1 && (
+            {selectedCustomerData.campaigns.length > 1 && (
               <div className="mb-8">
                 <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-purple-400" />
@@ -592,10 +575,10 @@ export default function AdsPage() {
                 </h2>
                 <div className="bg-[#141414] border border-[#262626] rounded-xl p-6">
                   <div className="space-y-4">
-                    {selectedAccountData.campaigns.map((campaign) => {
-                      const maxSpend = selectedAccountData.campaigns[0]?.insight.spend || 1;
+                    {selectedCustomerData.campaigns.map((campaign) => {
+                      const maxSpend = selectedCustomerData.campaigns[0]?.insight.spend || 1;
                       const pct = (campaign.insight.spend / maxSpend) * 100;
-                      const idx = sortedAccounts.findIndex(a => a.account_id === selectedAccount);
+                      const idx = customerSummaries.findIndex(c => c.customer_name === selectedCustomer);
                       const color = ACCENT_COLORS[idx >= 0 ? idx % ACCENT_COLORS.length : 0];
                       return (
                         <div key={campaign.id}>

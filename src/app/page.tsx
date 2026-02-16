@@ -329,7 +329,14 @@ function Top5PostsChart({ posts, platform, totalPosts }: { posts: Post[]; platfo
               <span className="text-white text-sm font-bold mb-2">{getDisplayValue(post)}</span>
               <div className="w-14 h-14 mb-1 rounded-lg overflow-hidden bg-[#262626] flex-shrink-0 border border-[#363636]">
                 {post.thumbnail_url ? (
-                  <img src={post.thumbnail_url} alt={`Post ${index + 1}`} className="w-full h-full object-cover" />
+                  <img 
+                    src={post.thumbnail_url} 
+                    alt={`Post ${index + 1}`} 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-500 text-xl">
                     {platform === 'facebook' ? '📘' : '📸'}

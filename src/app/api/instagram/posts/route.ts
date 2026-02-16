@@ -43,8 +43,7 @@ export async function GET(request: NextRequest) {
         p.media_type as type,
         p.timestamp as created_time,
         p.permalink,
-        -- Use COALESCE to get the best available image
-        COALESCE(p.thumbnail_url, p.media_url, p.image_url) as thumbnail_url,
+        COALESCE(p.thumbnail_url, p.media_url, p.image_url) as original_thumbnail_url,
         p.media_url,
         p.image_url,
         -- All available metrics from Meta Partner API
@@ -73,14 +72,20 @@ export async function GET(request: NextRequest) {
     
     const result = await pool.query(query, params);
     
+    // Replace expired CDN URLs with permanent image proxy URLs
+    const posts = result.rows.map(post => ({
+      ...post,
+      thumbnail_url: post.post_id ? `/api/image-proxy?id=${post.post_id}&platform=instagram` : post.original_thumbnail_url,
+    }));
+    
     return NextResponse.json({ 
-      posts: result.rows,
+      posts,
       meta: {
         month,
         startDate,
         endDate,
         customer: customer || 'all',
-        count: result.rows.length
+        count: posts.length
       }
     }, { headers });
   } catch (error) {

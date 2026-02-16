@@ -16,10 +16,28 @@ const AD_ACCOUNT_CUSTOMER_MAP: Record<string, string> = {
   '589986474813245': 'pelikan', // Hamelin / Oxford (Pelikan group)
   '456263405094069': 'famefact-gmbh', // WeWatch Security Service GmbH
   '969976773634901': 'asphericon', // asphericon
-  '594963889574701': 'pelikan', // Pelikan Deutschland
+  '594963889574701': 'pelikan', // Pelikan Deutschland (contains both Pelikan & Herlitz campaigns)
   '1812018146005238': 'fensterart', // FENSTERART
   '778746264991304': 'vergleich.org', // VGL Publishing AG Paid Ads
 };
+
+// Shared ad accounts: Some accounts contain campaigns for multiple customers.
+// Campaigns matching these patterns (case-insensitive) are reassigned to a different customer.
+const CAMPAIGN_CUSTOMER_OVERRIDES: { pattern: RegExp; targetSlug: string }[] = [
+  { pattern: /herlitz/i, targetSlug: 'herlitz' },
+];
+
+/** Determine the customer slug for a campaign, considering campaign-level overrides */
+function getCampaignCustomerSlug(campaign: any): string | null {
+  // Check campaign name against overrides first
+  for (const override of CAMPAIGN_CUSTOMER_OVERRIDES) {
+    if (override.pattern.test(campaign.name)) {
+      return override.targetSlug;
+    }
+  }
+  // Fall back to account-level mapping
+  return AD_ACCOUNT_CUSTOMER_MAP[campaign.account_id] || null;
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -208,18 +226,17 @@ export async function GET(request: NextRequest) {
           igPrevFollowers = parseInt(igPrevFoll.rows[0]?.followers || '0');
         }
 
-        // Ads data for this customer
-        const customerAdAccounts = (adsData.accountSummaries || []).filter((a: any) => {
-          return AD_ACCOUNT_CUSTOMER_MAP[a.account_id] === customer.slug;
-        });
+        // Ads data for this customer - use campaign-level mapping for accurate attribution
         const customerCampaigns = (adsData.campaigns || []).filter((c: any) => {
-          return AD_ACCOUNT_CUSTOMER_MAP[c.account_id] === customer.slug;
+          return getCampaignCustomerSlug(c) === customer.slug;
         });
 
-        const adSpend = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.spend || 0), 0);
-        const adImpressions = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.impressions || 0), 0);
-        const adClicks = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
-        const adReach = customerAdAccounts.reduce((sum: number, a: any) => sum + (a.reach || 0), 0);
+        // Calculate totals from individual campaigns (not account summaries)
+        // This ensures correct attribution when accounts are shared between customers
+        const adSpend = customerCampaigns.reduce((sum: number, c: any) => sum + (c.insight?.spend || 0), 0);
+        const adImpressions = customerCampaigns.reduce((sum: number, c: any) => sum + (c.insight?.impressions || 0), 0);
+        const adClicks = customerCampaigns.reduce((sum: number, c: any) => sum + (c.insight?.clicks || 0), 0);
+        const adReach = customerCampaigns.reduce((sum: number, c: any) => sum + (c.insight?.reach || 0), 0);
 
         // Follower netto calculation
         const fbFollowerNetto = fbFollowers - fbPrevFollowers;
@@ -276,7 +293,6 @@ export async function GET(request: NextRequest) {
             ctr: adImpressions > 0 ? (adClicks / adImpressions) * 100 : 0,
             cpm: adImpressions > 0 ? (adSpend / adImpressions) * 1000 : 0,
             campaigns: customerCampaigns.length,
-            accounts: customerAdAccounts.length,
           },
           // Totals
           totals: {

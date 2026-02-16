@@ -195,7 +195,7 @@ function EngagementRateCard({ interactions, reach }: { interactions: number; rea
   );
 }
 
-// Post Image Component mit verbessertem Fallback
+// Post Image Component - thumbnail_url from API already points to /api/image-proxy
 function PostImage({ src, alt, className }: { src?: string; alt: string; className?: string }) {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -447,9 +447,9 @@ function FacebookContent() {
                     {index + 1}
                   </div>
                   
-                  {/* Thumbnail - mit allen Fallback-Optionen */}
+                  {/* Thumbnail - API returns proxy URL for fresh images */}
                   <PostImage 
-                    src={post.thumbnail_url || post.og_image_url || post.media_url || post.image_url}
+                    src={post.thumbnail_url}
                     alt={`Post ${index + 1}`}
                     className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden"
                   />
