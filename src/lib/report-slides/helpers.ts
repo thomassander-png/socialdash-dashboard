@@ -13,10 +13,28 @@ import { DESIGN, AGENCY, CustomerData, MonthlyKPI } from './types';
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
   if (!url) return null;
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
+    // Follow redirects, set a reasonable timeout
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SocialDash/1.0)' }
+    });
+    if (!response.ok) {
+      console.warn(`[Report] Image fetch failed with status ${response.status}: ${url}`);
+      return null;
+    }
     const contentType = response.headers.get('content-type') || 'image/jpeg';
+    // Reject non-image responses (e.g. HTML error pages)
+    if (!contentType.startsWith('image/')) {
+      console.warn(`[Report] Non-image content-type (${contentType}): ${url}`);
+      return null;
+    }
+    const buffer = await response.arrayBuffer();
+    // Reject tiny responses (< 1KB) - likely error pages or empty placeholders
+    if (buffer.byteLength < 1000) {
+      console.warn(`[Report] Image too small (${buffer.byteLength} bytes), likely invalid: ${url}`);
+      return null;
+    }
     const base64 = Buffer.from(buffer).toString('base64');
     return `data:${contentType};base64,${base64}`;
   } catch (error) {

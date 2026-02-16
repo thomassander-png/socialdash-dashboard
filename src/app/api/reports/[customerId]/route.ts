@@ -436,17 +436,48 @@ export async function GET(
     pptx.layout = 'LAYOUT_16x9';
 
     // Pre-fetch all images as base64 for reliable embedding
+    // Use the image-proxy for post images (handles expired CDN URLs automatically)
+    const baseUrl = request.url.split('/api/')[0];
     const imageUrls: string[] = [];
+    const proxyUrlMap = new Map<string, string>(); // maps proxy URL -> original thumbnail_url
+    
     if (customer.logo_url) imageUrls.push(customer.logo_url);
+    
+    // For post images, use the image-proxy which handles expired CDN URLs
     for (const post of (fbPosts as PostData[])) {
-      if (post.thumbnail_url) imageUrls.push(post.thumbnail_url);
+      if (post.thumbnail_url && post.post_id) {
+        const proxyUrl = `${baseUrl}/api/image-proxy?id=${encodeURIComponent(post.post_id)}&platform=facebook`;
+        imageUrls.push(proxyUrl);
+        proxyUrlMap.set(proxyUrl, post.thumbnail_url);
+      }
     }
     for (const post of (igPosts as PostData[])) {
-      if (post.thumbnail_url) imageUrls.push(post.thumbnail_url);
+      if (post.thumbnail_url && post.post_id) {
+        const proxyUrl = `${baseUrl}/api/image-proxy?id=${encodeURIComponent(post.post_id)}&platform=instagram`;
+        imageUrls.push(proxyUrl);
+        proxyUrlMap.set(proxyUrl, post.thumbnail_url);
+      }
     }
-    console.log(`[Report] Pre-fetching ${imageUrls.length} images...`);
-    const imageCache = await prefetchImages(imageUrls);
-    console.log(`[Report] Successfully cached ${imageCache.size}/${imageUrls.length} images`);
+    
+    console.log(`[Report] Pre-fetching ${imageUrls.length} images via proxy...`);
+    const rawCache = await prefetchImages(imageUrls);
+    
+    // Map proxy URLs back to original thumbnail_urls so slide modules can find them
+    const imageCache = new Map<string, string>();
+    for (const [url, data] of rawCache) {
+      imageCache.set(url, data);
+      // Also map the original thumbnail_url to the same data
+      const originalUrl = proxyUrlMap.get(url);
+      if (originalUrl) {
+        imageCache.set(originalUrl, data);
+      }
+    }
+    // Also add logo if it was fetched
+    if (customer.logo_url && rawCache.has(customer.logo_url)) {
+      imageCache.set(customer.logo_url, rawCache.get(customer.logo_url)!);
+    }
+    
+    console.log(`[Report] Successfully cached ${imageCache.size} images (${rawCache.size} unique fetches)`);
 
     // Build slide context
     const ctx: SlideContext = {
