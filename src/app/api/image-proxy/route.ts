@@ -53,20 +53,20 @@ export async function GET(request: NextRequest) {
     if (platform === 'instagram') {
       // Try media_id first (primary key), then post_id as fallback
       let result = await pool.query(
-        `SELECT media_url, thumbnail_url, og_image_url, permalink 
+        `SELECT media_url, thumbnail_url, image_url, permalink 
          FROM ig_posts WHERE media_id = $1 LIMIT 1`,
         [postId]
       );
       if (result.rows.length === 0) {
         result = await pool.query(
-          `SELECT media_url, thumbnail_url, og_image_url, permalink 
+          `SELECT media_url, thumbnail_url, image_url, permalink 
            FROM ig_posts WHERE post_id = $1 LIMIT 1`,
           [postId]
         );
       }
       if (result.rows.length > 0) {
         const row = result.rows[0];
-        imageUrl = row.media_url || row.thumbnail_url || row.og_image_url;
+        imageUrl = row.media_url || row.thumbnail_url || row.image_url;
         permalink = row.permalink;
       }
     } else {
