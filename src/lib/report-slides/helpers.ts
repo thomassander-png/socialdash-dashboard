@@ -267,7 +267,7 @@ export function createPremiumKPITable(
   platform: 'facebook' | 'instagram',
   primaryColor: string,
   secondaryColor: string,
-  adsData?: MonthlyAdData[]
+  _adsData?: MonthlyAdData[] // kept for API compat, not used in KPI table
 ): void {
   // Reverse KPIs: aktueller Monat links, ältester rechts
   const reversedKpis = [...kpis].reverse();
@@ -315,20 +315,11 @@ export function createPremiumKPITable(
     hdrX += colW[i];
   });
 
-  // Combine organic + paid reach and impressions
-  const reversedAds = adsData ? [...adsData].reverse() : [];
-
-  // KPI rows
+  // KPI rows - show organic values only (from Business Suite / post insights)
   const kpiRows = [
     { label: 'Beiträge', values: reversedKpis.map(k => formatNumber(k.posts_count)) },
-    { label: 'Reichweite Gesamt', values: reversedKpis.map((k, i) => {
-      const paidReach = reversedAds[i] ? (platform === 'facebook' ? reversedAds[i].fbReach : reversedAds[i].igReach) : 0;
-      return formatNumber(k.total_reach + paidReach);
-    }) },
-    { label: 'Impressionen', values: reversedKpis.map((k, i) => {
-      const paidImpr = reversedAds[i] ? (platform === 'facebook' ? reversedAds[i].fbImpressions : reversedAds[i].igImpressions) : 0;
-      return formatNumber(k.total_impressions + paidImpr);
-    }) },
+    { label: 'Postingreichweite', values: reversedKpis.map(k => formatNumber(k.total_reach)) },
+    { label: 'Impressionen', values: reversedKpis.map(k => formatNumber(k.total_impressions)) },
     { label: 'Reaktionen', values: reversedKpis.map(k => formatNumber(k.total_reactions)) },
     { label: 'Kommentare', values: reversedKpis.map(k => formatNumber(k.total_comments)) },
     { label: platform === 'facebook' ? 'Shares' : 'Saves', values: reversedKpis.map(k => formatNumber(platform === 'facebook' ? k.total_shares : k.total_saves)) },

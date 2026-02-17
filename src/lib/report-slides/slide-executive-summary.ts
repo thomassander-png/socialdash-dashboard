@@ -54,9 +54,9 @@ function generate(ctx: SlideContext): void {
   slide.addShape('roundRect', { x: pill1X, y: pillY, w: pillW, h: pillH, fill: { color: postsTrend.color }, rectRadius: 0.16 });
   slide.addText(postsTrend.text, { x: pill1X, y: pillY, w: pillW, h: pillH, fontSize: 11, bold: true, color: DESIGN.colors.white, fontFace: DESIGN.fontFamily, align: 'center', valign: 'middle' });
 
-  // KPI 2: Total Reach (organic + paid)
-  const totalReach = (fbCurrent?.total_reach || 0) + (igCurrent?.total_reach || 0) + (currentAds?.totalReach || 0);
-  const prevTotalReach = (fbPrev?.total_reach || 0) + (igPrev?.total_reach || 0) + (prevAds?.totalReach || 0);
+  // KPI 2: Total Reach (organic posting reach from post insights)
+  const totalReach = (fbCurrent?.total_reach || 0) + (igCurrent?.total_reach || 0);
+  const prevTotalReach = (fbPrev?.total_reach || 0) + (igPrev?.total_reach || 0);
   const reachTrend = getTrendText(totalReach, prevTotalReach);
 
   const box2X = DESIGN.margin + (boxW + boxGap);
@@ -108,7 +108,7 @@ function generate(ctx: SlideContext): void {
   slide.addShape('ellipse', { x: DESIGN.margin + 0.15, y: breakdownY + 0.12, w: 0.35, h: 0.35, fill: { color: primaryColor } });
   slide.addText('f', { x: DESIGN.margin + 0.15, y: breakdownY + 0.12, w: 0.35, h: 0.35, fontSize: 14, bold: true, color: DESIGN.colors.white, align: 'center', valign: 'middle', fontFace: DESIGN.fontFamily });
   slide.addText('Facebook', { x: DESIGN.margin + 0.55, y: breakdownY + 0.15, w: 2, h: 0.3, fontSize: 12, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily });
-  slide.addText(`${formatNumber((fbCurrent?.total_reach || 0) + (currentAds?.fbReach || 0))} Reichweite\n${formatNumber(fbCurrent?.posts_count || 0)} Beiträge\n${(fbCurrent?.engagement_rate || 0).toFixed(2).replace('.', ',')}% Engagement`, {
+  slide.addText(`${formatNumber(fbCurrent?.total_reach || 0)} Reichweite\n${formatNumber(fbCurrent?.posts_count || 0)} Beiträge\n${(fbCurrent?.engagement_rate || 0).toFixed(2).replace('.', ',')}% Engagement`, {
     x: DESIGN.margin + 0.15, y: breakdownY + 0.5, w: breakdownW - 0.3, h: 0.9,
     fontSize: 10, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
   });
@@ -120,7 +120,7 @@ function generate(ctx: SlideContext): void {
   slide.addShape('roundRect', { x: igBreakdownX + 0.15, y: breakdownY + 0.12, w: 0.35, h: 0.35, line: { color: secondaryColor, width: 2 }, rectRadius: 0.08 });
   slide.addShape('ellipse', { x: igBreakdownX + 0.24, y: breakdownY + 0.21, w: 0.17, h: 0.17, line: { color: secondaryColor, width: 1.5 } });
   slide.addText('Instagram', { x: igBreakdownX + 0.55, y: breakdownY + 0.15, w: 2, h: 0.3, fontSize: 12, bold: true, color: DESIGN.colors.black, fontFace: DESIGN.fontFamily });
-  slide.addText(`${formatNumber((igCurrent?.total_reach || 0) + (currentAds?.igReach || 0))} Reichweite\n${formatNumber(igCurrent?.posts_count || 0)} Beiträge\n${(igCurrent?.engagement_rate || 0).toFixed(2).replace('.', ',')}% Engagement`, {
+  slide.addText(`${formatNumber(igCurrent?.total_reach || 0)} Reichweite\n${formatNumber(igCurrent?.posts_count || 0)} Beiträge\n${(igCurrent?.engagement_rate || 0).toFixed(2).replace('.', ',')}% Engagement`, {
     x: igBreakdownX + 0.15, y: breakdownY + 0.5, w: breakdownW - 0.3, h: 0.9,
     fontSize: 10, color: DESIGN.colors.darkGray, fontFace: DESIGN.fontFamily
   });
