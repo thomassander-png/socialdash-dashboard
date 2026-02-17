@@ -164,7 +164,6 @@ async function getFollowerData(months: string[], pageIds: string[], platform: 'f
   
   const table = platform === 'facebook' ? 'fb_follower_history' : 'ig_follower_history';
   const idCol = platform === 'facebook' ? 'page_id' : 'account_id';
-  const dateCol = platform === 'facebook' ? 'snapshot_time' : 'snapshot_date';
   const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
   const results: {month: string, followers: number}[] = [];
   
@@ -174,10 +173,23 @@ async function getFollowerData(months: string[], pageIds: string[], platform: 'f
         SELECT COALESCE(MAX(followers_count), 0) as followers
         FROM ${table}
         WHERE ${idCol} IN (${placeholders})
-          AND ${dateCol} <= $1::date + interval '1 month'
+          AND snapshot_date <= $1::date + interval '1 month'
       `, [month + '-01', ...pageIds]);
-      results.push({ month, followers: parseInt(result[0]?.followers || '0') || 0 });
-    } catch {
+      let followers = parseInt(result[0]?.followers || '0') || 0;
+      
+      // If no data for this month, try to get the earliest available follower count as fallback
+      if (followers === 0) {
+        const fallback = await query<{ followers: string }>(`
+          SELECT COALESCE(MAX(followers_count), 0) as followers
+          FROM ${table}
+          WHERE ${idCol} IN (${placeholders})
+        `, [...pageIds]);
+        followers = parseInt(fallback[0]?.followers || '0') || 0;
+      }
+      
+      results.push({ month, followers });
+    } catch (error) {
+      console.error(`Error fetching follower data for ${month}:`, error);
       results.push({ month, followers: 0 });
     }
   }
