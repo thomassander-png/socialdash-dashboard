@@ -138,7 +138,7 @@ async function getFollowerData(months: string[], pageIds: string[]): Promise<{mo
     try {
       const result = await query<{ followers: string }>(`
         SELECT COALESCE(MAX(followers_count), 0) as followers
-        FROM fb_follower_snapshots
+        FROM fb_follower_history
         WHERE page_id IN (${placeholders})
           AND snapshot_time <= $1::date + interval '1 month'
       `, [month + '-01', ...pageIds]);

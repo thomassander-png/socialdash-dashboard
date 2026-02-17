@@ -97,7 +97,7 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
 
 async function getFollowerData(months: string[], pageIds: string[], platform: 'facebook' | 'instagram'): Promise<{month: string, followers: number}[]> {
   if (pageIds.length === 0) return months.map(m => ({ month: m, followers: 0 }));
-  const table = platform === 'facebook' ? 'fb_follower_snapshots' : 'ig_follower_history';
+  const table = platform === 'facebook' ? 'fb_follower_history' : 'ig_follower_history';
   const idCol = platform === 'facebook' ? 'page_id' : 'account_id';
   const dateCol = platform === 'facebook' ? 'snapshot_time' : 'snapshot_date';
   const placeholders = pageIds.map((_, i) => `$${i + 2}`).join(', ');
