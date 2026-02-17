@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       samplePosts = await query(
         `SELECT p.post_id, p.page_id, p.created_time, p.message,
                 m.reactions_total, m.comments_total, m.shares_total, 
-                m.reach, m.impressions, m.video_3s_views, m.video_views,
+                m.reach, m.impressions, m.video_3s_views,
                 m.snapshot_time
          FROM fb_posts p 
          JOIN fb_post_metrics m ON p.post_id = m.post_id
