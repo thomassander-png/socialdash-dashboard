@@ -146,10 +146,11 @@ async function getFollowerData(months: string[], pageIds: string[]): Promise<{mo
       
       // If no data for this month, try to get the earliest available follower count as fallback
       if (followers === 0) {
+        const fallbackPlaceholders = pageIds.map((_, i) => `$${i + 1}`).join(', ');
         const fallback = await query<{ followers: string }>(`
           SELECT COALESCE(MAX(followers_count), 0) as followers
           FROM fb_follower_history
-          WHERE page_id IN (${placeholders})
+          WHERE page_id IN (${fallbackPlaceholders})
         `, [...pageIds]);
         followers = parseInt(fallback[0]?.followers || '0') || 0;
       }
