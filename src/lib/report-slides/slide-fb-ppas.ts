@@ -37,10 +37,10 @@ function generate(ctx: SlideContext): void {
     { label: 'Reichweite', values: reversedAds.map(d => formatNumber(d.fbReach)) },
     { label: 'Impressionen', values: reversedAds.map(d => formatNumber(d.fbImpressions)) },
     { label: 'CPM', values: reversedAds.map(d => d.fbImpressions > 0 ? formatCurrency((d.fbSpend / d.fbImpressions) * 1000) : '–') },
-    { label: 'Interaktionen', values: reversedAds.map(d => formatNumber(d.fbEngagement)) },
-    { label: 'Video Views', values: reversedAds.map(d => formatNumber(d.fbVideoViews)) },
+    { label: 'Interaktionen', values: reversedAds.map(d => formatNumber(d.fbInteractions)) },
+    { label: 'Video Views', values: reversedAds.map(d => formatNumber(d.fbVideoViewsCampaign)) },
     { label: 'Link-Klicks', values: reversedAds.map(d => formatNumber(d.fbLinkClicks)) },
-    { label: 'Kosten/Interaktion', values: reversedAds.map(d => d.fbEngagement > 0 ? formatCurrency(d.fbSpend / d.fbEngagement) : '–') },
+    { label: 'Kosten/Interaktion', values: reversedAds.map(d => d.fbInteractions > 0 ? formatCurrency(d.fbSpend / d.fbInteractions) : '–') },
     { label: 'Budget', values: reversedAds.map(d => formatCurrency(d.fbSpend)) },
   ];
 

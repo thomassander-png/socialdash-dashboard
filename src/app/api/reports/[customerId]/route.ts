@@ -326,33 +326,55 @@ function processAdsData(months: string[], adsResults: any[], customerSlug: strin
     const fbCampaigns = dedupedCampaigns.filter((c: any) => getCampaignPlatform(c) === 'facebook');
     const igCampaigns = dedupedCampaigns.filter((c: any) => getCampaignPlatform(c) === 'instagram');
     const unknownCampaigns = dedupedCampaigns.filter((c: any) => getCampaignPlatform(c) === 'unknown');
+    const allFb = [...fbCampaigns, ...unknownCampaigns];
     const calcTotal = (camps: any[], metric: string) =>
       camps.reduce((sum: number, c: any) => sum + getLocalCampaignMetric(c, metric), 0);
 
+    // Separate Video Views campaigns from non-Video-Views campaigns
+    // "Video Views" campaigns have inflated post_engagement that is mostly video views
+    const isVideoViewsCampaign = (c: any) => /video.?views/i.test(c.name || '');
+    const fbNonVideo = allFb.filter((c: any) => !isVideoViewsCampaign(c));
+    const fbVideoOnly = allFb.filter((c: any) => isVideoViewsCampaign(c));
+    const igNonVideo = igCampaigns.filter((c: any) => !isVideoViewsCampaign(c));
+    const igVideoOnly = igCampaigns.filter((c: any) => isVideoViewsCampaign(c));
+
+    // Corrected interactions = post_engagement from non-Video-Views campaigns only
+    const fbInteractions = calcTotal(fbNonVideo, 'post_engagement');
+    const igInteractions = calcTotal(igNonVideo, 'post_engagement');
+    // Video views = post_engagement from Video Views campaigns (these are mostly actual video views)
+    const fbVideoViewsCampaign = calcTotal(fbVideoOnly, 'post_engagement');
+    const igVideoViewsCampaign = calcTotal(igVideoOnly, 'post_engagement');
+
     return {
       month: m, campaigns: dedupedCampaigns,
-      fbCampaigns: [...fbCampaigns, ...unknownCampaigns], igCampaigns,
+      fbCampaigns: allFb, igCampaigns,
       totalSpend: calcTotal(dedupedCampaigns, 'spend'),
-      fbSpend: calcTotal([...fbCampaigns, ...unknownCampaigns], 'spend'),
+      fbSpend: calcTotal(allFb, 'spend'),
       igSpend: calcTotal(igCampaigns, 'spend'),
       totalImpressions: calcTotal(dedupedCampaigns, 'impressions'),
-      fbImpressions: calcTotal([...fbCampaigns, ...unknownCampaigns], 'impressions'),
+      fbImpressions: calcTotal(allFb, 'impressions'),
       igImpressions: calcTotal(igCampaigns, 'impressions'),
       totalReach: calcTotal(dedupedCampaigns, 'reach'),
-      fbReach: calcTotal([...fbCampaigns, ...unknownCampaigns], 'reach'),
+      fbReach: calcTotal(allFb, 'reach'),
       igReach: calcTotal(igCampaigns, 'reach'),
       totalClicks: calcTotal(dedupedCampaigns, 'clicks'),
-      fbClicks: calcTotal([...fbCampaigns, ...unknownCampaigns], 'clicks'),
+      fbClicks: calcTotal(allFb, 'clicks'),
       igClicks: calcTotal(igCampaigns, 'clicks'),
       totalEngagement: calcTotal(dedupedCampaigns, 'post_engagement'),
-      fbEngagement: calcTotal([...fbCampaigns, ...unknownCampaigns], 'post_engagement'),
+      fbEngagement: calcTotal(allFb, 'post_engagement'),
       igEngagement: calcTotal(igCampaigns, 'post_engagement'),
       totalVideoViews: calcTotal(dedupedCampaigns, 'video_views'),
-      fbVideoViews: calcTotal([...fbCampaigns, ...unknownCampaigns], 'video_views'),
+      fbVideoViews: calcTotal(allFb, 'video_views'),
       igVideoViews: calcTotal(igCampaigns, 'video_views'),
       totalLinkClicks: calcTotal(dedupedCampaigns, 'link_clicks'),
-      fbLinkClicks: calcTotal([...fbCampaigns, ...unknownCampaigns], 'link_clicks'),
+      fbLinkClicks: calcTotal(allFb, 'link_clicks'),
       igLinkClicks: calcTotal(igCampaigns, 'link_clicks'),
+      // Corrected metrics
+      fbInteractions,
+      igInteractions,
+      totalInteractions: fbInteractions + igInteractions,
+      fbVideoViewsCampaign,
+      igVideoViewsCampaign,
     };
   });
 }
@@ -434,6 +456,8 @@ export async function GET(
       totalEngagement: 0, fbEngagement: 0, igEngagement: 0,
       totalVideoViews: 0, fbVideoViews: 0, igVideoViews: 0,
       totalLinkClicks: 0, fbLinkClicks: 0, igLinkClicks: 0,
+      fbInteractions: 0, igInteractions: 0, totalInteractions: 0,
+      fbVideoViewsCampaign: 0, igVideoViewsCampaign: 0,
     }));
 
     const monthlyAdsData = config.platforms.ads

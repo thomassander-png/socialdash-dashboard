@@ -121,6 +121,13 @@ export interface MonthlyAdData {
   totalLinkClicks: number;
   fbLinkClicks: number;
   igLinkClicks: number;
+  // Corrected interactions: post_engagement excluding Video Views campaigns
+  fbInteractions: number;
+  igInteractions: number;
+  totalInteractions: number;
+  // Video views from Video Views campaigns specifically
+  fbVideoViewsCampaign: number;
+  igVideoViewsCampaign: number;
 }
 
 // Context passed to every slide generator

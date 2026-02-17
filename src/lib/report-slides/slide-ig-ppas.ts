@@ -34,10 +34,10 @@ function generate(ctx: SlideContext): void {
     { label: 'Reichweite', values: reversedAds.map(d => formatNumber(d.igReach)) },
     { label: 'Impressionen', values: reversedAds.map(d => formatNumber(d.igImpressions)) },
     { label: 'CPM', values: reversedAds.map(d => d.igImpressions > 0 ? formatCurrency((d.igSpend / d.igImpressions) * 1000) : '–') },
-    { label: 'Interaktionen', values: reversedAds.map(d => formatNumber(d.igEngagement)) },
-    { label: 'Video Views', values: reversedAds.map(d => formatNumber(d.igVideoViews)) },
+    { label: 'Interaktionen', values: reversedAds.map(d => formatNumber(d.igInteractions)) },
+    { label: 'Video Views', values: reversedAds.map(d => formatNumber(d.igVideoViewsCampaign)) },
     { label: 'Link-Klicks', values: reversedAds.map(d => formatNumber(d.igLinkClicks)) },
-    { label: 'Kosten/Interaktion', values: reversedAds.map(d => d.igEngagement > 0 ? formatCurrency(d.igSpend / d.igEngagement) : '–') },
+    { label: 'Kosten/Interaktion', values: reversedAds.map(d => d.igInteractions > 0 ? formatCurrency(d.igSpend / d.igInteractions) : '–') },
     { label: 'Budget', values: reversedAds.map(d => formatCurrency(d.igSpend)) },
   ];
 

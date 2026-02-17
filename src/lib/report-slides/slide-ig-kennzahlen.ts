@@ -2,10 +2,10 @@ import { SlideModule, SlideContext, DESIGN } from './types';
 import { addSlideHeader, addFamefactIcon, createPremiumKPITable } from './helpers';
 
 function generate(ctx: SlideContext): void {
-  const { pptx, customer, igKpis, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
+  const { pptx, customer, igKpis, monthlyAdsData, primaryColor, secondaryColor, pageNumber , imageCache } = ctx;
   const slide = pptx.addSlide();
   addSlideHeader(slide, customer, primaryColor, secondaryColor, 'Instagram', 'Kennzahlen', imageCache);
-  createPremiumKPITable(slide, igKpis, 1.0, 'instagram', primaryColor, secondaryColor);
+  createPremiumKPITable(slide, igKpis, 1.0, 'instagram', primaryColor, secondaryColor, monthlyAdsData);
   addFamefactIcon(slide, pageNumber, secondaryColor);
 }
 
