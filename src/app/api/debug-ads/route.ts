@@ -11,21 +11,6 @@ export async function GET(request: NextRequest) {
     const data = result[0].data;
     const campaigns = data.campaigns || [];
     
-    // Show first campaign with full structure
-    const sample = campaigns.slice(0, 2).map((c: any) => ({
-      name: c.name,
-      account_id: c.account_id,
-      insights: c.insights?.data?.[0] ? {
-        spend: c.insights.data[0].spend,
-        impressions: c.insights.data[0].impressions,
-        reach: c.insights.data[0].reach,
-        clicks: c.insights.data[0].clicks,
-        actions: c.insights.data[0].actions?.slice(0, 15),
-        action_types: c.insights.data[0].actions?.map((a: any) => a.action_type),
-      } : 'no insights',
-    }));
-    
-    // Find asphericon campaigns (account_id = 969976773634901)
     const AD_ACCOUNT_MAP: Record<string, string> = {
       '64446085': 'andskincare',
       '289778171212746': 'contipark',
@@ -38,28 +23,37 @@ export async function GET(request: NextRequest) {
       '778746264991304': 'vergleich.org',
     };
     
+    // Return ALL fields of matching campaigns
     const customerCampaigns = campaigns.filter((c: any) => 
       AD_ACCOUNT_MAP[c.account_id] === customerSlug
-    ).map((c: any) => ({
-      name: c.name,
-      account_id: c.account_id,
-      spend: c.insights?.data?.[0]?.spend,
-      impressions: c.insights?.data?.[0]?.impressions,
-      reach: c.insights?.data?.[0]?.reach,
-      clicks: c.insights?.data?.[0]?.clicks,
-      actions: c.insights?.data?.[0]?.actions,
-    }));
+    );
     
     // Also check what months are available in ads_cache
     const allMonths = await query<{ month: string }>('SELECT month FROM ads_cache ORDER BY month DESC');
+    
+    // Also check fb_post_metrics for this customer to debug impressions
+    const fbPageIds = await query<{ account_id: string }>(
+      "SELECT ca.account_id FROM customer_accounts ca JOIN customers c ON ca.customer_id = c.customer_id WHERE LOWER(REPLACE(c.name, ' ', '-')) = LOWER($1) AND ca.platform = 'facebook'",
+      [customerSlug]
+    );
+    
+    let samplePosts: any[] = [];
+    if (fbPageIds.length > 0) {
+      const pageId = fbPageIds[0].account_id;
+      samplePosts = await query(
+        "SELECT post_id, page_id, reactions_total, comments_total, shares_total, reach, impressions, video_views, snapshot_time FROM fb_post_metrics WHERE page_id = $1 AND snapshot_time >= $2 AND snapshot_time < $3 ORDER BY snapshot_time DESC LIMIT 5",
+        [pageId, month + '-01', month === '2026-01' ? '2026-02-01' : '2026-01-01']
+      );
+    }
     
     return NextResponse.json({
       month,
       customer: customerSlug,
       totalCampaigns: campaigns.length,
       availableMonths: allMonths.map(m => m.month),
-      sampleCampaigns: sample,
       customerCampaigns,
+      fbPageIds: fbPageIds.map(p => p.account_id),
+      sampleFbPosts: samplePosts,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
