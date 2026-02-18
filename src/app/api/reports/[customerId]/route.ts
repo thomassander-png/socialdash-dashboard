@@ -77,7 +77,7 @@ async function getInstagramPosts(month: string, pageIds: string[]): Promise<Post
         COALESCE(m.likes, 0) as reactions_total,
         COALESCE(m.comments, 0) as comments_total,
         NULL as shares_total, m.reach, m.impressions,
-        NULL as video_3s_views,
+        COALESCE(m.plays, 0) as video_3s_views,
         COALESCE(p.thumbnail_url, p.media_url) as thumbnail_url,
         p.media_url as media_url,
         COALESCE(m.saves, 0) as saves
@@ -132,7 +132,7 @@ async function getFollowerData(months: string[], pageIds: string[], platform: 'f
   return results;
 }
 
-async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'facebook' | 'instagram'): Promise<MonthlyKPI[]> {
+async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'facebook' | 'instagram', adsData: MonthlyAdData[]): Promise<MonthlyKPI[]> {
   if (pageIds.length === 0) {
     return months.map(m => ({
       month: m, posts_count: 0, total_reactions: 0, total_comments: 0, total_shares: 0,
@@ -165,7 +165,12 @@ async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'fa
         `, [startDate, ...pageIds]);
         const d = result[0];
         const postsCount = parseInt(d.posts_count) || 0;
-        const totalReach = parseInt(d.total_reach) || 0;
+        
+        // FIX 5: Add paid reach from ads to organic reach
+        const organicReach = parseInt(d.total_reach) || 0;
+        const paidReach = adsData[idx]?.fbReach || 0;
+        const totalReach = organicReach + paidReach;
+        
         const totalReactions = parseInt(d.total_reactions) || 0;
         const totalComments = parseInt(d.total_comments) || 0;
         const totalShares = parseInt(d.total_shares) || 0;
@@ -174,7 +179,8 @@ async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'fa
         kpis.push({
           month, posts_count: postsCount,
           total_reactions: totalReactions, total_comments: totalComments, total_shares: totalShares,
-          total_reach: totalReach, total_impressions: parseInt(d.total_impressions) || 0,
+          total_reach: totalReach, // FIX 5: Now includes organic + paid
+          total_impressions: parseInt(d.total_impressions) || 0,
           total_video_views: parseInt(d.total_video_views) || 0, total_saves: 0,
           avg_reach: postsCount > 0 ? Math.round(totalReach / postsCount) : 0,
           engagement_rate: totalReach > 0 ? ((totalReactions + totalComments + totalShares) / totalReach) * 100 : 0,
@@ -187,7 +193,7 @@ async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'fa
             COALESCE(SUM(m.comments), 0) as total_comments,
             COALESCE(SUM(m.reach), 0) as total_reach,
             COALESCE(SUM(m.impressions), 0) as total_impressions,
-            0 as total_video_views,
+            COALESCE(SUM(m.plays), 0) as total_video_views,
             COALESCE(SUM(m.saves), 0) as total_saves
           FROM ig_posts p
           LEFT JOIN LATERAL (
@@ -198,7 +204,12 @@ async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'fa
         `, [startDate, ...pageIds]);
         const d = result[0];
         const postsCount = parseInt(d.posts_count) || 0;
-        const totalReach = parseInt(d.total_reach) || 0;
+        
+        // FIX 5: Add paid reach from ads to organic reach
+        const organicReach = parseInt(d.total_reach) || 0;
+        const paidReach = adsData[idx]?.igReach || 0;
+        const totalReach = organicReach + paidReach;
+        
         const totalReactions = parseInt(d.total_reactions) || 0;
         const totalComments = parseInt(d.total_comments) || 0;
         const totalSaves = parseInt(d.total_saves) || 0;
@@ -207,7 +218,8 @@ async function getMonthlyKPIs(months: string[], pageIds: string[], platform: 'fa
         kpis.push({
           month, posts_count: postsCount,
           total_reactions: totalReactions, total_comments: totalComments, total_shares: 0,
-          total_reach: totalReach, total_impressions: parseInt(d.total_impressions) || 0,
+          total_reach: totalReach, // FIX 5: Now includes organic + paid
+          total_impressions: parseInt(d.total_impressions) || 0,
           total_video_views: parseInt(d.total_video_views) || 0, total_saves: totalSaves,
           avg_reach: postsCount > 0 ? Math.round(totalReach / postsCount) : 0,
           engagement_rate: totalReach > 0 ? ((totalReactions + totalComments + totalSaves) / totalReach) * 100 : 0,
@@ -330,7 +342,7 @@ function processAdsData(months: string[], adsResults: any[], customerSlug: strin
     const calcTotal = (camps: any[], metric: string) =>
       camps.reduce((sum: number, c: any) => sum + getLocalCampaignMetric(c, metric), 0);
 
-    // Separate Video Views campaigns from non-Video-Views campaigns
+    // FIX 4: Separate Video Views campaigns from non-Video-Views campaigns
     // "Video Views" campaigns have inflated post_engagement that is mostly video views
     const isVideoViewsCampaign = (c: any) => /video.?views/i.test(c.name || '');
     const fbNonVideo = allFb.filter((c: any) => !isVideoViewsCampaign(c));
@@ -338,7 +350,7 @@ function processAdsData(months: string[], adsResults: any[], customerSlug: strin
     const igNonVideo = igCampaigns.filter((c: any) => !isVideoViewsCampaign(c));
     const igVideoOnly = igCampaigns.filter((c: any) => isVideoViewsCampaign(c));
 
-    // Corrected interactions = post_engagement from non-Video-Views campaigns only
+    // FIX 4: Corrected interactions = post_engagement from non-Video-Views campaigns only
     const fbInteractions = calcTotal(fbNonVideo, 'post_engagement');
     const igInteractions = calcTotal(igNonVideo, 'post_engagement');
     // Video views = post_engagement from Video Views campaigns (these are mostly actual video views)
@@ -369,7 +381,7 @@ function processAdsData(months: string[], adsResults: any[], customerSlug: strin
       totalLinkClicks: calcTotal(dedupedCampaigns, 'link_clicks'),
       fbLinkClicks: calcTotal(allFb, 'link_clicks'),
       igLinkClicks: calcTotal(igCampaigns, 'link_clicks'),
-      // Corrected metrics
+      // FIX 4: Corrected metrics
       fbInteractions,
       igInteractions,
       totalInteractions: fbInteractions + igInteractions,
@@ -431,22 +443,12 @@ export async function GET(
       month
     ];
 
-    // Fetch all data (only fetch what's needed based on config)
-    const emptyKpis = months.map(m => ({
-      month: m, posts_count: 0, total_reactions: 0, total_comments: 0, total_shares: 0,
-      total_reach: 0, total_impressions: 0, total_video_views: 0, total_saves: 0,
-      avg_reach: 0, engagement_rate: 0, followers: 0, new_followers: 0
-    }));
+    // Fetch ads data FIRST (needed for KPI calculation with paid reach)
+    const adsResults = await Promise.all(
+      months.map(m => query<{ data: any }>('SELECT data FROM ads_cache WHERE month = $1', [m]).catch(() => []))
+    );
 
-    const [fbPosts, fbKpis, igPosts, igKpis, ...adsResults] = await Promise.all([
-      config.platforms.facebook ? getFacebookPosts(month, fbPageIds) : Promise.resolve([]),
-      config.platforms.facebook ? getMonthlyKPIs(months, fbPageIds, 'facebook') : Promise.resolve(emptyKpis),
-      config.platforms.instagram ? getInstagramPosts(month, igPageIds) : Promise.resolve([]),
-      config.platforms.instagram ? getMonthlyKPIs(months, igPageIds, 'instagram') : Promise.resolve(emptyKpis),
-      ...months.map(m => query<{ data: any }>('SELECT data FROM ads_cache WHERE month = $1', [m]).catch(() => [])),
-    ]);
-
-    // Process ads data
+    // Process ads data (needed before KPIs)
     const emptyAds = months.map(m => ({
       month: m, campaigns: [], fbCampaigns: [], igCampaigns: [],
       totalSpend: 0, fbSpend: 0, igSpend: 0,
@@ -463,6 +465,20 @@ export async function GET(
     const monthlyAdsData = config.platforms.ads
       ? processAdsData(months, adsResults, customer.slug)
       : emptyAds;
+
+    // Fetch all data (only fetch what's needed based on config)
+    const emptyKpis = months.map(m => ({
+      month: m, posts_count: 0, total_reactions: 0, total_comments: 0, total_shares: 0,
+      total_reach: 0, total_impressions: 0, total_video_views: 0, total_saves: 0,
+      avg_reach: 0, engagement_rate: 0, followers: 0, new_followers: 0
+    }));
+
+    const [fbPosts, fbKpis, igPosts, igKpis] = await Promise.all([
+      config.platforms.facebook ? getFacebookPosts(month, fbPageIds) : Promise.resolve([]),
+      config.platforms.facebook ? getMonthlyKPIs(months, fbPageIds, 'facebook', monthlyAdsData) : Promise.resolve(emptyKpis),
+      config.platforms.instagram ? getInstagramPosts(month, igPageIds) : Promise.resolve([]),
+      config.platforms.instagram ? getMonthlyKPIs(months, igPageIds, 'instagram', monthlyAdsData) : Promise.resolve(emptyKpis),
+    ]);
 
     console.log(`[Report] FB Posts: ${fbPosts.length}, IG Posts: ${igPosts.length}, Ads: ${monthlyAdsData[2]?.campaigns?.length || 0}`);
     console.log(`[Report] Enabled slides:`, Object.entries(config.slides).filter(([, v]) => v).map(([k]) => k).join(', '));
